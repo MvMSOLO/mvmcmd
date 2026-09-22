@@ -73,6 +73,7 @@ export interface LaunchResult {
 
 export interface CommandSpec {
   name: string;
+  hidden?: boolean;
   aliases: string[];
   usage: string;
   summaryEn: string;
