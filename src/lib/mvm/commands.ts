@@ -4,6 +4,7 @@ export const COMMANDS: CommandSpec[] = [
   {
     name: "camera",
     aliases: [],
+    hidden: true,
     usage: "CAMERA",
     summaryEn: "Open the native MVMCMD camera.",
     summaryUz: "MVMCMD native kamerasini ochadi.",
