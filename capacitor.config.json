@@ -1,6 +1,6 @@
 {
   "appId": "com.mvmcmd.launcher",
   "appName": "MVMCMD",
-  "webDir": "dist",
+  "webDir": ".vercel/output/static",
   "bundledWebRuntime": false
 }
