@@ -3,6 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
+import { canUseNativeAndroidLauncher, nativeOpenCamera } from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -160,6 +161,25 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
+    case "camera": {
+      const runtime = detectRuntime();
+      if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
+        return {
+          state: state0,
+          lines: [
+            line(
+              "warn",
+              L(ctx2, "CAMERA hozir native Android APK ichida ishlaydi.", "CAMERA currently runs in the native Android APK."),
+            ),
+          ],
+        };
+      }
+      void nativeOpenCamera().catch(() => undefined);
+      return {
+        state: state0,
+        lines: [line("ok", "CAMERA", { meta: "NATIVE CAMERA" })],
+      };
+    }
     case "open": {
       const q = parsed.args.join(" ");
       if (!q) {
