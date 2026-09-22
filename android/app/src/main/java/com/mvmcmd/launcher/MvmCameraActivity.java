@@ -110,7 +110,12 @@ public final class MvmCameraActivity extends AppCompatActivity {
         cameraExecutor = Executors.newSingleThreadExecutor();
         buildUi();
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+        if (!hasLegacyWritePermission()) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQ_CAMERA);
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
         } else {
@@ -811,12 +816,19 @@ public final class MvmCameraActivity extends AppCompatActivity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
+    private boolean hasLegacyWritePermission() {
+        return Build.VERSION.SDK_INT >= 29
+                || ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_CAMERA && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                hasLegacyWritePermission()) {
             startCamera();
         } else {
             toast("Camera permission is required");
