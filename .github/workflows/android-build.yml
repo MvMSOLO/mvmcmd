@@ -42,7 +42,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build web application
-        run: node scripts/with-app-env.mjs vite build
+        run: npm run build
 
       - name: Verify Capacitor web bundle
         shell: bash
