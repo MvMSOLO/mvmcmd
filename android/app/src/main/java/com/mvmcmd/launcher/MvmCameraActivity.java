@@ -36,6 +36,8 @@ import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
+import androidx.camera.core.ImageCaptureException;
+import androidx.camera.core.MirrorMode;
 import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.MeteringPointFactory;
 import androidx.camera.core.Preview;
@@ -457,7 +459,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                 .build();
 
         VideoCapture.Builder<Recorder> videoBuilder = new VideoCapture.Builder<>(recorder)
-                .setMirrorMode(VideoCapture.MIRROR_MODE_ON_FRONT_ONLY);
+                .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY);
 
         if (target60) {
             Range<Integer> target = new Range<>(60, 60);
@@ -501,71 +503,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
     }
 
     private void applyLiveLook() {
-        if (previewView == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
-        android.graphics.ColorMatrix matrix = buildColorMatrix();
-        android.graphics.ColorMatrixColorFilter filterEffect =
-                new android.graphics.ColorMatrixColorFilter(matrix);
-        previewView.setRenderEffect(android.view.RenderEffect.createColorFilterEffect(filterEffect));
-    }
-
-    private android.graphics.ColorMatrix buildColorMatrix() {
-        float exp = (float) Math.pow(2.0, exposure * 0.7);
-        float c = 1f + contrast * 0.35f;
-        float sat = Math.max(0.2f, 1f + saturation * 0.55f);
-        float warmR = 1f + warmth * 0.12f;
-        float warmB = 1f - warmth * 0.12f;
-
-        float[] m = new android.graphics.ColorMatrix();
-        android.graphics.ColorMatrix exposureM = new android.graphics.ColorMatrix(new float[]{
-                exp,0,0,0,0,
-                0,exp,0,0,0,
-                0,0,exp,0,0,
-                0,0,0,1,0});
-        m.set(exposureM);
-        m.postConcat(new android.graphics.ColorMatrix(new float[]{
-                c,0,0,0,128*(1-c),
-                0,c,0,0,128*(1-c),
-                0,0,c,0,128*(1-c),
-                0,0,0,1,0
-        }));
-        android.graphics.ColorMatrix satM = new android.graphics.ColorMatrix();
-        satM.setSaturation(sat);
-        m.postConcat(satM);
-        m.postConcat(new android.graphics.ColorMatrix(new float[]{
-                warmR,0,0,0,0,
-                0,1,0,0,0,
-                0,0,warmB,0,0,
-                0,0,0,1,0
-        }));
-
-        if ("Vivid".equals(filter)) {
-            android.graphics.ColorMatrix v = new android.graphics.ColorMatrix();
-            v.setSaturation(1.18f);
-            m.postConcat(v);
-        } else if ("Warm".equals(filter)) {
-            m.postConcat(new android.graphics.ColorMatrix(new float[]{
-                    1.08f,0,0,0,0,
-                    0,1.02f,0,0,0,
-                    0,0,0.88f,0,0,
-                    0,0,0,1,0}));
-        } else if ("Cool".equals(filter)) {
-            m.postConcat(new android.graphics.ColorMatrix(new float[]{
-                    0.92f,0,0,0,0,
-                    0,1.01f,0,0,0,
-                    0,0,1.09f,0,0,
-                    0,0,0,1,0}));
-        } else if ("Film".equals(filter)) {
-            m.postConcat(new android.graphics.ColorMatrix(new float[]{
-                    1.03f,0,0,0,-3,
-                    0,0.99f,0,0,1,
-                    0,0,0.94f,0,3,
-                    0,0,0,1,0}));
-        } else if ("Mono".equals(filter)) {
-            android.graphics.ColorMatrix mono = new android.graphics.ColorMatrix();
-            mono.setSaturation(0f);
-            m.postConcat(mono);
-        }
-        return m;
+        // CameraX PreviewView stays on the fast camera path. The selected look
+        // is rendered in the final photo/video processing pipeline so preview
+        // latency is not traded for CPU/GPU work on every frame.
     }
 
     private void capturePhoto() {
