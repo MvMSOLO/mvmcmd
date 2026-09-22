@@ -17,11 +17,11 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Application
         run: npm run build
@@ -32,13 +32,23 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Sync Capacitor Android
+      - name: Configure Android Project
         run: |
           mkdir -p dist
           if [ ! -f dist/index.html ]; then echo "<html><body>MVMCMD</body></html>" > dist/index.html; fi
+          
+          # Capacitor konfiguratsiya faylini avtomatik noldan yaratamiz
+          cat <<EOF > capacitor.config.json
+          {
+            "appId": "com.mvmcmd.app",
+            "appName": "MVMCMD",
+            "webDir": "dist"
+          }
+          EOF
+
+          # Eski android papkasi bo'lsa o'chirib, noldan barqaror qo'shamiz
+          rm -rf android
+          npx cap add android
           npx cap sync android
 
       - name: Build Unsigned APK
