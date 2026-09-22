@@ -3,6 +3,7 @@ package com.mvmcmd.launcher;
 import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -67,7 +68,6 @@ import java.util.concurrent.Executors;
 public final class MvmCameraActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 701;
-    private static final int REQ_AUDIO = 702;
 
     private PreviewView previewView;
     private FrameLayout previewFrame;
@@ -98,6 +98,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private float saturation = 0f;
     private float warmth = 0f;
     private boolean prefer60 = true;
+    private Uri lastMediaUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -263,13 +264,13 @@ public final class MvmCameraActivity extends AppCompatActivity {
         galleryThumb = new ImageView(this);
         galleryThumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
         galleryThumb.setBackground(roundBg(0xFF202020, 64));
+        galleryThumb.setOnClickListener(v -> openLastMedia());
         FrameLayout.LayoutParams thumbLp = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.START | Gravity.CENTER_VERTICAL);
         thumbLp.setMargins(dp(6), 0, 0, 0);
         controls.addView(galleryThumb, thumbLp);
 
         shutter = new ImageButton(this);
         shutter.setBackground(roundBg(Color.WHITE, 100));
-        shutter.setColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN);
         shutter.setImageDrawable(circleDrawable(Color.WHITE));
         shutter.setOnClickListener(v -> {
             if (videoMode) toggleRecording();
@@ -565,7 +566,10 @@ public final class MvmCameraActivity extends AppCompatActivity {
                             @Override public void onDone(File result) {
                                 runOnUiThread(() -> {
                                     Uri uri = publishImage(result);
-                                    if (uri != null) galleryThumb.setImageURI(uri);
+                                    if (uri != null) {
+                                        lastMediaUri = uri;
+                                        galleryThumb.setImageURI(uri);
+                                    }
                                     cleanup(temp, result);
                                     processLabel.setVisibility(View.GONE);
                                     processingBar.setVisibility(View.GONE);
@@ -575,7 +579,10 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                 runOnUiThread(() -> {
                                     toast("Photo processing failed — original preserved");
                                     Uri uri = publishImage(temp);
-                                    if (uri != null) galleryThumb.setImageURI(uri);
+                                    if (uri != null) {
+                                        lastMediaUri = uri;
+                                        galleryThumb.setImageURI(uri);
+                                    }
                                     processLabel.setVisibility(View.GONE);
                                     processingBar.setVisibility(View.GONE);
                                 });
@@ -606,7 +613,8 @@ public final class MvmCameraActivity extends AppCompatActivity {
                         timerLabel.setText("● REC");
                         timerLabel.setTextColor(Color.RED);
                         timerLabel.setVisibility(View.VISIBLE);
-                        shutter.setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN);
+                        shutter.setBackground(roundBg(Color.RED, 100));
+                        shutter.setImageDrawable(circleDrawable(Color.RED));
                     } else if (event instanceof VideoRecordEvent.Status) {
                         VideoRecordEvent.Status status = (VideoRecordEvent.Status) event;
                         long duration = status.getRecordingStats().getRecordedDurationNanos() / 1_000_000_000L;
@@ -615,7 +623,8 @@ public final class MvmCameraActivity extends AppCompatActivity {
                         VideoRecordEvent.Finalize f = (VideoRecordEvent.Finalize) event;
                         recording = null;
                         timerLabel.setVisibility(View.GONE);
-                        shutter.clearColorFilter();
+                        shutter.setBackground(roundBg(Color.WHITE, 100));
+                        shutter.setImageDrawable(circleDrawable(Color.WHITE));
                         if (f.hasError()) {
                             toast("Video capture failed");
                             return;
@@ -630,6 +639,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                     @Override public void onDone(File result) {
                                         runOnUiThread(() -> {
                                             Uri uri = publishVideo(result);
+                                            lastMediaUri = uri;
                                             cleanup(temp, result);
                                             processingBar.setIndeterminate(false);
                                             processingBar.setVisibility(View.GONE);
@@ -641,6 +651,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                         runOnUiThread(() -> {
                                             toast("Video processing failed — original preserved");
                                             Uri uri = publishVideo(temp);
+                                            lastMediaUri = uri;
                                             if (uri != null) toast("Original video saved");
                                             processingBar.setIndeterminate(false);
                                             processingBar.setVisibility(View.GONE);
@@ -664,8 +675,15 @@ public final class MvmCameraActivity extends AppCompatActivity {
         }
         Uri uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
         if (uri == null) return null;
-        try (java.io.OutputStream out = resolver.openOutputStream(uri)) {
-            java.nio.file.Files.copy(file.toPath(), out);
+        try (java.io.InputStream in = new java.io.FileInputStream(file);
+             java.io.OutputStream out = resolver.openOutputStream(uri)) {
+            if (out == null) throw new java.io.IOException("Cannot open MediaStore output");
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) >= 0) {
+                if (read == 0) continue;
+                out.write(buffer, 0, read);
+            }
             if (Build.VERSION.SDK_INT >= 29) {
                 ContentValues done = new ContentValues();
                 done.put(MediaStore.Images.Media.IS_PENDING, 0);
@@ -675,6 +693,19 @@ public final class MvmCameraActivity extends AppCompatActivity {
         } catch (Exception e) {
             resolver.delete(uri, null, null);
             return null;
+        }
+    }
+
+    private void openLastMedia() {
+        if (lastMediaUri == null) return;
+        try {
+            String type = lastMediaUri.toString().endsWith(".mp4") ? "video/mp4" : "image/jpeg";
+            Intent intent = new Intent(Intent.ACTION_VIEW, lastMediaUri);
+            intent.setDataAndType(lastMediaUri, type);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(intent);
+        } catch (Exception e) {
+            toast("No gallery viewer found");
         }
     }
 
@@ -690,8 +721,15 @@ public final class MvmCameraActivity extends AppCompatActivity {
         }
         Uri uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
         if (uri == null) return null;
-        try (java.io.OutputStream out = resolver.openOutputStream(uri)) {
-            java.nio.file.Files.copy(file.toPath(), out);
+        try (java.io.InputStream in = new java.io.FileInputStream(file);
+             java.io.OutputStream out = resolver.openOutputStream(uri)) {
+            if (out == null) throw new java.io.IOException("Cannot open MediaStore output");
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) >= 0) {
+                if (read == 0) continue;
+                out.write(buffer, 0, read);
+            }
             if (Build.VERSION.SDK_INT >= 29) {
                 ContentValues done = new ContentValues();
                 done.put(MediaStore.Video.Media.IS_PENDING, 0);
