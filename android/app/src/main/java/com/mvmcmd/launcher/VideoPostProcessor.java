@@ -19,9 +19,10 @@ import androidx.media3.transformer.ExportException;
 import androidx.media3.transformer.ExportResult;
 import androidx.media3.transformer.Transformer;
 
+import com.google.common.collect.ImmutableList;
+
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @UnstableApi
@@ -109,8 +110,8 @@ public final class VideoPostProcessor {
                 videoEffects.add(rgb);
 
                 Effects effects = new Effects(
-                        Collections.emptyList(),
-                        videoEffects
+                        ImmutableList.of(),
+                        ImmutableList.copyOf(videoEffects)
                 );
 
                 MediaItem mediaItem = MediaItem.fromUri(Uri.fromFile(source));
