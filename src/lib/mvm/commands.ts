@@ -2,6 +2,13 @@ import type { CommandSpec } from "./types";
 
 export const COMMANDS: CommandSpec[] = [
   {
+    name: "camera",
+    aliases: [],
+    usage: "CAMERA",
+    summaryEn: "Open the native MVMCMD camera.",
+    summaryUz: "MVMCMD native kamerasini ochadi.",
+  },
+  {
     name: "open",
     aliases: ["o", "go", "run", "start", "launch"],
     usage: "open <name>",
