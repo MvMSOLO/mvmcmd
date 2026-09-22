@@ -6,58 +6,75 @@ on:
       - '**'
   workflow_dispatch:
 
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   build-android:
+    name: Build Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install Dependencies
-        run: |
-          npm install --legacy-peer-deps
-          npm install -g @capacitor/cli @capacitor/core @capacitor/android
-
-      - name: Build Web Application
-        run: npm run build
-
-      - name: Set up Java JDK
-        uses: actions/setup-java@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
 
-      - name: Configure Android Project
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web application
+        run: node scripts/with-app-env.mjs vite build
+
+      - name: Verify Capacitor web bundle
+        shell: bash
         run: |
-          mkdir -p dist
-          if [ ! -f dist/index.html ]; then echo "<html><body>MVMCMD</body></html>" > dist/index.html; fi
-          
-          cat <<EOF > capacitor.config.json
-          {
-            "appId": "com.mvmcmd.app",
-            "appName": "MVMCMD",
-            "webDir": "dist"
-          }
-          EOF
+          test -f ".vercel/output/static/index.html"
+          test -d ".vercel/output/static/assets"
+          echo "Verified web bundle for Capacitor:"
+          ls -lah ".vercel/output/static"
 
-          rm -rf android
-          npx cap add android
-          npx cap sync android
+      - name: Sync native Android project
+        run: npx cap sync android
 
-      - name: Build Unsigned APK
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build installable debug APK
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK
+        shell: bash
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
 
-      - name: Upload APK Artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: mvmcmd-debug-apk-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
