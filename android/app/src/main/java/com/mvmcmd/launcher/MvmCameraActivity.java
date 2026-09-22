@@ -10,7 +10,6 @@ import android.graphics.Color;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.PorterDuff;
-import android.graphics.RenderEffect;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
@@ -44,6 +43,8 @@ import androidx.camera.core.MirrorMode;
 import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.MeteringPointFactory;
 import androidx.camera.core.Preview;
+import androidx.camera.core.SessionConfig;
+import androidx.camera.media3.effect.Media3Effect;
 import androidx.camera.core.resolutionselector.AspectRatioStrategy;
 import androidx.camera.core.resolutionselector.ResolutionSelector;
 import androidx.camera.video.FallbackStrategy;
@@ -60,6 +61,12 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
+
+import androidx.media3.common.Effect;
+import androidx.media3.effect.Brightness;
+import androidx.media3.effect.Contrast;
+import androidx.media3.effect.RgbAdjustment;
+import androidx.media3.effect.RgbFilter;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -93,6 +100,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private LinearLayout adjustPanel;
     private Camera camera;
     private ProcessCameraProvider cameraProvider;
+    private Media3Effect realtimeEffect;
     private ImageCapture imageCapture;
     private VideoCapture<Recorder> videoCapture;
     private Recording recording;
@@ -479,7 +487,29 @@ public final class MvmCameraActivity extends AppCompatActivity {
         preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
         try {
-            camera = cameraProvider.bindToLifecycle(this, selector, preview, imageCapture, videoCapture);
+            if (realtimeEffect == null) {
+                realtimeEffect = new Media3Effect(
+                        this,
+                        androidx.camera.core.CameraEffect.PREVIEW,
+                        cameraExecutor,
+                        error -> runOnUiThread(() -> {
+                            // If a device cannot sustain the optional GPU effect,
+                            // the camera itself continues to operate.
+                            realtimeEffect = null;
+                        }));
+            }
+
+            applyLiveLook();
+
+            SessionConfig.Builder sessionBuilder =
+                    new SessionConfig.Builder(preview, imageCapture, videoCapture);
+            if (realtimeEffect != null) {
+                sessionBuilder.addEffect(realtimeEffect);
+            }
+
+            SessionConfig sessionConfig = sessionBuilder.build();
+            camera = cameraProvider.bindToLifecycle(
+                    this, selector, sessionConfig);
             boolean sixty = false;
             java.util.Set<Range<Integer>> ranges = camera.getCameraInfo().getSupportedFrameRateRanges();
             for (Range<Integer> range : ranges) {
@@ -488,13 +518,35 @@ public final class MvmCameraActivity extends AppCompatActivity {
                     break;
                 }
             }
-            fpsStatus.setText(target60 && sixty ? "60 FPS*" : "MAX FPS");
-            applyLiveLook();
+            fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
         } catch (Exception first) {
-            if (target60) {
-                bindCamera(false);
-            } else {
-                showError("Camera configuration failed");
+            if (realtimeEffect != null) {
+                try { realtimeEffect.close(); } catch (Exception ignored) {}
+                realtimeEffect = null;
+            }
+            try {
+                camera = cameraProvider.bindToLifecycle(
+                        this, selector, preview, imageCapture, videoCapture);
+                boolean sixty = false;
+                java.util.Set<Range<Integer>> ranges =
+                        camera.getCameraInfo().getSupportedFrameRateRanges();
+                for (Range<Integer> range : ranges) {
+                    if (range.getUpper() >= 60) {
+                        sixty = true;
+                        break;
+                    }
+                }
+                fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
+                if (target60) {
+                    // The plain camera session can still be used if the optional
+                    // realtime effect path is unsupported.
+                }
+            } catch (Exception fallback) {
+                if (target60) {
+                    bindCamera(false);
+                } else {
+                    showError("Camera configuration failed");
+                }
             }
         }
     }
@@ -508,80 +560,50 @@ public final class MvmCameraActivity extends AppCompatActivity {
     }
 
     private void applyLiveLook() {
-        if (previewView == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return;
+        if (cameraProvider == null) return;
+
+        ArrayList<Effect> effects = new ArrayList<>();
+        float liveExposure = Math.max(-1f, Math.min(1f, exposure * 0.22f));
+        float liveContrast = Math.max(-1f, Math.min(1f, contrast * 0.55f));
+
+        if (Math.abs(liveExposure) > 0.003f) {
+            effects.add(new Brightness(liveExposure));
+        }
+        if (Math.abs(liveContrast) > 0.003f) {
+            effects.add(new Contrast(liveContrast));
         }
 
-        ColorMatrix matrix = buildLiveColorMatrix();
-        previewView.setRenderEffect(
-                RenderEffect.createColorFilterEffect(
-                        new ColorMatrixColorFilter(matrix)));
-    }
+        float red = 1f + warmth * 0.13f;
+        float green = 1f;
+        float blue = 1f - warmth * 0.13f;
 
-    private ColorMatrix buildLiveColorMatrix() {
-        float exposureGain = (float) Math.pow(2.0, exposure * 0.62f);
-        float contrastGain = 1f + contrast * 0.55f;
-        float saturationGain = Math.max(0.35f, 1f + saturation * 0.65f);
-        float warmR = 1f + warmth * 0.28f;
-        float warmB = 1f - warmth * 0.28f;
-
-        ColorMatrix matrix = new ColorMatrix(new float[]{
-                exposureGain, 0, 0, 0, 0,
-                0, exposureGain, 0, 0, 0,
-                0, 0, exposureGain, 0, 0,
-                0, 0, 0, 1, 0
-        });
-
-        matrix.postConcat(new ColorMatrix(new float[]{
-                contrastGain, 0, 0, 0, 128f * (1f - contrastGain),
-                0, contrastGain, 0, 0, 128f * (1f - contrastGain),
-                0, 0, contrastGain, 0, 128f * (1f - contrastGain),
-                0, 0, 0, 1, 0
-        }));
-
-        ColorMatrix saturationMatrix = new ColorMatrix();
-        saturationMatrix.setSaturation(saturationGain);
-        matrix.postConcat(saturationMatrix);
-
-        matrix.postConcat(new ColorMatrix(new float[]{
-                warmR, 0, 0, 0, 0,
-                0, 1f, 0, 0, 0,
-                0, 0, warmB, 0, 0,
-                0, 0, 0, 1, 0
-        }));
-
-        if ("Vivid".equals(filter)) {
-            ColorMatrix vivid = new ColorMatrix();
-            vivid.setSaturation(1.12f);
-            matrix.postConcat(vivid);
-        } else if ("Warm".equals(filter)) {
-            matrix.postConcat(new ColorMatrix(new float[]{
-                    1.07f, 0, 0, 0, 0,
-                    0, 1.02f, 0, 0, 0,
-                    0, 0, 0.90f, 0, 0,
-                    0, 0, 0, 1, 0
-            }));
+        float sat = Math.max(0.55f, 1f + saturation * 0.52f);
+        if ("Vivid".equals(filter)) sat *= 1.10f;
+        if ("Warm".equals(filter)) {
+            red *= 1.06f;
+            blue *= 0.92f;
         } else if ("Cool".equals(filter)) {
-            matrix.postConcat(new ColorMatrix(new float[]{
-                    0.93f, 0, 0, 0, 0,
-                    0, 1.01f, 0, 0, 0,
-                    0, 0, 1.08f, 0, 0,
-                    0, 0, 0, 1, 0
-            }));
+            red *= 0.93f;
+            blue *= 1.07f;
         } else if ("Film".equals(filter)) {
-            matrix.postConcat(new ColorMatrix(new float[]{
-                    1.035f, 0, 0, 0, -3,
-                    0, 0.995f, 0, 0, 1,
-                    0, 0, 0.945f, 0, 3,
-                    0, 0, 0, 1, 0
-            }));
-        } else if ("Mono".equals(filter)) {
-            ColorMatrix mono = new ColorMatrix();
-            mono.setSaturation(0f);
-            matrix.postConcat(mono);
+            red *= 1.025f;
+            green *= 0.995f;
+            blue *= 0.95f;
         }
 
-        return matrix;
+        if ("Mono".equals(filter)) {
+            effects.add(RgbFilter.createGrayscaleFilter());
+        } else {
+            effects.add(new RgbAdjustment.Builder()
+                    .setRedScale(Math.max(0f, red * sat))
+                    .setGreenScale(Math.max(0f, green * sat))
+                    .setBlueScale(Math.max(0f, blue * sat))
+                    .build());
+        }
+
+        if (realtimeEffect != null) {
+            realtimeEffect.setEffects(effects);
+        }
     }
 
     private void capturePhoto() {
@@ -997,8 +1019,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
             recording.stop();
             recording = null;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && previewView != null) {
-            previewView.setRenderEffect(null);
+        if (realtimeEffect != null) {
+            try { realtimeEffect.close(); } catch (Exception ignored) {}
+            realtimeEffect = null;
         }
         if (cameraExecutor != null) cameraExecutor.shutdown();
         super.onDestroy();
