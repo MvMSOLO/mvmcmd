@@ -43,6 +43,16 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Typecheck web application
+        run: npm run typecheck
+
+      - name: Verify native launcher source
+        shell: bash
+        run: |
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
+
       - name: Build web application
         run: npm run build
 
