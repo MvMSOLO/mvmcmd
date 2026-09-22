@@ -43,10 +43,27 @@ public final class VideoPostProcessor {
             float saturation,
             float warmth,
             Callback callback) {
+        int[] targets = {3840, 2560, 1920};
+        startExport(context, source, filter, exposure, contrast, saturation, warmth,
+                targets, 0, callback);
+    }
 
+    private static void startExport(
+            Context context,
+            File source,
+            String filter,
+            float exposure,
+            float contrast,
+            float saturation,
+            float warmth,
+            int[] targets,
+            int index,
+            Callback callback) {
+
+        final int shortSide = targets[index];
         File output = new File(
                 source.getParentFile(),
-                "mvm_video_processed_" + System.currentTimeMillis() + ".mp4"
+                "mvm_video_processed_" + shortSide + "_" + System.currentTimeMillis() + ".mp4"
         );
 
         Handler main = new Handler(Looper.getMainLooper());
@@ -54,9 +71,9 @@ public final class VideoPostProcessor {
             try {
                 List<Effect> videoEffects = new ArrayList<>();
 
-                // User requested 4:3 for both orientations. Keeping the short side
-                // at 2880 yields 3840x2880 landscape or 2880x3840 portrait.
-                videoEffects.add(Presentation.createForShortSide(2880));
+                // Preserve the 4:3 frame and orientation. The short side is the
+                // quality tier: 2880 -> 3840x2880 / 2880x3840.
+                videoEffects.add(Presentation.createForShortSide(shortSide));
 
                 float gain = (float) Math.pow(2.0, exposure * 0.70);
                 float r = gain * (1f + warmth * 0.12f);
@@ -78,7 +95,6 @@ public final class VideoPostProcessor {
                     g *= 0.99f;
                     b *= 0.94f;
                 } else if ("Mono".equals(filter)) {
-                    // Luma-weighted monochrome channel mix approximation.
                     r = 0.2126f * gain;
                     g = 0.7152f * gain;
                     b = 0.0722f * gain;
@@ -118,7 +134,14 @@ public final class VideoPostProcessor {
                                     @NonNull ExportResult result,
                                     @NonNull ExportException exception) {
                                 if (output.exists()) output.delete();
-                                callback.onError(exception);
+
+                                if (index + 1 < targets.length) {
+                                    startExport(
+                                            context, source, filter, exposure, contrast,
+                                            saturation, warmth, targets, index + 1, callback);
+                                } else {
+                                    callback.onError(exception);
+                                }
                             }
                         })
                         .build();
@@ -126,7 +149,14 @@ public final class VideoPostProcessor {
                 transformer.start(editedMediaItem, output.getAbsolutePath());
             } catch (Throwable error) {
                 if (output.exists()) output.delete();
-                callback.onError(error);
+
+                if (index + 1 < targets.length) {
+                    startExport(
+                            context, source, filter, exposure, contrast,
+                            saturation, warmth, targets, index + 1, callback);
+                } else {
+                    callback.onError(error);
+                }
             }
         });
     }
