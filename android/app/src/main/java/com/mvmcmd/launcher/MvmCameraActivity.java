@@ -44,6 +44,7 @@ import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.MeteringPointFactory;
 import androidx.camera.core.Preview;
 import androidx.camera.core.SessionConfig;
+import androidx.camera.core.featuregroup.GroupableFeature;
 import androidx.camera.media3.effect.Media3Effect;
 import androidx.camera.core.resolutionselector.AspectRatioStrategy;
 import androidx.camera.core.resolutionselector.ResolutionSelector;
@@ -503,6 +504,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
 
             SessionConfig.Builder sessionBuilder =
                     new SessionConfig.Builder(preview, imageCapture, videoCapture);
+            if (target60) {
+                sessionBuilder.setPreferredFeatureGroup(GroupableFeature.FPS_60);
+            }
             if (realtimeEffect != null) {
                 sessionBuilder.addEffect(realtimeEffect);
             }
@@ -510,14 +514,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
             SessionConfig sessionConfig = sessionBuilder.build();
             camera = cameraProvider.bindToLifecycle(
                     this, selector, sessionConfig);
-            boolean sixty = false;
-            java.util.Set<Range<Integer>> ranges = camera.getCameraInfo().getSupportedFrameRateRanges();
-            for (Range<Integer> range : ranges) {
-                if (range.getUpper() >= 60) {
-                    sixty = true;
-                    break;
-                }
-            }
+
+            boolean sixty = sessionConfig.getFeatureSelection() != null
+                    && sessionConfig.getFeatureSelection().contains(GroupableFeature.FPS_60);
             fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
         } catch (Exception first) {
             if (realtimeEffect != null) {
@@ -527,15 +526,14 @@ public final class MvmCameraActivity extends AppCompatActivity {
             try {
                 camera = cameraProvider.bindToLifecycle(
                         this, selector, preview, imageCapture, videoCapture);
-                boolean sixty = false;
-                java.util.Set<Range<Integer>> ranges =
-                        camera.getCameraInfo().getSupportedFrameRateRanges();
-                for (Range<Integer> range : ranges) {
-                    if (range.getUpper() >= 60) {
-                        sixty = true;
-                        break;
-                    }
-                }
+                SessionConfig fallbackSession =
+                        new SessionConfig.Builder(preview, imageCapture, videoCapture)
+                                .build();
+                camera = cameraProvider.bindToLifecycle(
+                        this, selector, fallbackSession);
+                boolean sixty = fallbackSession.getFeatureSelection() != null
+                        && fallbackSession.getFeatureSelection().contains(
+                                GroupableFeature.FPS_60);
                 fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
                 if (target60) {
                     // The plain camera session can still be used if the optional
