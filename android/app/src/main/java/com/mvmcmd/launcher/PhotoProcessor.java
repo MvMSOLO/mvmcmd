@@ -217,8 +217,10 @@ public final class PhotoProcessor {
         long count = 0;
         long edges = 0;
 
-        int[] pixels = new int[Math.max(1, ((w + step - 1) / step) *
-                ((h + step - 1) / step))];
+        int[] pixels = new int[Math.max(1, Math.min(
+                65536,
+                ((w + step - 1) / step) * ((h + step - 1) / step)
+        ))];
         int p = 0;
 
         for (int y = 0; y < h; y += step) {
