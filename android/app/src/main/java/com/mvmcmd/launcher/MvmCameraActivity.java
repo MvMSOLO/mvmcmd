@@ -61,6 +61,7 @@ import androidx.camera.video.VideoRecordEvent;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
+import androidx.core.util.Consumer;
 import androidx.core.content.ContextCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -478,11 +479,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
         VideoCapture.Builder<Recorder> videoBuilder = new VideoCapture.Builder<>(recorder)
                 .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY);
 
-        if (target60) {
-            Range<Integer> target = new Range<>(60, 60);
-            previewBuilder.setTargetFrameRate(target);
-            videoBuilder.setTargetFrameRate(target);
-        }
+        // When using CameraX feature groups, FPS_60 is selected at the
+        // SessionConfig level. Do not also configure per-use-case target FPS,
+        // because the two mechanisms represent the same groupable feature.
 
         Preview preview = previewBuilder.build();
         imageCapture = imageBuilder.build();
@@ -515,12 +514,22 @@ public final class MvmCameraActivity extends AppCompatActivity {
             }
 
             SessionConfig sessionConfig = sessionBuilder.build();
+            sessionConfig.setFeatureSelectionListener(
+                    ContextCompat.getMainExecutor(this),
+                    new Consumer<java.util.Set<GroupableFeature>>() {
+                        @Override
+                        public void accept(java.util.Set<GroupableFeature> features) {
+                            boolean sixty = features.contains(GroupableFeature.FPS_60);
+                            fpsStatus.setText(sixty ? "60 FPS" : "MAX FPS");
+                        }
+                    });
+
             camera = cameraProvider.bindToLifecycle(
                     this, selector, sessionConfig);
 
-            boolean sixty = sessionConfig.getFeatureSelection() != null
-                    && sessionConfig.getFeatureSelection().contains(GroupableFeature.FPS_60);
-            fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
+            // Listener is invoked by CameraX after the session is bound.
+            // Until that callback arrives, show a capability-aware fallback label.
+            fpsStatus.setText(target60 ? "60 FPS" : "MAX FPS");
         } catch (Exception first) {
             if (realtimeEffect != null) {
                 try { realtimeEffect.close(); } catch (Exception ignored) {}
@@ -534,10 +543,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                 .build();
                 camera = cameraProvider.bindToLifecycle(
                         this, selector, fallbackSession);
-                boolean sixty = fallbackSession.getFeatureSelection() != null
-                        && fallbackSession.getFeatureSelection().contains(
-                                GroupableFeature.FPS_60);
-                fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
+                fpsStatus.setText("MAX FPS");
                 if (target60) {
                     // The plain camera session can still be used if the optional
                     // realtime effect path is unsupported.
