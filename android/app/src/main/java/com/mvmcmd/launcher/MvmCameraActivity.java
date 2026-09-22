@@ -200,7 +200,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                 FrameLayout.LayoutParams.MATCH_PARENT, dp(72), Gravity.TOP);
         root.addView(top, topLp);
 
-        TextView hdr = label("HDR  AUTO", 10, false);
+        TextView hdr = label("AUTO ENHANCE", 10, false);
         hdr.setGravity(Gravity.CENTER);
         hdr.setPadding(dp(10), dp(7), dp(10), dp(7));
         hdr.setBackground(roundBg(0x66000000, 18));
@@ -296,7 +296,22 @@ public final class MvmCameraActivity extends AppCompatActivity {
         switchCamera.setImageResource(android.R.drawable.ic_menu_rotate);
         switchCamera.setBackground(roundBg(0x55000000, 100));
         switchCamera.setOnClickListener(v -> {
-            frontCamera = !frontCamera;
+            boolean nextFront = !frontCamera;
+            CameraSelector requested = new CameraSelector.Builder()
+                    .requireLensFacing(nextFront
+                            ? CameraSelector.LENS_FACING_FRONT
+                            : CameraSelector.LENS_FACING_BACK)
+                    .build();
+            try {
+                if (!cameraProvider.hasCamera(requested)) {
+                    toast("Front camera unavailable");
+                    return;
+                }
+            } catch (Exception ignored) {
+                toast("Camera unavailable");
+                return;
+            }
+            frontCamera = nextFront;
             bindCamera(prefer60);
         });
         FrameLayout.LayoutParams switchLp = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.END | Gravity.CENTER_VERTICAL);
