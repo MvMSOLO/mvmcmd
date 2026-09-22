@@ -7,7 +7,10 @@ import android.content.Intent;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.PorterDuff;
+import android.graphics.RenderEffect;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
@@ -60,6 +63,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -71,6 +75,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 701;
     private static final int REQ_AUDIO = 702;
+    private static final int PHOTO_BURST_FRAMES = 3;
 
     private PreviewView previewView;
     private FrameLayout previewFrame;
@@ -483,7 +488,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                     break;
                 }
             }
-            fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
+            fpsStatus.setText(target60 && sixty ? "60 FPS*" : "MAX FPS");
             applyLiveLook();
         } catch (Exception first) {
             if (target60) {
@@ -503,15 +508,104 @@ public final class MvmCameraActivity extends AppCompatActivity {
     }
 
     private void applyLiveLook() {
-        // CameraX PreviewView stays on the fast camera path. The selected look
-        // is rendered in the final photo/video processing pipeline so preview
-        // latency is not traded for CPU/GPU work on every frame.
+        if (previewView == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return;
+        }
+
+        ColorMatrix matrix = buildLiveColorMatrix();
+        previewView.setRenderEffect(
+                RenderEffect.createColorFilterEffect(
+                        new ColorMatrixColorFilter(matrix)));
+    }
+
+    private ColorMatrix buildLiveColorMatrix() {
+        float exposureGain = (float) Math.pow(2.0, exposure * 0.62f);
+        float contrastGain = 1f + contrast * 0.55f;
+        float saturationGain = Math.max(0.35f, 1f + saturation * 0.65f);
+        float warmR = 1f + warmth * 0.28f;
+        float warmB = 1f - warmth * 0.28f;
+
+        ColorMatrix matrix = new ColorMatrix(new float[]{
+                exposureGain, 0, 0, 0, 0,
+                0, exposureGain, 0, 0, 0,
+                0, 0, exposureGain, 0, 0,
+                0, 0, 0, 1, 0
+        });
+
+        matrix.postConcat(new ColorMatrix(new float[]{
+                contrastGain, 0, 0, 0, 128f * (1f - contrastGain),
+                0, contrastGain, 0, 0, 128f * (1f - contrastGain),
+                0, 0, contrastGain, 0, 128f * (1f - contrastGain),
+                0, 0, 0, 1, 0
+        }));
+
+        ColorMatrix saturationMatrix = new ColorMatrix();
+        saturationMatrix.setSaturation(saturationGain);
+        matrix.postConcat(saturationMatrix);
+
+        matrix.postConcat(new ColorMatrix(new float[]{
+                warmR, 0, 0, 0, 0,
+                0, 1f, 0, 0, 0,
+                0, 0, warmB, 0, 0,
+                0, 0, 0, 1, 0
+        }));
+
+        if ("Vivid".equals(filter)) {
+            ColorMatrix vivid = new ColorMatrix();
+            vivid.setSaturation(1.12f);
+            matrix.postConcat(vivid);
+        } else if ("Warm".equals(filter)) {
+            matrix.postConcat(new ColorMatrix(new float[]{
+                    1.07f, 0, 0, 0, 0,
+                    0, 1.02f, 0, 0, 0,
+                    0, 0, 0.90f, 0, 0,
+                    0, 0, 0, 1, 0
+            }));
+        } else if ("Cool".equals(filter)) {
+            matrix.postConcat(new ColorMatrix(new float[]{
+                    0.93f, 0, 0, 0, 0,
+                    0, 1.01f, 0, 0, 0,
+                    0, 0, 1.08f, 0, 0,
+                    0, 0, 0, 1, 0
+            }));
+        } else if ("Film".equals(filter)) {
+            matrix.postConcat(new ColorMatrix(new float[]{
+                    1.035f, 0, 0, 0, -3,
+                    0, 0.995f, 0, 0, 1,
+                    0, 0, 0.945f, 0, 3,
+                    0, 0, 0, 1, 0
+            }));
+        } else if ("Mono".equals(filter)) {
+            ColorMatrix mono = new ColorMatrix();
+            mono.setSaturation(0f);
+            matrix.postConcat(mono);
+        }
+
+        return matrix;
     }
 
     private void capturePhoto() {
         if (imageCapture == null || processingBar.getVisibility() == View.VISIBLE) return;
 
-        File temp = new File(getCacheDir(), "mvm_photo_" + System.currentTimeMillis() + ".jpg");
+        processingBar.setIndeterminate(false);
+        processingBar.setMax(100);
+        processingBar.setProgress(0);
+        processingBar.setVisibility(View.VISIBLE);
+        processLabel.setText(PHOTO_BURST_FRAMES > 1
+                ? "CAPTURE  ·  MULTI-FRAME"
+                : "CAPTURE  ·  PHOTO");
+        processLabel.setVisibility(View.VISIBLE);
+        shutter.setEnabled(false);
+
+        ArrayList<File> burst = new ArrayList<>();
+        capturePhotoFrame(burst, 0);
+    }
+
+    private void capturePhotoFrame(ArrayList<File> burst, int index) {
+        File temp = new File(
+                getCacheDir(),
+                "mvm_photo_" + System.currentTimeMillis() + "_" + index + ".jpg");
+
         ImageCapture.OutputFileOptions output =
                 new ImageCapture.OutputFileOptions.Builder(temp).build();
 
@@ -520,54 +614,117 @@ public final class MvmCameraActivity extends AppCompatActivity {
                 ContextCompat.getMainExecutor(this),
                 new ImageCapture.OnImageSavedCallback() {
                     @Override
-                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                        processLabel.setText("ENHANCING  ·  PHOTO");
-                        processLabel.setVisibility(View.VISIBLE);
-                        processingBar.setVisibility(View.VISIBLE);
-                        processingBar.setProgress(8);
-                        PhotoProcessor.Settings s = new PhotoProcessor.Settings(
-                                filter, exposure, contrast, saturation, warmth);
-                        PhotoProcessor.processAsync(temp, s, new PhotoProcessor.Callback() {
-                            @Override public void onProgress(int progress, String stage) {
-                                runOnUiThread(() -> {
-                                    processingBar.setProgress(progress);
-                                    processLabel.setText(stage);
-                                });
-                            }
-                            @Override public void onDone(File result) {
-                                runOnUiThread(() -> {
-                                    Uri uri = publishImage(result);
-                                    if (uri != null) {
-                                        lastMediaUri = uri;
-                                        lastMediaMimeType = "image/jpeg";
-                                        galleryThumb.setImageURI(uri);
-                                    }
-                                    cleanup(temp, result);
-                                    processLabel.setVisibility(View.GONE);
-                                    processingBar.setVisibility(View.GONE);
-                                });
-                            }
-                            @Override public void onError(Throwable error) {
-                                runOnUiThread(() -> {
-                                    toast("Photo processing failed — original preserved");
-                                    Uri uri = publishImage(temp);
-                                    if (uri != null) {
-                                        lastMediaUri = uri;
-                                        lastMediaMimeType = "image/jpeg";
-                                        galleryThumb.setImageURI(uri);
-                                    }
-                                    processLabel.setVisibility(View.GONE);
-                                    processingBar.setVisibility(View.GONE);
-                                });
-                            }
+                    public void onImageSaved(
+                            @NonNull ImageCapture.OutputFileResults outputFileResults) {
+                        burst.add(temp);
+
+                        int progress = Math.min(
+                                25,
+                                5 + (burst.size() * 20 / Math.max(1, PHOTO_BURST_FRAMES)));
+                        processingBar.setProgress(progress);
+                        processLabel.setText(String.format(
+                                Locale.US,
+                                "CAPTURE  ·  %d/%d",
+                                burst.size(), PHOTO_BURST_FRAMES));
+
+                        if (burst.size() < PHOTO_BURST_FRAMES) {
+                            previewView.postDelayed(
+                                    () -> capturePhotoFrame(burst, index + 1),
+                                    35L);
+                            return;
+                        }
+
+                        processPhotoBurst(burst);
+                    }
+
+                    @Override
+                    public void onError(
+                            @NonNull ImageCaptureException exception) {
+                        if (burst.isEmpty()) {
+                            shutter.setEnabled(true);
+                            processLabel.setVisibility(View.GONE);
+                            processingBar.setVisibility(View.GONE);
+                            toast("Capture failed");
+                            return;
+                        }
+
+                        processPhotoBurst(burst);
+                    }
+                });
+    }
+
+    private void processPhotoBurst(ArrayList<File> burst) {
+        processLabel.setText("ENHANCING  ·  PHOTO");
+        processingBar.setProgress(28);
+
+        PhotoProcessor.Settings settings =
+                new PhotoProcessor.Settings(
+                        filter, exposure, contrast, saturation, warmth);
+
+        PhotoProcessor.processAsync(
+                burst,
+                settings,
+                new PhotoProcessor.Callback() {
+                    @Override
+                    public void onProgress(int progress, String stage) {
+                        runOnUiThread(() -> {
+                            processingBar.setIndeterminate(false);
+                            processingBar.setProgress(progress);
+                            processLabel.setText(stage);
                         });
                     }
 
                     @Override
-                    public void onError(@NonNull ImageCaptureException exception) {
-                        toast("Capture failed");
+                    public void onDone(File result) {
+                        runOnUiThread(() -> {
+                            Uri uri = publishImage(result);
+                            if (uri != null) {
+                                lastMediaUri = uri;
+                                lastMediaMimeType = "image/jpeg";
+                                galleryThumb.setImageURI(uri);
+                            }
+
+                            cleanupFiles(burst);
+                            if (result != null && result.exists()) {
+                                //noinspection ResultOfMethodCallIgnored
+                                result.delete();
+                            }
+
+                            shutter.setEnabled(true);
+                            processLabel.setVisibility(View.GONE);
+                            processingBar.setVisibility(View.GONE);
+                        });
+                    }
+
+                    @Override
+                    public void onError(Throwable error) {
+                        runOnUiThread(() -> {
+                            toast("Enhancement failed — original preserved");
+
+                            File original = burst.isEmpty() ? null : burst.get(0);
+                            Uri uri = original == null ? null : publishImage(original);
+                            if (uri != null) {
+                                lastMediaUri = uri;
+                                lastMediaMimeType = "image/jpeg";
+                                galleryThumb.setImageURI(uri);
+                            }
+
+                            cleanupFiles(burst);
+                            shutter.setEnabled(true);
+                            processLabel.setVisibility(View.GONE);
+                            processingBar.setVisibility(View.GONE);
+                        });
                     }
                 });
+    }
+
+    private void cleanupFiles(List<File> files) {
+        for (File file : files) {
+            if (file != null && file.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }
     }
 
     private void toggleRecording() {
@@ -839,6 +996,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
         if (recording != null) {
             recording.stop();
             recording = null;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && previewView != null) {
+            previewView.setRenderEffect(null);
         }
         if (cameraExecutor != null) cameraExecutor.shutdown();
         super.onDestroy();
