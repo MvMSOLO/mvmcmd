@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
@@ -32,11 +32,15 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Sync Capacitor Android
+      - name: Configure Android Project
         run: |
           mkdir -p dist
           if [ ! -f dist/index.html ]; then echo "<html><body>MVMCMD</body></html>" > dist/index.html; fi
-          npx cap sync android
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
+          fi
 
       - name: Build Unsigned APK
         run: |
