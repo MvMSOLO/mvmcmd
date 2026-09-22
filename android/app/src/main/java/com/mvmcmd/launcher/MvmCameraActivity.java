@@ -157,7 +157,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
 
         fpsStatus = label("60 FPS", 11, true);
         fpsStatus.setGravity(Gravity.CENTER);
-        top.addView(fpsStatus, weightLp(1));
+        top.addView(fpsStatus, new LinearLayout.LayoutParams(0, dp(48), 1f));
 
         flashButton = iconText("⚡", 20);
         flashButton.setContentDescription("Flash");
@@ -279,7 +279,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
         controls.addView(shutter, shutterLp);
 
         switchCamera = new ImageButton(this);
-        switchCamera.setImageDrawable(textDrawable("↻", Color.WHITE, 28));
+        switchCamera.setImageResource(android.R.drawable.ic_menu_rotate);
         switchCamera.setBackground(roundBg(0x55000000, 100));
         switchCamera.setOnClickListener(v -> {
             frontCamera = !frontCamera;
@@ -434,7 +434,6 @@ public final class MvmCameraActivity extends AppCompatActivity {
             videoBuilder.setTargetFrameRate(target);
         }
 
-        previewView.setSurfaceProvider(null);
         Preview preview = previewBuilder.build();
         imageCapture = imageBuilder.build();
         videoCapture = videoBuilder.build();
@@ -443,7 +442,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
         try {
             camera = cameraProvider.bindToLifecycle(this, selector, preview, imageCapture, videoCapture);
             boolean sixty = false;
-            List<Range<Integer>> ranges = camera.getCameraInfo().getSupportedFrameRateRanges();
+            java.util.List<Range<Integer>> ranges = camera.getCameraInfo().getSupportedFrameRateRanges();
             for (Range<Integer> range : ranges) {
                 if (range.getUpper() >= 60) {
                     sixty = true;
@@ -738,10 +737,6 @@ public final class MvmCameraActivity extends AppCompatActivity {
         return new FrameLayout.LayoutParams(dp(size), dp(size));
     }
 
-    private FrameLayout.LayoutParams weightLp(int weight) {
-        return new FrameLayout.LayoutParams(0, dp(48));
-    }
-
     private LinearLayout.LayoutParams weightLp(float weight) {
         return new LinearLayout.LayoutParams(0, dp(48), weight);
     }
@@ -763,13 +758,6 @@ public final class MvmCameraActivity extends AppCompatActivity {
         d.setColor(color);
         d.setStroke(dp(4), 0xFFFFFFFF);
         return d;
-    }
-
-    private android.graphics.drawable.Drawable textDrawable(String text, int color, int size) {
-        TextView t = label(text, size, true);
-        t.setGravity(Gravity.CENTER);
-        return new android.graphics.drawable.BitmapDrawable(getResources(),
-                android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888));
     }
 
     private void showError(String message) {
