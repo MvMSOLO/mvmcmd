@@ -1,4 +1,10 @@
 import { appStoreSearch, playStoreUrl } from "./platform";
+import {
+  canUseNativeAndroidLauncher,
+  nativeOpenPackage,
+  nativeOpenStore,
+  nativeOpenUrl,
+} from "./native-launcher";
 import type { CatalogApp, LaunchResult, PlatformKind } from "./types";
 
 function encodeIntent(parts: string[]): string {
@@ -13,6 +19,7 @@ export function androidLaunchUrl(app: CatalogApp): string | null {
     return encodeIntent([
       `action=${app.androidAction}`,
       `package=${app.androidPackage}`,
+      ...(app.androidData ? [`S.android.intent.extra.TEXT=${encodeURIComponent(app.androidData)}`] : []),
     ]);
   }
   if (app.androidAction && !app.androidPackage) {
@@ -64,6 +71,29 @@ function fireTab(url: string): boolean {
   return Boolean(w);
 }
 
+function nativeAndroidPackageLaunch(app: CatalogApp): void {
+  if (!app.androidPackage) return;
+
+  void nativeOpenPackage(app.androidPackage, app.androidAction, app.androidData).then((result) => {
+    if (result.launched) return;
+
+    // The app is not installed (or exposes no launcher activity). Open the
+    // real store page instead of pretending an intent succeeded.
+    if (!result.installed) {
+      void nativeOpenStore(app.androidPackage!, app.webUrl);
+      return;
+    }
+
+    // Installed but not launchable with the requested activity: give the user
+    // the web surface as the final safe fallback.
+    if (app.webUrl) {
+      void nativeOpenUrl(app.webUrl);
+    }
+  }).catch(() => {
+    if (app.webUrl) void nativeOpenUrl(app.webUrl);
+  });
+}
+
 export function launchApp(
   app: CatalogApp,
   platform: PlatformKind,
@@ -77,6 +107,20 @@ export function launchApp(
   }
 
   if (platform === "android") {
+    // Capacitor Android must use the native PackageManager path. Navigating
+    // intent:// from inside Android WebView is unreliable and can leave the
+    // user on the same page while the UI falsely reports a launch.
+    if (canUseNativeAndroidLauncher() && app.androidPackage) {
+      nativeAndroidPackageLaunch(app);
+      return {
+        ok: true,
+        method: "intent",
+        url: app.androidPackage,
+        app,
+        note: "NATIVE ANDROID INTENT",
+      };
+    }
+
     const intent = androidLaunchUrl(app);
     if (intent) {
       fireNavigate(intent);
@@ -88,6 +132,7 @@ export function launchApp(
         note: "ANDROID INTENT",
       };
     }
+
     const web = webLaunchUrl(app);
     if (web) {
       fireTab(web);
@@ -145,6 +190,12 @@ export function launchStore(app: CatalogApp, platform: PlatformKind): LaunchResu
   if (!url) {
     return { ok: false, method: "store", url: "", app, note: "NO STORE" };
   }
+
+  if (platform === "android" && canUseNativeAndroidLauncher() && app.androidPackage) {
+    void nativeOpenStore(app.androidPackage, app.webUrl);
+    return { ok: true, method: "store", url, app, note: "NATIVE STORE" };
+  }
+
   fireTab(url);
   return { ok: true, method: "store", url, app, note: "STORE" };
 }
@@ -158,13 +209,25 @@ export function launchPackage(pkg: string): LaunchResult {
     category: "tool",
     weight: 1,
   };
+
+  if (canUseNativeAndroidLauncher()) {
+    void nativeOpenPackage(pkg);
+    return {
+      ok: true,
+      method: "intent",
+      url: pkg,
+      app: stub,
+      note: "NATIVE RAW PACKAGE",
+    };
+  }
+
   const url = androidLaunchUrl(stub)!;
   fireNavigate(url);
   return { ok: true, method: "intent", url, app: stub, note: "RAW PACKAGE" };
 }
 
 export function launchRawUrl(url: string): boolean {
-  if (!/^https?:\/\//i.test(url) && !/^(tel:|sms:|mailto:)/i.test(url)) {
+  if (!/^https?:\\/\\//i.test(url) && !/^(tel:|sms:|mailto:)/i.test(url)) {
     return false;
   }
   if (/^(tel:|sms:|mailto:)/i.test(url)) fireNavigate(url);
