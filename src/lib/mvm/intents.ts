@@ -227,7 +227,7 @@ export function launchPackage(pkg: string): LaunchResult {
 }
 
 export function launchRawUrl(url: string): boolean {
-  if (!/^https?:\\/\\//i.test(url) && !/^(tel:|sms:|mailto:)/i.test(url)) {
+  if (!/^https?:\/\//i.test(url) && !/^(tel:|sms:|mailto:)/i.test(url)) {
     return false;
   }
   if (/^(tel:|sms:|mailto:)/i.test(url)) fireNavigate(url);
