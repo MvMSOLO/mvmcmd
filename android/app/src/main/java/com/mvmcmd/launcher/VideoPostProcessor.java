@@ -89,7 +89,7 @@ public final class VideoPostProcessor {
                         Collections.emptyList(),
                         videoEffects);
 
-                MediaItem mediaItem = MediaItem.fromUri(UriCompat.parse(source));
+                MediaItem mediaItem = MediaItem.fromUri(android.net.Uri.fromFile(source));
                 EditedMediaItem edited = new EditedMediaItem.Builder(mediaItem)
                         .setEffects(effects)
                         .build();
@@ -123,7 +123,4 @@ public final class VideoPostProcessor {
         });
     }
 
-    private static android.net.Uri UriCompat(File file) {
-        return android.net.Uri.fromFile(file);
-    }
 }
