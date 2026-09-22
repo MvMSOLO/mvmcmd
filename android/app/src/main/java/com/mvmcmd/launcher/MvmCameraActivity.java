@@ -68,6 +68,7 @@ import java.util.concurrent.Executors;
 public final class MvmCameraActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 701;
+    private static final int REQ_AUDIO = 702;
 
     private PreviewView previewView;
     private FrameLayout previewFrame;
@@ -99,6 +100,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private float saturation = 0f;
     private float warmth = 0f;
     private boolean prefer60 = true;
+    private boolean pendingVideoStart = false;
     private Uri lastMediaUri;
 
     @Override
@@ -634,11 +636,22 @@ public final class MvmCameraActivity extends AppCompatActivity {
             return;
         }
 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            pendingVideoStart = true;
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQ_AUDIO);
+            return;
+        }
+
         File temp = new File(getCacheDir(), "mvm_video_" + System.currentTimeMillis() + ".mp4");
         FileOutputOptions options = new FileOutputOptions.Builder(temp).build();
 
         recording = videoCapture.getOutput()
                 .prepareRecording(this, options)
+                .withAudioEnabled()
                 .start(ContextCompat.getMainExecutor(this), event -> {
                     if (event instanceof VideoRecordEvent.Start) {
                         timerLabel.setText("● REC");
@@ -854,13 +867,30 @@ public final class MvmCameraActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_CAMERA && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED &&
-                hasLegacyWritePermission()) {
-            startCamera();
-        } else {
-            toast("Camera permission is required");
-            finish();
+
+        if (requestCode == REQ_CAMERA) {
+            if (grantResults.length > 0 &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                    hasLegacyWritePermission()) {
+                startCamera();
+            } else {
+                toast("Camera permission is required");
+                finish();
+            }
+            return;
+        }
+
+        if (requestCode == REQ_AUDIO) {
+            boolean granted = grantResults.length > 0 &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            boolean shouldStart = pendingVideoStart;
+            pendingVideoStart = false;
+
+            if (granted && shouldStart) {
+                toggleRecording();
+            } else if (!granted && shouldStart) {
+                toast("Microphone permission is required for video audio");
+            }
         }
     }
 
