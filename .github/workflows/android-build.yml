@@ -1,4 +1,5 @@
 name: Build Android APK
+# Capacitor 8 / Java 21 / static Vercel web bundle
 
 on:
   push:
