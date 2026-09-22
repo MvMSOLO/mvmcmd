@@ -457,7 +457,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
         try {
             camera = cameraProvider.bindToLifecycle(this, selector, preview, imageCapture, videoCapture);
             boolean sixty = false;
-            java.util.List<Range<Integer>> ranges = camera.getCameraInfo().getSupportedFrameRateRanges();
+            java.util.Set<Range<Integer>> ranges = camera.getCameraInfo().getSupportedFrameRateRanges();
             for (Range<Integer> range : ranges) {
                 if (range.getUpper() >= 60) {
                     sixty = true;
