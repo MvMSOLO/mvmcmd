@@ -17,6 +17,19 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class MvmLauncherPlugin extends Plugin {
 
     @PluginMethod
+    public void openCamera(PluginCall call) {
+        try {
+            Intent intent = new Intent(getActivity(), MvmCameraActivity.class);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Unable to open camera: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void openPackage(PluginCall call) {
         String packageName = call.getString("packageName");
         String action = call.getString("action");
