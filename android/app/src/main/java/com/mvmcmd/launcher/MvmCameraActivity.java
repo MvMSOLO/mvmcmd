@@ -14,6 +14,8 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
 import android.os.Environment;
 import android.util.Range;
 import android.provider.MediaStore;
@@ -118,6 +120,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private boolean prefer60 = true;
     private boolean pendingVideoStart = false;
     private Uri lastMediaUri;
+    private final ExecutorService verificationExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -790,6 +793,9 @@ public final class MvmCameraActivity extends AppCompatActivity {
                             toast("Video capture failed");
                             return;
                         }
+
+                        verifyEncodedVideoFpsAsync(temp);
+
                         processLabel.setText("ENHANCING  ·  VIDEO");
                         processLabel.setVisibility(View.VISIBLE);
                         processingBar.setVisibility(View.VISIBLE);
@@ -824,6 +830,83 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                 });
                     }
                 });
+    }
+
+    private void verifyEncodedVideoFpsAsync(File file) {
+        verificationExecutor.execute(() -> {
+            double measured = measureEncodedVideoFps(file);
+            if (measured <= 0) return;
+
+            runOnUiThread(() -> {
+                String fpsText = measured >= 58.0
+                        ? String.format(Locale.US, "%.1f FPS", measured)
+                        : String.format(Locale.US, "%.1f FPS", measured);
+                fpsStatus.setText(fpsText);
+            });
+        });
+    }
+
+    /**
+     * Measures the encoded video stream by walking actual video samples.
+     * This is not a capability estimate: it derives FPS from timestamps of
+     * encoded frames in the file produced by CameraX.
+     */
+    private double measureEncodedVideoFps(File file) {
+        MediaExtractor extractor = new MediaExtractor();
+        try {
+            extractor.setDataSource(file.getAbsolutePath());
+            int track = -1;
+            MediaFormat format = null;
+
+            for (int i = 0; i < extractor.getTrackCount(); i++) {
+                MediaFormat candidate = extractor.getTrackFormat(i);
+                String mime = candidate.getString(MediaFormat.KEY_MIME);
+                if (mime != null && mime.startsWith("video/")) {
+                    track = i;
+                    format = candidate;
+                    break;
+                }
+            }
+
+            if (track < 0 || format == null) return 0;
+            extractor.selectTrack(track);
+
+            long firstUs = -1L;
+            long lastUs = -1L;
+            long frameCount = 0L;
+
+            while (true) {
+                int size = extractor.getSampleSize() < 0
+                        ? -1
+                        : extractor.getSampleSize() > Integer.MAX_VALUE
+                        ? -1
+                        : (int) extractor.getSampleSize();
+                if (size < 0) break;
+
+                long timestampUs = extractor.getSampleTime();
+                if (timestampUs >= 0) {
+                    if (firstUs < 0) firstUs = timestampUs;
+                    lastUs = timestampUs;
+                    frameCount++;
+                }
+
+                if (!extractor.advance()) break;
+            }
+
+            if (frameCount < 2 || lastUs <= firstUs) {
+                if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
+                    return format.getInteger(MediaFormat.KEY_FRAME_RATE);
+                }
+                return 0;
+            }
+
+            return ((frameCount - 1L) * 1_000_000d)
+                    / (double) (lastUs - firstUs);
+        } catch (Throwable ignored) {
+            return 0;
+        } finally {
+            extractor.release();
+        }
     }
 
     private Uri publishImage(File file) {
@@ -1022,6 +1105,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
             realtimeEffect = null;
         }
         if (cameraExecutor != null) cameraExecutor.shutdown();
+        verificationExecutor.shutdown();
         super.onDestroy();
     }
 
