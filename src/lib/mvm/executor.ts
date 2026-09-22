@@ -429,7 +429,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         state: state0,
         lines: [
           line("sys", "COMMANDS"),
-          ...COMMANDS.map((c) =>
+          ...COMMANDS.filter((c) => !c.hidden).map((c) =>
             line("out", c.usage.padEnd(22, " "), {
               meta: ctx2.lang === "uz" ? c.summaryUz : c.summaryEn,
             }),
