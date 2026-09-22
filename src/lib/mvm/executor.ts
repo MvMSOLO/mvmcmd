@@ -1,0 +1,510 @@
+import { CATALOG, CATALOG_BY_ID, CATEGORIES, findByIdOrName } from "./catalog";
+import { COMMANDS, parseLine } from "./commands";
+import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
+import { compact } from "./normalize";
+import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
+import {
+  dropAlias,
+  pushHistory,
+  recordUse,
+  resetState,
+  saveState,
+  setLang,
+  togglePin,
+  upsertAlias,
+} from "./persist";
+import {
+  hasInstallPrompt,
+  promptInstall,
+  requestNotify,
+  requestPersistentStorage,
+  snapshotPerms,
+} from "./permissions";
+import { detectRuntime } from "./platform";
+import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
+
+let seq = 0;
+function line(kind: LogLine["kind"], text: string, extra?: Partial<LogLine>): LogLine {
+  seq += 1;
+  return { id: `l${seq.toString(36)}`, kind, text, ...extra };
+}
+
+export interface ExecContext {
+  state: PersistedState;
+  lang: Lang;
+}
+
+export interface ExecResult {
+  state: PersistedState;
+  lines: LogLine[];
+  clearLog?: boolean;
+  launch?: CatalogApp;
+  hits?: MatchHit[];
+}
+
+function L(ctx: ExecContext, uz: string, en: string): string {
+  return ctx.lang === "uz" ? uz : en;
+}
+
+function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[]; bound?: string } {
+  const aliased = resolveAliasTarget(query, state.aliases);
+  const q = aliased ?? query;
+  const hits = rankApps(q, CATALOG, state.usage, 8);
+  return { hits, bound: aliased ?? undefined };
+}
+
+function launchHit(ctx: ExecContext, hit: MatchHit): ExecResult {
+  const runtime = detectRuntime();
+  const result = launchApp(hit.app, runtime.platform);
+  const state = recordUse(ctx.state, hit.app.id);
+  saveState(state);
+  const pkg = hit.app.androidPackage ? `  ${hit.app.androidPackage}` : "";
+  const lines: LogLine[] = [
+    line("ok", `LAUNCH  ${hit.app.name}`, { meta: result.note, appId: hit.app.id }),
+    line("dim", `${result.method.toUpperCase()}${pkg}`),
+  ];
+  if (result.method === "intent") {
+    lines.push(
+      line(
+        "dim",
+        L(
+          ctx,
+          "Agar ilova shu telefonda bo‘lsa, tizim uni ochadi. Ochilmasa: store",
+          "If the app is on this phone the system opens it. If not: store",
+        ),
+      ),
+    );
+  }
+  return { state, lines, launch: hit.app, hits: [hit] };
+}
+
+function formatHit(hit: MatchHit, index: number): LogLine {
+  const n = String(index + 1).padStart(2, "0");
+  const pkg = hit.app.androidPackage ?? hit.app.webUrl ?? "";
+  return line("match", `${n}  ${hit.app.name}`, {
+    meta: `${hit.reason}  ${pkg}`,
+    appId: hit.app.id,
+  });
+}
+
+export function execute(rawLine: string, ctx: ExecContext): ExecResult {
+  const trimmed = rawLine.trim();
+  if (!trimmed) return { state: ctx.state, lines: [] };
+
+  const state0 = pushHistory(ctx.state, trimmed);
+  saveState(state0);
+  const ctx2: ExecContext = { ...ctx, state: state0 };
+  const parsed = parseLine(trimmed);
+  const name = parsed.cmd?.name;
+
+  if (!parsed.cmd) {
+    if (/^https?:\/\//i.test(trimmed) || /^(tel:|sms:|mailto:)/i.test(trimmed)) {
+      const ok = launchRawUrl(trimmed);
+      return {
+        state: state0,
+        lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${trimmed}` : "URL rejected")],
+      };
+    }
+    const { hits, bound } = resolveQuery(trimmed, state0);
+    if (hits.length === 0) {
+      return {
+        state: state0,
+        lines: [
+          line("warn", L(ctx2, `Topilmadi: ${trimmed}`, `No match: ${trimmed}`)),
+          line(
+            "dim",
+            L(
+              ctx2,
+              "bind <nom> <ilova>  ·  pack <package>  ·  find <matn>",
+              "bind <name> <app>  ·  pack <package>  ·  find <text>",
+            ),
+          ),
+        ],
+        hits,
+      };
+    }
+    const top = pickLaunch(hits)!;
+    const extra =
+      bound || hits.length === 1
+        ? []
+        : hits.slice(1, 4).map((h, i) => formatHit(h, i + 1));
+    const launched = launchHit(ctx2, top);
+    return {
+      ...launched,
+      lines: [
+        ...(bound ? [line("dim", `alias  ${trimmed} → ${bound}`)] : []),
+        ...launched.lines,
+        ...extra,
+      ],
+      hits,
+    };
+  }
+
+  switch (name) {
+    case "open": {
+      const q = parsed.args.join(" ");
+      if (!q) {
+        return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
+      }
+      const { hits, bound } = resolveQuery(q, state0);
+      if (!hits[0]) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, `Topilmadi: ${q}`, `No match: ${q}`))],
+          hits,
+        };
+      }
+      const launched = launchHit(ctx2, hits[0]);
+      return {
+        ...launched,
+        lines: [
+          ...(bound ? [line("dim", `alias  ${q} → ${bound}`)] : []),
+          ...launched.lines,
+        ],
+        hits,
+      };
+    }
+    case "find": {
+      const q = parsed.args.join(" ");
+      if (!q) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
+      const hits = rankApps(q, CATALOG, state0.usage, 10);
+      if (hits.length === 0) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, "Hech narsa yo‘q", "Nothing ranked"))],
+          hits,
+        };
+      }
+      return {
+        state: state0,
+        lines: [
+          line("sys", `FIND  ${q}  ·  ${hits.length}`),
+          ...hits.map((h, i) => formatHit(h, i)),
+        ],
+        hits,
+      };
+    }
+    case "ls": {
+      const cat = parsed.args[0]?.toLowerCase();
+      const list = cat
+        ? CATALOG.filter((a) => a.category === cat || a.category.startsWith(cat))
+        : CATALOG;
+      if (list.length === 0) {
+        return {
+          state: state0,
+          lines: [
+            line("warn", L(ctx2, `Kategoriya yo‘q: ${cat}`, `No category: ${cat}`)),
+            line("dim", CATEGORIES.join("  ")),
+          ],
+        };
+      }
+      const shown = list.slice().sort((a, b) => b.weight - a.weight).slice(0, 24);
+      return {
+        state: state0,
+        lines: [
+          line("sys", `LS  ${cat ?? "all"}  ·  ${list.length}`),
+          ...shown.map((a, i) =>
+            line("out", `${String(i + 1).padStart(2, "0")}  ${a.name}`, {
+              meta: `${a.category}${a.androidPackage ? "  " + a.androidPackage : ""}`,
+              appId: a.id,
+            }),
+          ),
+          ...(list.length > shown.length
+            ? [line("dim", `+${list.length - shown.length}`)]
+            : []),
+        ],
+      };
+    }
+    case "birthday": {
+      return {
+        state: state0,
+        lines: [
+          line("sys", "🎉 TUG‘ILGAN KUNINGIZ BILAN! / HAPPY BIRTHDAY! 🎉"),
+          line("ok", L(ctx2, "Sizga baxt, omad, sihat-salomatlik va bitmas-tuganmas g‘ayrat tilaymiz!", "Wishing you happiness, health, success, and endless inspiration!")),
+          line("out", L(ctx2, "MVMCMD loyihasi va Jules siz bilan birga nishonlaydi! 🎂🎈✨", "MVMCMD & Jules celebrate with you! 🎂🎈✨")),
+        ],
+      };
+    }
+    case "bind": {
+      const alias = parsed.args[0];
+      const target = parsed.args.slice(1).join(" ");
+      if (!alias || !target) {
+        return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
+      }
+      const app = findByIdOrName(target) ?? rankApps(target, CATALOG, state0.usage, 1)[0]?.app;
+      if (!app && !target.includes(".")) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, `Noma’lum nishon: ${target}`, `Unknown target: ${target}`))],
+        };
+      }
+      const boundTo = app?.id ?? target;
+      const state = upsertAlias(state0, alias, boundTo);
+      saveState(state);
+      return {
+        state,
+        lines: [line("ok", `BIND  ${compact(alias)}  →  ${boundTo}`)],
+      };
+    }
+    case "unbind": {
+      const alias = parsed.args[0];
+      if (!alias) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
+      const state = dropAlias(state0, alias);
+      saveState(state);
+      return { state, lines: [line("ok", `UNBIND  ${alias}`)] };
+    }
+    case "pin":
+    case "unpin": {
+      const q = parsed.args.join(" ");
+      const app = findByIdOrName(q) ?? rankApps(q, CATALOG, state0.usage, 1)[0]?.app;
+      if (!app) return { state: state0, lines: [line("warn", L(ctx2, "Ilova yo‘q", "No app"))] };
+      const state = togglePin(state0, app.id, name === "pin");
+      saveState(state);
+      return { state, lines: [line("ok", `${name.toUpperCase()}  ${app.name}`)] };
+    }
+    case "hist": {
+      const rows = state0.history.slice(0, 16);
+      return {
+        state: state0,
+        lines:
+          rows.length === 0
+            ? [line("dim", L(ctx2, "Tarix bo‘sh", "History empty"))]
+            : rows.map((h, i) => line("out", `${String(i + 1).padStart(2, "0")}  ${h}`)),
+      };
+    }
+    case "recents": {
+      const rows = state0.recents
+        .map((id) => CATALOG_BY_ID[id])
+        .filter((a): a is CatalogApp => Boolean(a));
+      return {
+        state: state0,
+        lines:
+          rows.length === 0
+            ? [line("dim", L(ctx2, "Hali ochilmagan", "Nothing launched yet"))]
+            : rows.map((a, i) =>
+                line("out", `${String(i + 1).padStart(2, "0")}  ${a.name}`, { appId: a.id }),
+              ),
+      };
+    }
+    case "clear":
+      return { state: state0, lines: [], clearLog: true };
+    case "perm": {
+      return {
+        state: state0,
+        lines: [line("sys", "PERM  requesting…")],
+      };
+    }
+    case "install": {
+      return {
+        state: state0,
+        lines: [line("sys", hasInstallPrompt() ? "INSTALL  prompt" : "INSTALL  manual")],
+      };
+    }
+    case "store": {
+      const q = parsed.args.join(" ") || state0.recents[0] || "";
+      if (!q) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
+      const app = findByIdOrName(q) ?? rankApps(q, CATALOG, state0.usage, 1)[0]?.app;
+      if (!app) return { state: state0, lines: [line("warn", L(ctx2, "Ilova yo‘q", "No app"))] };
+      const runtime = detectRuntime();
+      const result = launchStore(app, runtime.platform);
+      return {
+        state: state0,
+        lines: [line(result.ok ? "ok" : "warn", `STORE  ${app.name}`, { meta: result.url })],
+      };
+    }
+    case "pack": {
+      const pkg = parsed.args[0];
+      if (!pkg || !pkg.includes(".")) {
+        return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
+      }
+      const runtime = detectRuntime();
+      if (runtime.platform !== "android") {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, "Package faqat Androidda", "Raw package is Android-only"))],
+        };
+      }
+      launchPackage(pkg);
+      return { state: state0, lines: [line("ok", `PACK  ${pkg}`)] };
+    }
+    case "sys": {
+      const runtime = detectRuntime();
+      return {
+        state: state0,
+        lines: [
+          line("sys", `HOST     ${runtime.platform}${runtime.standalone ? "  standalone" : ""}`),
+          line("sys", `CATALOG  ${CATALOG.length}`),
+          line("sys", `ALIAS    ${state0.aliases.length}`),
+          line("sys", `LANG     ${state0.lang}`),
+          line("sys", `NET      ${runtime.online ? "online" : "offline"}`),
+        ],
+      };
+    }
+    case "about": {
+      return {
+        state: state0,
+        lines: [
+          line("sys", "MVMCMD  ·  Machine Vector Module"),
+          line(
+            "out",
+            L(
+              ctx2,
+              "Hohlagan nomni yozing. Prefiks bo‘yicha eng yaqin ilova ochiladi. AI yo‘q — faqat indekslash.",
+              "Type any name. The closest prefix match launches. No AI — a handcrafted index.",
+            ),
+          ),
+          line(
+            "dim",
+            L(
+              ctx2,
+              "Android: tizim Intent. iOS: URL scheme. Desktop: rasmiy web.",
+              "Android: system Intent. iOS: URL scheme. Desktop: official web.",
+            ),
+          ),
+        ],
+      };
+    }
+    case "lang": {
+      const next = parsed.args[0]?.toLowerCase();
+      if (next !== "uz" && next !== "en") {
+        return { state: state0, lines: [line("warn", "lang uz | lang en")] };
+      }
+      const state = setLang(state0, next);
+      saveState(state);
+      return { state, lines: [line("ok", `LANG  ${next}`)] };
+    }
+    case "help": {
+      const q = parsed.args[0];
+      if (q) {
+        const spec = COMMANDS.find((c) => c.name === q || c.aliases.includes(q));
+        if (!spec) return { state: state0, lines: [line("warn", `help: ${q}`)] };
+        return {
+          state: state0,
+          lines: [
+            line("sys", spec.usage),
+            line("out", ctx2.lang === "uz" ? spec.summaryUz : spec.summaryEn),
+          ],
+        };
+      }
+      return {
+        state: state0,
+        lines: [
+          line("sys", "COMMANDS"),
+          ...COMMANDS.map((c) =>
+            line("out", c.usage.padEnd(22, " "), {
+              meta: ctx2.lang === "uz" ? c.summaryUz : c.summaryEn,
+            }),
+          ),
+          line(
+            "dim",
+            L(
+              ctx2,
+              "Buyruqsiz yozilgan har qanday so‘z — ilova qidiruvi.",
+              "Any bare word is an app query.",
+            ),
+          ),
+        ],
+      };
+    }
+    case "date": {
+      const now = new Date();
+      return {
+        state: state0,
+        lines: [
+          line("out", now.toLocaleString(ctx2.lang === "uz" ? "uz-UZ" : "en-GB"), {
+            meta: now.toISOString(),
+          }),
+        ],
+      };
+    }
+    case "whoami": {
+      const runtime = detectRuntime();
+      return {
+        state: state0,
+        lines: [
+          line("out", runtime.platform),
+          line("dim", runtime.language),
+          line("dim", runtime.standalone ? "standalone" : "browser"),
+        ],
+      };
+    }
+    case "reset": {
+      const state = resetState();
+      return {
+        state,
+        lines: [line("ok", L(ctx2, "Mahalliy holat tozalandi", "Local state wiped"))],
+        clearLog: true,
+      };
+    }
+    default:
+      return { state: state0, lines: [line("warn", trimmed)] };
+  }
+}
+
+export async function runPermRequest(
+  ctx: ExecContext,
+): Promise<{ state: PersistedState; lines: LogLine[] }> {
+  const persist = await requestPersistentStorage();
+  const notify = await requestNotify();
+  const snap = await snapshotPerms();
+  const state: PersistedState = {
+    ...ctx.state,
+    storageGranted: persist || snap.persisted,
+    notifyGranted: notify === "granted",
+    gateSeen: true,
+  };
+  saveState(state);
+  return {
+    state,
+    lines: [
+      line("ok", `STORAGE   ${state.storageGranted ? "persistent" : "session"}`),
+      line("ok", `NOTIFY    ${notify}`),
+    ],
+  };
+}
+
+export async function runInstall(ctx: ExecContext): Promise<LogLine[]> {
+  const runtime = detectRuntime();
+  if (runtime.standalone) {
+    return [line("ok", ctx.lang === "uz" ? "Allaqachon o‘rnatilgan" : "Already installed")];
+  }
+  const outcome = await promptInstall();
+  if (outcome === "accepted") {
+    return [line("ok", ctx.lang === "uz" ? "O‘rnatish tasdiqlandi" : "Install accepted")];
+  }
+  if (outcome === "dismissed") {
+    return [line("warn", ctx.lang === "uz" ? "O‘rnatish bekor" : "Install dismissed")];
+  }
+  if (runtime.platform === "ios") {
+    return [
+      line("sys", "iOS"),
+      line(
+        "out",
+        ctx.lang === "uz"
+          ? "Ulashish → Home Screen ga qo‘shish"
+          : "Share → Add to Home Screen",
+      ),
+    ];
+  }
+  if (runtime.platform === "android") {
+    return [
+      line("sys", "ANDROID"),
+      line(
+        "out",
+        ctx.lang === "uz"
+          ? "Chrome menyu → Ilovani o‘rnatish / Bosh ekranga qo‘shish"
+          : "Chrome menu → Install app / Add to Home screen",
+      ),
+    ];
+  }
+  return [
+    line(
+      "dim",
+      ctx.lang === "uz"
+        ? "Brauzer o‘rnatish oynasini hali bermadi. Telefonda Chrome orqali oching."
+        : "No install prompt yet. Open this in Chrome on your phone.",
+    ),
+  ];
+}
+
+export { line as makeLine };

@@ -1,0 +1,15 @@
+node_modules/
+.vercel/
+.grok/
+screenshots/
+dist/
+build/
+.output/
+*.log
+.env
+.env.*
+!.env.example
+.node_modules.lock
+android/app/build/
+android/.gradle/
+android/build/

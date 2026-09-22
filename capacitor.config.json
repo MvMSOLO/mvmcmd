@@ -1,0 +1,6 @@
+{
+  "appId": "com.mvmcmd.launcher",
+  "appName": "MVMCMD",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
