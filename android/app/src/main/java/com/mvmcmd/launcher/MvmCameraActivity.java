@@ -93,6 +93,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private boolean frontCamera = false;
     private boolean torchOn = false;
     private String filter = "Natural";
+    private String lastMediaMimeType;
     private float exposure = 0f;
     private float contrast = 0f;
     private float saturation = 0f;
@@ -455,7 +456,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                     break;
                 }
             }
-            fpsStatus.setText(sixty ? "60 FPS" : "MAX FPS");
+            fpsStatus.setText(target60 && sixty ? "60 FPS" : "MAX FPS");
             applyLiveLook();
         } catch (Exception first) {
             if (target60) {
@@ -573,6 +574,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                     Uri uri = publishImage(result);
                                     if (uri != null) {
                                         lastMediaUri = uri;
+                                        lastMediaMimeType = "image/jpeg";
                                         galleryThumb.setImageURI(uri);
                                     }
                                     cleanup(temp, result);
@@ -586,6 +588,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                     Uri uri = publishImage(temp);
                                     if (uri != null) {
                                         lastMediaUri = uri;
+                                        lastMediaMimeType = "image/jpeg";
                                         galleryThumb.setImageURI(uri);
                                     }
                                     processLabel.setVisibility(View.GONE);
@@ -645,6 +648,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                         runOnUiThread(() -> {
                                             Uri uri = publishVideo(result);
                                             lastMediaUri = uri;
+                                            lastMediaMimeType = "video/mp4";
                                             cleanup(temp, result);
                                             processingBar.setIndeterminate(false);
                                             processingBar.setVisibility(View.GONE);
@@ -657,6 +661,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                                             toast("Video processing failed — original preserved");
                                             Uri uri = publishVideo(temp);
                                             lastMediaUri = uri;
+                                            lastMediaMimeType = "video/mp4";
                                             if (uri != null) toast("Original video saved");
                                             processingBar.setIndeterminate(false);
                                             processingBar.setVisibility(View.GONE);
@@ -704,7 +709,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private void openLastMedia() {
         if (lastMediaUri == null) return;
         try {
-            String type = lastMediaUri.toString().endsWith(".mp4") ? "video/mp4" : "image/jpeg";
+            String type = lastMediaMimeType != null ? lastMediaMimeType : "image/jpeg";
             Intent intent = new Intent(Intent.ACTION_VIEW, lastMediaUri);
             intent.setDataAndType(lastMediaUri, type);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
