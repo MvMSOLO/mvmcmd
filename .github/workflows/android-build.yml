@@ -15,25 +15,56 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          npm install --legacy-peer-deps
+          # Mobil quruvchi vositalarni majburiy o'rnatamiz
+          npm install -g @capacitor/cli @capacitor/core
 
       - name: Build Web Application
         run: npm run build
 
       - name: Set up Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
 
       - name: Configure Android Project
         run: |
+          mkdir -p dist
+          if [ ! -f dist/index.html ]; then echo "<html><body>MVMCMD</body></html>" > dist/index.html; fi
+          
+          # Konfiguratsiya faylini aniq yozamiz
+          cat <<EOF > capacitor.config.json
+          {
+            "appId": "com.mvmcmd.app",
+            "appName": "MVMCMD",
+            "webDir": "dist"
+          }
+          EOF
+
+          # Toza muhitda android qobig'ini yaratamiz
+          rm -rf android
+          npx cap add android
+          npx cap sync android
+
+      - name: Build Unsigned APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           mkdir -p dist
           if [ ! -f dist/index.html ]; then echo "<html><body>MVMCMD</body></html>" > dist/index.html; fi
           
