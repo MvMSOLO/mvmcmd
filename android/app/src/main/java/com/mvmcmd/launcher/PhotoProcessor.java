@@ -34,7 +34,7 @@ public final class PhotoProcessor {
     private static final android.os.Handler MAIN =
             new android.os.Handler(android.os.Looper.getMainLooper());
 
-    private static final int WORKING_LONG_EDGE = 1600;
+    private static final int WORKING_LONG_EDGE = 2048;
     private static final int FINAL_LONG_EDGE = 3840;
     private static final int MAX_BURST_FRAMES = 3;
 
