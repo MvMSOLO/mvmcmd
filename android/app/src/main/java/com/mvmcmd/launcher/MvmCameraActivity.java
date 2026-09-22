@@ -91,7 +91,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private boolean videoMode = false;
     private boolean frontCamera = false;
-    private boolean torchOn = false;
+    private int flashMode = ImageCapture.FLASH_MODE_AUTO;
     private String filter = "Natural";
     private String lastMediaMimeType;
     private float exposure = 0f;
@@ -173,9 +173,16 @@ public final class MvmCameraActivity extends AppCompatActivity {
                 toast("Flash not available");
                 return;
             }
-            torchOn = !torchOn;
-            camera.getCameraControl().enableTorch(torchOn);
-            flashButton.setAlpha(torchOn ? 1f : .55f);
+            flashMode = flashMode == ImageCapture.FLASH_MODE_OFF
+                    ? ImageCapture.FLASH_MODE_AUTO
+                    : flashMode == ImageCapture.FLASH_MODE_AUTO
+                    ? ImageCapture.FLASH_MODE_ON
+                    : ImageCapture.FLASH_MODE_OFF;
+            if (imageCapture != null) imageCapture.setFlashMode(flashMode);
+            flashButton.setText(
+                    flashMode == ImageCapture.FLASH_MODE_OFF ? "⚡" :
+                    flashMode == ImageCapture.FLASH_MODE_AUTO ? "A⚡" : "⚡ON"
+            );
         });
         top.addView(flashButton, squareLp(48));
 
@@ -443,6 +450,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
 
         Preview preview = previewBuilder.build();
         imageCapture = imageBuilder.build();
+        imageCapture.setFlashMode(flashMode);
         videoCapture = videoBuilder.build();
         preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
