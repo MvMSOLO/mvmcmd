@@ -50,6 +50,25 @@ function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[];
   const aliased = resolveAliasTarget(query, state.aliases);
   const q = aliased ?? query;
   const hits = rankApps(q, CATALOG, state.usage, 8);
+
+  // A bind may intentionally target a raw Android package that is not in the
+  // catalog. Treat that package as a first-class launch target instead of
+  // reporting "not found" after the alias was successfully saved.
+  if (hits.length === 0 && /^[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z0-9_]+)+$/.test(q)) {
+    const app: CatalogApp = {
+      id: q,
+      name: q,
+      aliases: [],
+      androidPackage: q,
+      category: "tool",
+      weight: 1,
+    };
+    return {
+      hits: [{ app, score: 18_000, reason: "package" }],
+      bound: aliased ?? undefined,
+    };
+  }
+
   return { hits, bound: aliased ?? undefined };
 }
 
