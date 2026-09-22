@@ -36,11 +36,11 @@ jobs:
         run: |
           mkdir -p dist
           if [ ! -f dist/index.html ]; then echo "<html><body>MVMCMD</body></html>" > dist/index.html; fi
-          if [ ! -d "android" ]; then
-            npx cap add android
-          else
-            npx cap sync android
-          fi
+          
+          # Mavjud android papkasini butunlay o'chirib, toza noldan yaratamiz
+          rm -rf android
+          npx cap add android
+          npx cap sync android
 
       - name: Build Unsigned APK
         run: |
