@@ -268,8 +268,20 @@ public final class MvmCameraActivity extends AppCompatActivity {
             chip.setBackground(roundBg(0x66000000, 24));
             chip.setPadding(dp(13), 0, dp(13), 0);
             chip.setOnClickListener(v -> {
-                if (camera != null) camera.getCameraControl().setZoomRatio(Float.parseFloat(
-                        ((TextView) v).getText().toString().replace("×", "")));
+                if (camera == null) return;
+                try {
+                    float requested = Float.parseFloat(
+                            ((TextView) v).getText().toString().replace("×", ""));
+                    androidx.lifecycle.LiveData<androidx.camera.core.ZoomState> zoomState =
+                            camera.getCameraInfo().getZoomState();
+                    androidx.camera.core.ZoomState current = zoomState.getValue();
+                    float min = current == null ? 1f : current.getMinZoomRatio();
+                    float max = current == null ? Math.max(1f, requested) : current.getMaxZoomRatio();
+                    camera.getCameraControl().setZoomRatio(
+                            Math.max(min, Math.min(max, requested)));
+                } catch (Exception ignored) {
+                    // Keep the camera responsive on devices with unusual zoom ranges.
+                }
             });
             zoomRow.addView(chip, new LinearLayout.LayoutParams(dp(62), dp(42)));
         }
@@ -536,8 +548,6 @@ public final class MvmCameraActivity extends AppCompatActivity {
                 realtimeEffect = null;
             }
             try {
-                camera = cameraProvider.bindToLifecycle(
-                        this, selector, preview, imageCapture, videoCapture);
                 SessionConfig fallbackSession =
                         new SessionConfig.Builder(preview, imageCapture, videoCapture)
                                 .build();
