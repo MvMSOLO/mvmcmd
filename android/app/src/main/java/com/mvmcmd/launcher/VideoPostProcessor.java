@@ -161,7 +161,11 @@ public final class VideoPostProcessor {
         } catch (Throwable ignored) {
             // Native export remains available even when optional analysis fails.
         } finally {
-            retriever.release();
+            try {
+                retriever.release();
+            } catch (Exception ignored) {
+                // Analysis cleanup must never block the native export fallback.
+            }
         }
 
         if (lums.isEmpty()) {
@@ -233,8 +237,10 @@ public final class VideoPostProcessor {
                 // True GPU Lanczos reconstruction. For the native 4:3 camera,
                 // 3840x2880 is the 4K-class tier; lower tiers are real fallbacks.
                 videoEffects.add(
+                        int targetWidth = shortSide * 4 / 3;
+                videoEffects.add(
                         LanczosResample.scaleToFitWithFlexibleOrientation(
-                                3840, 2880));
+                                targetWidth, shortSide));
 
                 float gain = (float) Math.pow(2.0, plan.exposure * 0.70);
                 float r = gain * plan.redGain
