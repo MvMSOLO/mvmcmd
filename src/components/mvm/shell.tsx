@@ -9,6 +9,7 @@ import { EMPTY, loadState, saveState } from "@/lib/mvm/persist";
 import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
+import { ProCameraStudio } from "./camera";
 import { PermissionGate } from "./gate";
 
 const BOOT_LINES = [
@@ -80,6 +81,7 @@ export function MvmShell() {
   const [histIdx, setHistIdx] = useState(-1);
   const [platform, setPlatform] = useState<PlatformKind>("desktop");
   const [standalone, setStandalone] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clock = useClock();
@@ -176,6 +178,9 @@ export function MvmShell() {
     const result = execute(text, { state, lang });
     setState(result.state);
     append([makeLine("in", text), ...result.lines], result.clearLog);
+    if (result.openCamera) {
+      setCameraOpen(true);
+    }
     setInput("");
     setHistIdx(-1);
   }
@@ -262,13 +267,22 @@ export function MvmShell() {
             {platform}
             {standalone ? " · PWA" : ""}
           </p>
-          <button
-            type="button"
-            onClick={() => commit("birthday")}
-            className="mt-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-micro font-bold text-amber-400 hover:bg-amber-500/20"
-          >
-            🎂 Birthday Mode
-          </button>
+          <div className="mt-1 flex items-center justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              className="rounded bg-accent/15 px-1.5 py-0.5 text-micro font-bold text-accent hover:bg-accent/25 border border-accent/30"
+            >
+              📷 4K Camera
+            </button>
+            <button
+              type="button"
+              onClick={() => commit("birthday")}
+              className="rounded bg-amber-500/10 px-1.5 py-0.5 text-micro font-bold text-amber-400 hover:bg-amber-500/20"
+            >
+              🎂 Birthday Mode
+            </button>
+          </div>
         </div>
       </header>
 
@@ -438,6 +452,8 @@ export function MvmShell() {
           </button>
         </form>
       </div>
+
+      {cameraOpen && <ProCameraStudio onClose={() => setCameraOpen(false)} />}
     </div>
   );
 }
