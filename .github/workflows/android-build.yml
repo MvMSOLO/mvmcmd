@@ -7,6 +7,9 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-android:
     name: Build MVMCMD Android APK
@@ -23,7 +26,7 @@ jobs:
           cache: 'npm'
 
       - name: Install NPM Dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Run Code Verification & Typecheck
         run: npm run typecheck
