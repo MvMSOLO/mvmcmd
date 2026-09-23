@@ -4,6 +4,7 @@ export interface NativeLaunchResult {
   launched: boolean;
   installed: boolean;
   error?: string;
+  fallbackOpened?: boolean;
 }
 
 interface MvmLauncherPlugin {
@@ -12,6 +13,7 @@ interface MvmLauncherPlugin {
     packageName: string;
     action?: string;
     data?: string;
+    fallbackUrl?: string;
   }): Promise<NativeLaunchResult>;
   openUrl(options: { url: string }): Promise<{ opened: boolean }>;
   openStore(options: { packageName: string; webUrl?: string }): Promise<{ opened: boolean }>;
@@ -31,11 +33,13 @@ export async function nativeOpenPackage(
   packageName: string,
   action?: string,
   data?: string,
+  fallbackUrl?: string,
 ): Promise<NativeLaunchResult> {
   return NativeLauncher.openPackage({
     packageName,
     ...(action ? { action } : {}),
     ...(data ? { data } : {}),
+    ...(fallbackUrl ? { fallbackUrl } : {}),
   });
 }
 
