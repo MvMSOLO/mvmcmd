@@ -74,21 +74,19 @@ function fireTab(url: string): boolean {
 function nativeAndroidPackageLaunch(app: CatalogApp): void {
   if (!app.androidPackage) return;
 
-  void nativeOpenPackage(app.androidPackage, app.androidAction, app.androidData).then((result) => {
+  void nativeOpenPackage(app.androidPackage, app.androidAction, app.androidData, app.webUrl).then((result) => {
     if (result.launched) return;
 
-    // The app is not installed (or exposes no launcher activity). Open the
-    // real store page instead of pretending an intent succeeded.
+    // The native plugin already attempted the real store/web fallback.
+    // Keep a final web escape hatch for devices with unusual package-manager behavior.
+    if (result.fallbackOpened) return;
+
     if (!result.installed) {
       void nativeOpenStore(app.androidPackage!, app.webUrl);
       return;
     }
 
-    // Installed but not launchable with the requested activity: give the user
-    // the web surface as the final safe fallback.
-    if (app.webUrl) {
-      void nativeOpenUrl(app.webUrl);
-    }
+    if (app.webUrl) void nativeOpenUrl(app.webUrl);
   }).catch(() => {
     if (app.webUrl) void nativeOpenUrl(app.webUrl);
   });
