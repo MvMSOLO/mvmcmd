@@ -40,6 +40,7 @@ export interface ExecResult {
   clearLog?: boolean;
   launch?: CatalogApp;
   hits?: MatchHit[];
+  openCamera?: boolean;
 }
 
 function L(ctx: ExecContext, uz: string, en: string): string {
@@ -55,6 +56,20 @@ function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[];
 
 function launchHit(ctx: ExecContext, hit: MatchHit): ExecResult {
   const runtime = detectRuntime();
+  if (hit.app.id === "camera") {
+    const state = recordUse(ctx.state, hit.app.id);
+    saveState(state);
+    return {
+      state,
+      lines: [
+        line("ok", `LAUNCH  Pro 4K Camera Studio (UHD @ 60 FPS)`, { appId: hit.app.id }),
+        line("dim", "STUDIO  Zero-delay hardware accelerated pipeline"),
+      ],
+      launch: hit.app,
+      hits: [hit],
+      openCamera: true,
+    };
+  }
   const result = launchApp(hit.app, runtime.platform);
   const state = recordUse(ctx.state, hit.app.id);
   saveState(state);
@@ -141,6 +156,13 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
+    case "camera": {
+      return {
+        state: state0,
+        lines: [line("ok", "LAUNCH  Pro 4K Camera Studio (3840x2160 UHD @ 60 FPS)")],
+        openCamera: true,
+      };
+    }
     case "open": {
       const q = parsed.args.join(" ");
       if (!q) {

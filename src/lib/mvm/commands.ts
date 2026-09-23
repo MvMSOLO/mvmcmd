@@ -2,6 +2,13 @@ import type { CommandSpec } from "./types";
 
 export const COMMANDS: CommandSpec[] = [
   {
+    name: "camera",
+    aliases: ["cam", "kamera", "photo", "4k", "studio"],
+    usage: "camera",
+    summaryEn: "Launch Pro 4K Camera Studio with zero delay.",
+    summaryUz: "Nol kechikishli Ultra Pro 4K Kamera Studiyasini ochadi.",
+  },
+  {
     name: "open",
     aliases: ["o", "go", "run", "start", "launch"],
     usage: "open <name>",
@@ -171,6 +178,7 @@ export function lookupCommand(token: string): CommandSpec | undefined {
 }
 
 const EMPTY_OK = new Set([
+  "camera",
   "ls",
   "hist",
   "recents",
