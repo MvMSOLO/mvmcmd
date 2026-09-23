@@ -34,6 +34,7 @@ public class MvmLauncherPlugin extends Plugin {
         String packageName = call.getString("packageName");
         String action = call.getString("action");
         String data = call.getString("data");
+        String fallbackUrl = call.getString("fallbackUrl");
 
         if (packageName == null || packageName.trim().isEmpty()) {
             call.reject("packageName is required");
@@ -71,10 +72,25 @@ public class MvmLauncherPlugin extends Plugin {
             installed = false;
         }
 
+        if (launchIntent == null && installed) {
+            // A catalog-specific intent can be too narrow for some apps.
+            // Retry the normal launcher intent before falling back to the store/web.
+            try {
+                launchIntent = pm.getLaunchIntentForPackage(packageName);
+                if (launchIntent == null) {
+                    launchIntent = pm.getLeanbackLaunchIntentForPackage(packageName);
+                }
+            } catch (Exception ignored) {
+                launchIntent = null;
+            }
+        }
+
         if (launchIntent == null) {
+            boolean fallbackOpened = openPackageFallback(packageName, fallbackUrl);
             JSObject result = new JSObject();
             result.put("launched", false);
             result.put("installed", installed);
+            result.put("fallbackOpened", fallbackOpened);
             result.put("error", installed ? "NO_LAUNCH_ACTIVITY" : "NOT_INSTALLED");
             call.resolve(result);
             return;
@@ -88,18 +104,48 @@ public class MvmLauncherPlugin extends Plugin {
             result.put("installed", true);
             call.resolve(result);
         } catch (ActivityNotFoundException e) {
+            boolean fallbackOpened = openPackageFallback(packageName, fallbackUrl);
             JSObject result = new JSObject();
             result.put("launched", false);
             result.put("installed", installed);
+            result.put("fallbackOpened", fallbackOpened);
             result.put("error", "ACTIVITY_NOT_FOUND");
             call.resolve(result);
         } catch (Exception e) {
+            boolean fallbackOpened = openPackageFallback(packageName, fallbackUrl);
             JSObject result = new JSObject();
             result.put("launched", false);
             result.put("installed", installed);
+            result.put("fallbackOpened", fallbackOpened);
             result.put("error", e.getClass().getSimpleName());
             call.resolve(result);
         }
+    }
+
+    private boolean openPackageFallback(String packageName, String fallbackUrl) {
+        boolean opened = false;
+        try {
+            Intent market = new Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("market://details?id=" + Uri.encode(packageName)));
+            market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(market);
+            opened = true;
+        } catch (Exception ignored) {
+            // Google Play may be unavailable.
+        }
+
+        if (!opened && fallbackUrl != null && !fallbackUrl.trim().isEmpty()) {
+            try {
+                Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl));
+                web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(web);
+                opened = true;
+            } catch (Exception ignored) {
+                // Leave the failure explicit in the returned result.
+            }
+        }
+        return opened;
     }
 
     @PluginMethod
