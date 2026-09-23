@@ -34,7 +34,9 @@ public final class PhotoProcessor {
     private static final android.os.Handler MAIN =
             new android.os.Handler(android.os.Looper.getMainLooper());
 
-    private static final int WORKING_LONG_EDGE = 2048;
+    private static final int DEFAULT_WORKING_LONG_EDGE = 2048;
+    private static final int LOW_MEMORY_WORKING_LONG_EDGE = 1280;
+    private static final int MID_MEMORY_WORKING_LONG_EDGE = 1536;
     private static final int FINAL_LONG_EDGE = 3840;
     private static final int MAX_BURST_FRAMES = 3;
 
@@ -199,8 +201,9 @@ public final class PhotoProcessor {
         }
 
         int max = Math.max(bounds.outWidth, bounds.outHeight);
+        int workingLongEdge = chooseWorkingLongEdge();
         int sample = 1;
-        while (Math.ceil(max / (double) sample) > WORKING_LONG_EDGE) {
+        while (Math.ceil(max / (double) sample) > workingLongEdge) {
             sample *= 2;
         }
 
@@ -220,6 +223,25 @@ public final class PhotoProcessor {
         if (oriented != decoded && !decoded.isRecycled()) decoded.recycle();
 
         return cropTo4x3(oriented);
+    }
+
+    /**
+     * Choose a safe working resolution from the phone's actual runtime heap.
+     * Final export still reconstructs to 3840px long edge.
+     */
+    private static int chooseWorkingLongEdge() {
+        Runtime runtime = Runtime.getRuntime();
+        long maxHeap = runtime.maxMemory();
+        long usedHeap = runtime.totalMemory() - runtime.freeMemory();
+        long remaining = Math.max(0L, maxHeap - usedHeap);
+
+        if (maxHeap <= 192L * 1024L * 1024L || remaining < 56L * 1024L * 1024L) {
+            return LOW_MEMORY_WORKING_LONG_EDGE;
+        }
+        if (maxHeap <= 320L * 1024L * 1024L || remaining < 96L * 1024L * 1024L) {
+            return MID_MEMORY_WORKING_LONG_EDGE;
+        }
+        return DEFAULT_WORKING_LONG_EDGE;
     }
 
     private static Bitmap applyExifOrientation(Bitmap source, int orientation) {
