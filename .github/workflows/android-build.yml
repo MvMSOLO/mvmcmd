@@ -46,6 +46,9 @@ jobs:
       - name: Typecheck web application
         run: npm run typecheck
 
+      - name: Run JavaScript/TypeScript tests
+        run: npm test
+
       - name: Verify native launcher source
         shell: bash
         run: |
@@ -80,14 +83,26 @@ jobs:
       - name: Verify APK
         shell: bash
         run: |
+          set -euo pipefail
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           ls -lh "$APK"
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK"
+
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          printf 'apk=%s\nsha256=%s\nsize_bytes=%s\ncommit=%s\nrun=%s\n'             "$APK" "$SHA256" "$(stat -c '%s' "$APK")"             "${GITHUB_SHA}" "${GITHUB_RUN_NUMBER}" > apk-build-manifest.txt
+
+          cat apk-build-manifest.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: mvmcmd-debug-apk-${{ github.run_number }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            apk-build-manifest.txt
           if-no-files-found: error
           retention-days: 14
