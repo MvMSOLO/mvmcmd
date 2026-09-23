@@ -234,10 +234,8 @@ public final class VideoPostProcessor {
             try {
                 List<Effect> videoEffects = new ArrayList<>();
 
-                // True GPU Lanczos reconstruction. For the native 4:3 camera,
-                // 3840x2880 is the 4K-class tier; lower tiers are real fallbacks.
-                videoEffects.add(
-                        int targetWidth = shortSide * 4 / 3;
+                // GPU Lanczos reconstruction at the current export tier.
+                int targetWidth = shortSide * 4 / 3;
                 videoEffects.add(
                         LanczosResample.scaleToFitWithFlexibleOrientation(
                                 targetWidth, shortSide));
