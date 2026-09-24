@@ -150,7 +150,7 @@ export function MvmShell() {
     setLines((prev) => (clear ? next : [...prev, ...next]).slice(-240));
   }
 
-  function commit(raw: string, pick?: CatalogApp) {
+  async function commit(raw: string, pick?: CatalogApp) {
     const text = pick ? `open ${pick.name}` : raw;
     if (!text.trim()) return;
     const parsed = parseLine(text);
@@ -173,7 +173,7 @@ export function MvmShell() {
       return;
     }
 
-    const result = execute(text, { state, lang });
+    const result = await execute(text, { state, lang });
     setState(result.state);
     append([makeLine("in", text), ...result.lines], result.clearLog);
     setInput("");
@@ -184,10 +184,10 @@ export function MvmShell() {
     if (e.key === "Enter") {
       e.preventDefault();
       if (selected && q && !lookupCommand(input.trim().split(/\s+/)[0] ?? "")) {
-        commit(input, selected.app);
+        await commit(input, selected.app);
         return;
       }
-      commit(input);
+      await commit(input);
       return;
     }
     if (e.key === "Tab" && hits.length) {
@@ -405,9 +405,9 @@ export function MvmShell() {
           onSubmit={(e) => {
             e.preventDefault();
             if (selected && q && !lookupCommand(input.trim().split(/\s+/)[0] ?? "")) {
-              commit(input, selected.app);
+              void commit(input, selected.app);
             } else {
-              commit(input);
+              void commit(input);
             }
           }}
         >
