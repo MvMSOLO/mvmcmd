@@ -169,16 +169,22 @@ jobs:
           test -x "$AAPT2"
           "$APKSIGNER" verify --verbose "$APK"
           "$AAPT2" dump badging "$APK" > apk-badging.txt
+          "$AAPT2" dump xmltree "$APK" AndroidManifest.xml > apk-manifest-tree.txt
+
           grep -F "package: name='com.mvmcmd.launcher'" apk-badging.txt
           grep -F "versionName='$APP_VERSION'" apk-badging.txt
           grep -F "versionCode='$APP_VERSION_CODE'" apk-badging.txt
-          grep -F "sdkVersion:'24'" apk-badging.txt
-          grep -F "targetSdkVersion:'36'" apk-badging.txt
-          grep -F "uses-permission: name='android.permission.CAMERA'" apk-badging.txt
-          grep -F "uses-permission: name='android.permission.RECORD_AUDIO'" apk-badging.txt
-          grep -F "uses-permission: name='android.permission.INTERNET'" apk-badging.txt
-          if grep -Fq "android.permission.QUERY_ALL_PACKAGES" apk-badging.txt; then
-            echo "Unexpected QUERY_ALL_PACKAGES permission detected."
+
+          # aapt2's badging output does not expose every merged-manifest attribute
+          # consistently. xmltree reads the actual binary AndroidManifest.xml
+          # embedded in the APK, so validate the real packaged values.
+          grep -Eq 'android:minSdkVersion.*\)=\(type 0x10\)0x18([[:space:]]|$)' apk-manifest-tree.txt
+          grep -Eq 'android:targetSdkVersion.*\)=\(type 0x10\)0x24([[:space:]]|$)' apk-manifest-tree.txt
+          grep -Fq 'android.permission.CAMERA' apk-manifest-tree.txt
+          grep -Fq 'android.permission.RECORD_AUDIO' apk-manifest-tree.txt
+          grep -Fq 'android.permission.INTERNET' apk-manifest-tree.txt
+          if grep -Fq 'android.permission.QUERY_ALL_PACKAGES' apk-manifest-tree.txt; then
+            echo "Unexpected QUERY_ALL_PACKAGES permission detected in packaged APK."
             exit 1
           fi
           {
