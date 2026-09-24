@@ -109,7 +109,7 @@ jobs:
         run: npm ci
 
       - name: Download verified web bundle
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: mvmcmd-web-bundle-${{ github.run_number }}
           path: .vercel/output/static
@@ -172,6 +172,15 @@ jobs:
           grep -F "package: name='com.mvmcmd.launcher'" apk-badging.txt
           grep -F "versionName='$APP_VERSION'" apk-badging.txt
           grep -F "versionCode='$APP_VERSION_CODE'" apk-badging.txt
+          grep -F "sdkVersion:'24'" apk-badging.txt
+          grep -F "targetSdkVersion:'36'" apk-badging.txt
+          grep -F "uses-permission: name='android.permission.CAMERA'" apk-badging.txt
+          grep -F "uses-permission: name='android.permission.RECORD_AUDIO'" apk-badging.txt
+          grep -F "uses-permission: name='android.permission.INTERNET'" apk-badging.txt
+          if grep -Fq "android.permission.QUERY_ALL_PACKAGES" apk-badging.txt; then
+            echo "Unexpected QUERY_ALL_PACKAGES permission detected."
+            exit 1
+          fi
           {
             echo "platform=android"
             echo "artifact=app-debug.apk"
@@ -209,7 +218,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download verified web bundle
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: mvmcmd-web-bundle-${{ github.run_number }}
           path: .vercel/output/static
@@ -295,4 +304,40 @@ jobs:
           test "${{ needs.build-web.result }}" = success
           test "${{ needs.build-android.result }}" = success
           test "${{ needs.build-windows.result }}" = success
-          echo "Cross-platform build SUCCESS."
+
+      - name: Download verified Android APK artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: mvmcmd-android-apk-${{ github.run_number }}
+          path: final-artifacts/android
+
+      - name: Download verified Windows EXE artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: mvmcmd-windows-exe-${{ github.run_number }}
+          path: final-artifacts/windows
+
+      - name: Verify uploaded artifacts are present and non-empty
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="final-artifacts/android/app-debug.apk"
+          EXE="final-artifacts/windows/MVMCMD.exe"
+          test -s "$APK"
+          test -s "$EXE"
+          echo "Android APK bytes=$(stat -c '%s' "$APK") sha256=$(sha256sum "$APK" | awk '{print $1}')"
+          echo "Windows EXE bytes=$(stat -c '%s' "$EXE") sha256=$(sha256sum "$EXE" | awk '{print $1}')"
+          python3 - "$EXE" <<'PY'
+          import sys
+          from pathlib import Path
+          data = Path(sys.argv[1]).read_bytes()
+          if len(data) < 256 or data[:2] != b"MZ":
+              raise SystemExit("Invalid Windows EXE: missing MZ header")
+          pe_offset = int.from_bytes(data[0x3C:0x40], "little", signed=True)
+          if pe_offset < 64 or pe_offset + 4 > len(data) or data[pe_offset:pe_offset+4] != b"PE\0\0":
+              raise SystemExit("Invalid Windows EXE: missing PE signature")
+          print("Windows EXE PE verification: PASS")
+          PY
+
+      - name: Cross-platform artifact verification complete
+        run: echo "Cross-platform build SUCCESS — verified web, APK and EXE artifacts."
