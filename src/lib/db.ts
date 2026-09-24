@@ -221,6 +221,9 @@ export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite
  */
 export function ensureDbReady(): Promise<void> {
   if (dbSource !== "pglite") return Promise.resolve();
+  if (typeof process !== "undefined" && process.env.MVM_SKIP_DB_BOOTSTRAP === "true") {
+    return Promise.resolve();
+  }
   return getSql().then(() => undefined);
 }
 
