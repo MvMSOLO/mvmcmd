@@ -15,10 +15,14 @@ export async function resolve(specifier, context, nextResolve) {
           try {
             await access(fileURLToPath(candidate));
             return { url: candidate.href, shortCircuit: true };
-          } catch {}
+          } catch {
+            // Try the next source extension.
+          }
         }
       }
-    } catch {}
+    } catch {
+      // Fall through to Node's native resolver.
+    }
   }
   return nextResolve(specifier, context);
 }
