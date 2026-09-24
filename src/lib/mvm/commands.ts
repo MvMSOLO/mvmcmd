@@ -33,9 +33,16 @@ export const COMMANDS: CommandSpec[] = [
   {
     name: "bind",
     aliases: ["alias"],
-    usage: "bind <short> <app>",
-    summaryEn: "Bind a personal shortcut to an app.",
-    summaryUz: "Shaxsiy qisqa nom bog‘laydi.",
+    usage: "bind <package> [alias]",
+    summaryEn: "Bind an installed Android package or a known app to a shortcut.",
+    summaryUz: "O‘rnatilgan Android package yoki ma’lum ilovani qisqa nomga bog‘laydi.",
+  },
+  {
+    name: "refresh",
+    aliases: ["rescan"],
+    usage: "refresh",
+    summaryEn: "Revalidate stored Android package bindings.",
+    summaryUz: "Saqlangan Android package bindinglarini qayta tekshiradi.",
   },
   {
     name: "unbind",

@@ -4,14 +4,36 @@ export interface NativeLaunchResult {
   launched: boolean;
   installed: boolean;
   error?: string;
+  fallbackOpened?: boolean;
+}
+
+export interface NativeInstalledPackage {
+  packageName: string;
+  label?: string;
+  enabled?: boolean;
+  launcherAvailable?: boolean;
+  versionName?: string;
+  versionCode?: number;
 }
 
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
+  listInstalledApps(): Promise<{ apps: NativeInstalledPackage[]; count?: number }>;
+  inspectPackage(options: { packageName: string }): Promise<{
+    found: boolean;
+    packageName: string;
+    label?: string;
+    enabled?: boolean;
+    launcherAvailable?: boolean;
+    versionName?: string;
+    versionCode?: number;
+    error?: string;
+  }>;
   openPackage(options: {
     packageName: string;
     action?: string;
     data?: string;
+    fallbackUrl?: string;
   }): Promise<NativeLaunchResult>;
   openUrl(options: { url: string }): Promise<{ opened: boolean }>;
   openStore(options: { packageName: string; webUrl?: string }): Promise<{ opened: boolean }>;
@@ -31,11 +53,13 @@ export async function nativeOpenPackage(
   packageName: string,
   action?: string,
   data?: string,
+  fallbackUrl?: string,
 ): Promise<NativeLaunchResult> {
   return NativeLauncher.openPackage({
     packageName,
     ...(action ? { action } : {}),
     ...(data ? { data } : {}),
+    ...(fallbackUrl ? { fallbackUrl } : {}),
   });
 }
 
@@ -51,4 +75,23 @@ export async function nativeOpenStore(
     packageName,
     ...(webUrl ? { webUrl } : {}),
   });
+}
+
+export async function nativeInspectPackage(packageName: string): Promise<{
+  found: boolean;
+  packageName: string;
+  label?: string;
+  enabled?: boolean;
+  launcherAvailable?: boolean;
+  versionName?: string;
+  versionCode?: number;
+  error?: string;
+}> {
+  return NativeLauncher.inspectPackage({ packageName });
+}
+
+
+export async function nativeListInstalledApps(): Promise<NativeInstalledPackage[]> {
+  const result = await NativeLauncher.listInstalledApps();
+  return Array.isArray(result.apps) ? result.apps : [];
 }

@@ -137,7 +137,7 @@ const TOOLS_BROWSERS: Row[] = [
   ["calculator", "Calculator", "calc,kalkulyator", "com.google.android.calculator", "", "", "tool", 52],
   ["files", "Files", "file,fayl,myfiles", "com.google.android.apps.nbu.files", "", "", "tool", 56],
   ["contacts", "Contacts", "contact,kontaktlar", "com.google.android.contacts", "", "", "tool", 54],
-  ["weather", "Weather", "obhavo,pogoda", "com.google.android.googlequicksearchbox", "", "https://weather.google.com/", "tool", 44],
+  ["weather", "Weather", "obhavo,pogoda", "", "", "https://weather.google.com/", "tool", 44],
 ];
 
 const SHOP_MONEY_MAP: Row[] = [
@@ -241,7 +241,6 @@ const MORE: Row[] = [
   ["dropbox", "Dropbox", "dropboxapp", "com.dropbox.android", "dbapi-2://", "https://www.dropbox.com/", "tool", 44],
   ["onedrive", "OneDrive", "onedriveapp", "com.microsoft.skydrive", "ms-onedrive://", "https://onedrive.live.com/", "tool", 46],
   ["github", "GitHub", "gh,githubapp", "com.github.android", "", "https://github.com/", "tool", 52],
-  ["reddit-sync", "Reddit", "reddit", "com.reddit.frontpage", "reddit://", "https://www.reddit.com/", "social", 1],
   ["instagram-lite", "Instagram Lite", "iglite", "com.instagram.lite", "instagram://", "https://www.instagram.com/", "social", 50],
   ["facebook-lite", "Facebook Lite", "fblite", "com.facebook.lite", "fb://", "https://www.facebook.com/", "social", 52],
   ["tiktok-lite", "TikTok Lite", "ttlite", "com.zhiliaoapp.musically.go", "tiktok://", "https://www.tiktok.com/", "social", 48],

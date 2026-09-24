@@ -3,7 +3,12 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeOpenCamera } from "./native-launcher";
+import {
+  canUseNativeAndroidLauncher,
+  nativeInspectPackage,
+  nativeListInstalledApps,
+  nativeOpenCamera,
+} from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -13,6 +18,9 @@ import {
   setLang,
   togglePin,
   upsertAlias,
+  upsertBinding,
+  dropBinding,
+  replaceBindings,
 } from "./persist";
 import {
   hasInstallPrompt,
@@ -22,7 +30,7 @@ import {
   snapshotPerms,
 } from "./permissions";
 import { detectRuntime } from "./platform";
-import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
+import type { CatalogApp, Lang, LogLine, MatchHit, PackageBinding, PersistedState } from "./types";
 
 let seq = 0;
 function line(kind: LogLine["kind"], text: string, extra?: Partial<LogLine>): LogLine {
@@ -47,15 +55,63 @@ function L(ctx: ExecContext, uz: string, en: string): string {
   return ctx.lang === "uz" ? uz : en;
 }
 
-function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[]; bound?: string } {
+function boundCatalog(state: PersistedState): CatalogApp[] {
+  return state.bindings.map((binding) => ({
+    id: binding.packageName,
+    name: binding.label || binding.packageName,
+    aliases: binding.alias ? [binding.alias] : [],
+    androidPackage: binding.packageName,
+    category: "tool",
+    weight: 120,
+  }));
+}
+
+let installedAppsCache: { at: number; apps: CatalogApp[] } | null = null;
+
+function allApps(state: PersistedState, discovered: CatalogApp[] = []): CatalogApp[] {
+  const out: CatalogApp[] = [];
+  const seenIds = new Set<string>();
+  const seenPackages = new Set<string>();
+  for (const app of [...boundCatalog(state), ...CATALOG, ...discovered]) {
+    const packageName = app.androidPackage?.trim();
+    if (seenIds.has(app.id) || (packageName && seenPackages.has(packageName))) continue;
+    seenIds.add(app.id);
+    if (packageName) seenPackages.add(packageName);
+    out.push(app);
+  }
+  return out;
+}
+
+async function discoverInstalledApps(): Promise<CatalogApp[]> {
+  if (!canUseNativeAndroidLauncher()) return [];
+  const now = Date.now();
+  if (installedAppsCache && now - installedAppsCache.at < 5_000) return installedAppsCache.apps;
+  try {
+    const packages = await nativeListInstalledApps();
+    const apps: CatalogApp[] = packages.filter((item) => item.packageName).map((item) => ({
+      id: item.packageName,
+      name: item.label || item.packageName,
+      aliases: [],
+      androidPackage: item.packageName,
+      category: "tool",
+      weight: 40,
+    }));
+    installedAppsCache = { at: now, apps };
+    return apps;
+  } catch {
+    return installedAppsCache?.apps ?? [];
+  }
+}
+
+function resolveQuery(query: string, state: PersistedState, discovered: CatalogApp[] = []): { hits: MatchHit[]; bound?: string } {
   const aliased = resolveAliasTarget(query, state.aliases);
   const q = aliased ?? query;
-  const hits = rankApps(q, CATALOG, state.usage, 8);
+  const hits = rankApps(q, allApps(state, discovered), state.usage, 8);
 
   // A bind may intentionally target a raw Android package that is not in the
   // catalog. Treat that package as a first-class launch target instead of
   // reporting "not found" after the alias was successfully saved.
-  if (hits.length === 0 && /^[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z0-9_]+)+$/.test(q)) {
+  if (hits.length === 0 && /^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/.test(q)) {
     const app: CatalogApp = {
       id: q,
       name: q,
@@ -73,14 +129,17 @@ function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[];
   return { hits, bound: aliased ?? undefined };
 }
 
-function launchHit(ctx: ExecContext, hit: MatchHit): ExecResult {
+async function launchHit(ctx: ExecContext, hit: MatchHit): Promise<ExecResult> {
   const runtime = detectRuntime();
-  const result = launchApp(hit.app, runtime.platform);
+  const result = await launchApp(hit.app, runtime.platform);
   const state = recordUse(ctx.state, hit.app.id);
   saveState(state);
   const pkg = hit.app.androidPackage ? `  ${hit.app.androidPackage}` : "";
   const lines: LogLine[] = [
-    line("ok", `LAUNCH  ${hit.app.name}`, { meta: result.note, appId: hit.app.id }),
+    line(result.ok ? "ok" : "warn", `${result.ok ? "LAUNCH" : "FAIL"}  ${hit.app.name}`, {
+      meta: result.error ? `${result.note} · ${result.error}` : result.note,
+      appId: hit.app.id,
+    }),
     line("dim", `${result.method.toUpperCase()}${pkg}`),
   ];
   if (result.method === "intent") {
@@ -107,7 +166,7 @@ function formatHit(hit: MatchHit, index: number): LogLine {
   });
 }
 
-export function execute(rawLine: string, ctx: ExecContext): ExecResult {
+export async function execute(rawLine: string, ctx: ExecContext): Promise<ExecResult> {
   const trimmed = rawLine.trim();
   if (!trimmed) return { state: ctx.state, lines: [] };
 
@@ -125,7 +184,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${trimmed}` : "URL rejected")],
       };
     }
-    const { hits, bound } = resolveQuery(trimmed, state0);
+    const discovered = await discoverInstalledApps();
+    const { hits, bound } = resolveQuery(trimmed, state0, discovered);
     if (hits.length === 0) {
       return {
         state: state0,
@@ -148,7 +208,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       bound || hits.length === 1
         ? []
         : hits.slice(1, 4).map((h, i) => formatHit(h, i + 1));
-    const launched = launchHit(ctx2, top);
+    const launched = await launchHit(ctx2, top);
     return {
       ...launched,
       lines: [
@@ -174,18 +234,23 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
           ],
         };
       }
-      void nativeOpenCamera().catch(() => undefined);
-      return {
-        state: state0,
-        lines: [line("ok", "CAMERA", { meta: "NATIVE CAMERA" })],
-      };
+      try {
+        const result = await nativeOpenCamera();
+        return {
+          state: state0,
+          lines: [line(result.opened ? "ok" : "warn", result.opened ? "CAMERA  OPENED" : "CAMERA FAILED", { meta: result.opened ? "NATIVE CAMERA" : "NATIVE CAMERA ERROR" })],
+        };
+      } catch (error) {
+        return { state: state0, lines: [line("warn", `CAMERA FAILED  ·  ${error instanceof Error ? error.message : "NATIVE_CAMERA_FAILED"}`)] };
+      }
     }
     case "open": {
       const q = parsed.args.join(" ");
       if (!q) {
         return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
       }
-      const { hits, bound } = resolveQuery(q, state0);
+      const discovered = await discoverInstalledApps();
+      const { hits, bound } = resolveQuery(q, state0, discovered);
       if (!hits[0]) {
         return {
           state: state0,
@@ -193,7 +258,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
           hits,
         };
       }
-      const launched = launchHit(ctx2, hits[0]);
+      const launched = await launchHit(ctx2, hits[0]);
       return {
         ...launched,
         lines: [
@@ -206,7 +271,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     case "find": {
       const q = parsed.args.join(" ");
       if (!q) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
-      const hits = rankApps(q, CATALOG, state0.usage, 10);
+      const hits = rankApps(q, allApps(state0, await discoverInstalledApps()), state0.usage, 10);
       if (hits.length === 0) {
         return {
           state: state0,
@@ -226,8 +291,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     case "ls": {
       const cat = parsed.args[0]?.toLowerCase();
       const list = cat
-        ? CATALOG.filter((a) => a.category === cat || a.category.startsWith(cat))
-        : CATALOG;
+        ? allApps(state0, await discoverInstalledApps()).filter((a) => a.category === cat || a.category.startsWith(cat))
+        : allApps(state0, await discoverInstalledApps());
       if (list.length === 0) {
         return {
           state: state0,
@@ -265,37 +330,121 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       };
     }
     case "bind": {
-      const alias = parsed.args[0];
-      const target = parsed.args.slice(1).join(" ");
-      if (!alias || !target) {
+      if (parsed.args.length === 0) {
         return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
       }
-      const app = findByIdOrName(target) ?? rankApps(target, CATALOG, state0.usage, 1)[0]?.app;
-      if (!app && !target.includes(".")) {
+
+      const packagePattern = /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+$/;
+      let alias = "";
+      let target = "";
+
+      if (packagePattern.test(parsed.args[0])) {
+        target = parsed.args[0];
+        alias = parsed.args[1] ?? target;
+      } else {
+        alias = parsed.args[0];
+        target = parsed.args.slice(1).join(" ");
+      }
+
+      const known = findByIdOrName(target) ?? rankApps(target, allApps(state0), state0.usage, 1)[0]?.app;
+      if (known) {
+        const state = upsertAlias(state0, alias, known.id);
+        saveState(state);
+        return { state, lines: [line("ok", `BIND  ${compact(alias)}  →  ${known.id}`)] };
+      }
+
+      if (!packagePattern.test(target)) {
         return {
           state: state0,
           lines: [line("warn", L(ctx2, `Noma’lum nishon: ${target}`, `Unknown target: ${target}`))],
         };
       }
-      const boundTo = app?.id ?? target;
-      const state = upsertAlias(state0, alias, boundTo);
-      saveState(state);
-      return {
-        state,
-        lines: [line("ok", `BIND  ${compact(alias)}  →  ${boundTo}`)],
-      };
+
+      if (!canUseNativeAndroidLauncher()) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, "Arbitrary package binding faqat Android native rejimida.", "Arbitrary package binding requires the native Android runtime."))],
+        };
+      }
+
+      try {
+        const inspected = await nativeInspectPackage(target);
+        if (!inspected.found) {
+          return { state: state0, lines: [line("warn", `BIND FAILED  ${target}  ·  NOT_INSTALLED`)] };
+        }
+
+        const binding: PackageBinding = {
+          alias,
+          packageName: inspected.packageName,
+          label: inspected.label || inspected.packageName,
+          versionName: inspected.versionName || undefined,
+          versionCode: inspected.versionCode,
+          enabled: inspected.enabled !== false,
+          launcherAvailable: inspected.launcherAvailable === true,
+        };
+        const state = upsertBinding(state0, binding);
+        saveState(state);
+        return {
+          state,
+          lines: [
+            line("ok", `BIND  ${compact(alias)} → ${binding.packageName}`),
+            line("dim", `${binding.label} · launcher=${binding.launcherAvailable ? "yes" : "no"} · enabled=${binding.enabled ? "yes" : "no"}`),
+          ],
+        };
+      } catch (error) {
+        return {
+          state: state0,
+          lines: [line("warn", `BIND FAILED  ${target}  ·  ${error instanceof Error ? error.message : "NATIVE_INSPECT_FAILED"}` )],
+        };
+      }
     }
     case "unbind": {
       const alias = parsed.args[0];
       if (!alias) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
-      const state = dropAlias(state0, alias);
+      const nextAliasState = dropAlias(state0, alias);
+      const state = dropBinding(nextAliasState, alias);
       saveState(state);
       return { state, lines: [line("ok", `UNBIND  ${alias}`)] };
+    }
+    case "refresh": {
+      if (!canUseNativeAndroidLauncher()) {
+        return { state: state0, lines: [line("dim", L(ctx2, "Android native runtime yo‘q — bindinglar o‘zgarmadi.", "Native Android runtime unavailable; bindings unchanged."))] };
+      }
+      const valid: PackageBinding[] = [];
+      const removed: string[] = [];
+      for (const binding of state0.bindings) {
+        try {
+          const inspected = await nativeInspectPackage(binding.packageName);
+          if (!inspected.found) {
+            removed.push(binding.packageName);
+            continue;
+          }
+          valid.push({
+            ...binding,
+            label: inspected.label || binding.label,
+            versionName: inspected.versionName || binding.versionName,
+            versionCode: inspected.versionCode ?? binding.versionCode,
+            enabled: inspected.enabled !== false,
+            launcherAvailable: inspected.launcherAvailable === true,
+          });
+        } catch {
+          valid.push(binding);
+        }
+      }
+      const state = replaceBindings(state0, valid);
+      saveState(state);
+      return {
+        state,
+        lines: [
+          line("ok", `REFRESH  ${valid.length} valid binding(s)`),
+          ...(removed.length ? [line("warn", `REMOVED  ${removed.join(", ")}`)] : []),
+        ],
+      };
     }
     case "pin":
     case "unpin": {
       const q = parsed.args.join(" ");
-      const app = findByIdOrName(q) ?? rankApps(q, CATALOG, state0.usage, 1)[0]?.app;
+      const app = allApps(state0).find((a) => findByIdOrName(q)?.id === a.id) ?? rankApps(q, allApps(state0), state0.usage, 1)[0]?.app;
       if (!app) return { state: state0, lines: [line("warn", L(ctx2, "Ilova yo‘q", "No app"))] };
       const state = togglePin(state0, app.id, name === "pin");
       saveState(state);
@@ -342,10 +491,10 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     case "store": {
       const q = parsed.args.join(" ") || state0.recents[0] || "";
       if (!q) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
-      const app = findByIdOrName(q) ?? rankApps(q, CATALOG, state0.usage, 1)[0]?.app;
+      const app = allApps(state0).find((a) => findByIdOrName(q)?.id === a.id) ?? rankApps(q, allApps(state0), state0.usage, 1)[0]?.app;
       if (!app) return { state: state0, lines: [line("warn", L(ctx2, "Ilova yo‘q", "No app"))] };
       const runtime = detectRuntime();
-      const result = launchStore(app, runtime.platform);
+      const result = await launchStore(app, runtime.platform);
       return {
         state: state0,
         lines: [line(result.ok ? "ok" : "warn", `STORE  ${app.name}`, { meta: result.url })],
@@ -363,8 +512,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
           lines: [line("warn", L(ctx2, "Package faqat Androidda", "Raw package is Android-only"))],
         };
       }
-      launchPackage(pkg);
-      return { state: state0, lines: [line("ok", `PACK  ${pkg}`)] };
+      const result = await launchPackage(pkg);
+      return { state: state0, lines: [line(result.ok ? "ok" : "warn", `${result.ok ? "PACK" : "PACK FAILED"}  ${pkg}`, { meta: result.error ? `${result.note} · ${result.error}` : result.note })] };
     }
     case "sys": {
       const runtime = detectRuntime();

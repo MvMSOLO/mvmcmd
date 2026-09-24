@@ -86,13 +86,30 @@ export function defaultIceServers(): RTCIceServer[] {
     ?.split(",")
     .map((u) => u.trim())
     .filter(Boolean);
-  // Two independent providers: ICE queries all of them in parallel during
-  // gathering, so either one being unreachable costs nothing.
   return [
     {
-      urls: urls?.length ? urls : ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"],
+      urls: urls?.length
+        ? urls
+        : ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"],
     },
   ];
+}
+
+async function loadIceServers(): Promise<RTCIceServer[]> {
+  const fallback = defaultIceServers();
+  try {
+    const res = await fetch("/api/rtc/config", { cache: "no-store" });
+    if (!res.ok) return fallback;
+    const body = (await res.json()) as { iceServers?: RTCIceServer[] };
+    if (!Array.isArray(body.iceServers) || body.iceServers.length === 0) return fallback;
+    const safe = body.iceServers.filter((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+      return urls.every((url) => typeof url === "string" && /^(stun|turn|turns):/i.test(url));
+    });
+    return safe.length ? safe : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export class P2PRoom {
@@ -100,6 +117,8 @@ export class P2PRoom {
   private readonly peers = new Map<string, PeerSlot>();
   /** Per-remote-peer signal delivery chains (order-preserving). */
   private readonly signalQueues = new Map<string, Promise<void>>();
+  private readonly sessionToken = crypto.randomUUID();
+  private iceServers: RTCIceServer[] = defaultIceServers();
   private cursor = 0;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -117,6 +136,7 @@ export class P2PRoom {
    * room: the loop and timers start regardless and the next poll retries.
    */
   async join(): Promise<void> {
+    this.iceServers = await loadIceServers();
     try {
       await this.pollOnce();
     } catch {
@@ -141,7 +161,7 @@ export class P2PRoom {
     void fetch("/api/rtc", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ op: "leave", room: this.opts.room, peer: this.opts.selfId }),
+      body: JSON.stringify({ op: "leave", room: this.opts.room, peer: this.opts.selfId, token: this.sessionToken }),
       keepalive: true,
     }).catch(() => {});
   }
@@ -149,6 +169,7 @@ export class P2PRoom {
   /** Send on the unreliable game-state channel (drops stale packets). */
   broadcast(data: unknown): void {
     const wire = JSON.stringify({ t: "d", d: data });
+    if (new TextEncoder().encode(wire).byteLength > 48 * 1024) return;
     for (const slot of this.peers.values()) {
       if (slot.state?.readyState === "open") slot.state.send(wire);
     }
@@ -157,6 +178,7 @@ export class P2PRoom {
   /** Send reliably (ordered) to one peer, or to all when peerId is omitted. */
   send(data: unknown, peerId?: string): void {
     const wire = JSON.stringify({ t: "d", d: data });
+    if (new TextEncoder().encode(wire).byteLength > 48 * 1024) return;
     const targets = peerId ? [this.peers.get(peerId)] : [...this.peers.values()];
     for (const slot of targets) {
       if (slot?.reliable?.readyState === "open") slot.reliable.send(wire);
@@ -191,6 +213,7 @@ export class P2PRoom {
       peer: this.opts.selfId,
       name: this.opts.name ?? "",
       since: String(this.cursor),
+      token: this.sessionToken,
     });
     const res = await fetch(`/api/rtc?${params}`);
     if (this.closed) return;
@@ -246,7 +269,7 @@ export class P2PRoom {
   private connectTo(peerId: string, name: string, initiator: boolean): PeerSlot | null {
     if (this.closed) return null;
     const pc = new RTCPeerConnection({
-      iceServers: this.opts.iceServers ?? defaultIceServers(),
+      iceServers: this.opts.iceServers ?? this.iceServers,
     });
     const slot: PeerSlot = {
       pc,
@@ -335,7 +358,7 @@ export class P2PRoom {
           slot.pingSentAt = undefined;
           this.emitPeers();
         }
-      } else {
+      } else if (msg.t === "d") {
         this.opts.onMessage?.(
           slot.info.id,
           msg.d,
@@ -458,6 +481,7 @@ export class P2PRoom {
             to,
             kind,
             payload,
+            token: this.sessionToken,
           }),
         });
         if (res.ok) return;

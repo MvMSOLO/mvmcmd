@@ -32,10 +32,11 @@ export function detectRuntime(): RuntimeInfo {
   else if (ios) platform = "ios";
 
   const standalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.matchMedia("(display-mode: minimal-ui)").matches ||
-    ("standalone" in navigator &&
-      Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: minimal-ui)").matches ||
+      ("standalone" in navigator &&
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone)));
 
   return {
     platform,
@@ -43,7 +44,9 @@ export function detectRuntime(): RuntimeInfo {
     ua,
     language: navigator.language || "en",
     online: navigator.onLine,
-    touch: navigator.maxTouchPoints > 0 || "ontouchstart" in window,
+    touch:
+      navigator.maxTouchPoints > 0 ||
+      (typeof window !== "undefined" && "ontouchstart" in window),
   };
 }
 
