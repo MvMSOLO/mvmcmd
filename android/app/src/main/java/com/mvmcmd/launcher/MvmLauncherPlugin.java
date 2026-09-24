@@ -179,7 +179,7 @@ public class MvmLauncherPlugin extends Plugin {
             // Google Play may be unavailable.
         }
 
-        if (!opened && fallbackUrl != null && !fallbackUrl.trim().isEmpty()) {
+        if (!opened && fallbackUrl != null && !fallbackUrl.trim().isEmpty() && isSafeExternalUrl(fallbackUrl)) {
             try {
                 Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl));
                 web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -246,7 +246,7 @@ public class MvmLauncherPlugin extends Plugin {
             // Google Play may be unavailable. Fall back to the normal HTTPS page.
         }
 
-        if (!opened && webUrl != null && !webUrl.trim().isEmpty()) {
+        if (!opened && webUrl != null && webUrl.trim().isEmpty() == false && isSafeExternalUrl(webUrl)) {
             try {
                 Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(webUrl));
                 web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
