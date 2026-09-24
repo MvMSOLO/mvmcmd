@@ -44,7 +44,9 @@ export function detectRuntime(): RuntimeInfo {
     ua,
     language: navigator.language || "en",
     online: navigator.onLine,
-    touch: navigator.maxTouchPoints > 0 || "ontouchstart" in window,
+    touch:
+      navigator.maxTouchPoints > 0 ||
+      (typeof window !== "undefined" && "ontouchstart" in window),
   };
 }
 
