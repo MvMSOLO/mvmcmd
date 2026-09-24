@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+def resolvedAppVersionCode = 1
+if (project.hasProperty("appVersionCode")) {
+    resolvedAppVersionCode = project.property("appVersionCode").toString().toInteger()
+}
+def resolvedAppVersionName = "1.0.0"
+if (project.hasProperty("appVersion")) {
+    resolvedAppVersionName = project.property("appVersion").toString()
+}
+
 android {
     namespace = "com.mvmcmd.launcher"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +16,8 @@ android {
         applicationId "com.mvmcmd.launcher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (project.findProperty("appVersionCode") ?: "1").toInteger()
-        versionName (project.findProperty("appVersion") ?: "1.0.0").toString()
+        versionCode resolvedAppVersionCode
+        versionName resolvedAppVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
