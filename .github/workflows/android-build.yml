@@ -348,12 +348,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK="final-artifacts/android/app-debug.apk"
-          EXE="final-artifacts/windows/MVMCMD.exe"
+          APK="$(find final-artifacts/android -type f -name app-debug.apk -print -quit)"
+          EXE="$(find final-artifacts/windows -type f -name MVMCMD.exe -print -quit)"
+          test -n "$APK"
+          test -n "$EXE"
           test -s "$APK"
           test -s "$EXE"
-          echo "Android APK bytes=$(stat -c '%s' "$APK") sha256=$(sha256sum "$APK" | awk '{print $1}')"
-          echo "Windows EXE bytes=$(stat -c '%s' "$EXE") sha256=$(sha256sum "$EXE" | awk '{print $1}')"
+          echo "Android APK path=$APK bytes=$(stat -c '%s' "$APK") sha256=$(sha256sum "$APK" | awk '{print $1}')"
+          echo "Windows EXE path=$EXE bytes=$(stat -c '%s' "$EXE") sha256=$(sha256sum "$EXE" | awk '{print $1}')"
           python3 - "$EXE" <<'PY'
           import sys
           from pathlib import Path
