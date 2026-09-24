@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { lookupCommand, parseLine } from "./commands.ts";
 import { CATALOG, findByIdOrName } from "./catalog.ts";
 import { execute } from "./executor.ts";
-import { loadState, saveState, EMPTY } from "./persist.ts";
+import { loadState, EMPTY } from "./persist.ts";
 import { launchRawUrl } from "./intents.ts";
 
 test("command parser handles aliases and quoted arguments", () => {
