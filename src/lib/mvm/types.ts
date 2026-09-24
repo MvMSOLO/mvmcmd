@@ -50,8 +50,18 @@ export interface UserAlias {
   target: string;
 }
 
+export interface PackageBinding {
+  alias: string;
+  packageName: string;
+  label: string;
+  versionName?: string;
+  versionCode?: number;
+  enabled: boolean;
+  launcherAvailable: boolean;
+}
+
 export interface PersistedState {
-  v: 1;
+  v: 2;
   lang: Lang;
   aliases: UserAlias[];
   pins: string[];
@@ -61,6 +71,7 @@ export interface PersistedState {
   storageGranted: boolean;
   notifyGranted: boolean;
   gateSeen: boolean;
+  bindings: PackageBinding[];
 }
 
 export interface LaunchResult {
@@ -69,6 +80,7 @@ export interface LaunchResult {
   url: string;
   app: CatalogApp;
   note: string;
+  error?: string;
 }
 
 export interface CommandSpec {
