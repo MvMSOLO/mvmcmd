@@ -1,6 +1,7 @@
 {
   "name": "app-builder-workspace",
   "private": true,
+  "version": "1.0.0",
   "sideEffects": false,
   "type": "module",
   "overrides": {
@@ -8,7 +9,9 @@
   },
   "scripts": {
     "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080",
-    "build": "node scripts/with-app-env.mjs vite build && npm run db:migrate",
+    "build": "npm run build:web",
+    "build:web": "node scripts/with-app-env.mjs vite build",
+    "build:production": "npm run build:web && npm run db:migrate",
     "db:migrate": "node scripts/migrate.mjs",
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
     "preview": "node scripts/with-app-env.mjs vite preview",
