@@ -1,4 +1,4 @@
-import type { Lang, PersistedState, UserAlias } from "./types";
+import type { Lang, PackageBinding, PersistedState, UserAlias } from "./types";
 
 const KEY = "mvmcmd.v1";
 
@@ -13,6 +13,7 @@ export const EMPTY: PersistedState = {
   storageGranted: false,
   notifyGranted: false,
   gateSeen: false,
+  bindings: [],
 };
 
 export function loadState(): PersistedState {
@@ -22,7 +23,7 @@ export function loadState(): PersistedState {
     if (!raw) return { ...EMPTY, usage: {}, aliases: [], pins: [], recents: [], history: [] };
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     return {
-      v: 1,
+      v: 2,
       lang: parsed.lang === "en" ? "en" : "uz",
       aliases: Array.isArray(parsed.aliases) ? parsed.aliases : [],
       pins: Array.isArray(parsed.pins) ? parsed.pins : [],
@@ -32,6 +33,19 @@ export function loadState(): PersistedState {
       storageGranted: Boolean(parsed.storageGranted),
       notifyGranted: Boolean(parsed.notifyGranted),
       gateSeen: Boolean(parsed.gateSeen),
+      bindings: Array.isArray(parsed.bindings)
+        ? parsed.bindings.filter((binding): binding is PackageBinding => {
+            if (!binding || typeof binding !== "object") return false;
+            const row = binding as Partial<PackageBinding>;
+            return (
+              typeof row.alias === "string" &&
+              typeof row.packageName === "string" &&
+              typeof row.label === "string" &&
+              typeof row.enabled === "boolean" &&
+              typeof row.launcherAvailable === "boolean"
+            );
+          })
+        : [],
     };
   } catch {
     return { ...EMPTY, usage: {} };
@@ -89,6 +103,35 @@ export function setLang(state: PersistedState, lang: Lang): PersistedState {
   return { ...state, lang };
 }
 
+export function upsertBinding(state: PersistedState, binding: PackageBinding): PersistedState {
+  const alias = binding.alias.trim().toLowerCase();
+  const packageName = binding.packageName.trim();
+  const bindings = [
+    { ...binding, alias, packageName },
+    ...state.bindings.filter(
+      (row) => row.alias !== alias && row.packageName !== packageName,
+    ),
+  ];
+  return { ...state, bindings };
+}
+
+export function dropBinding(state: PersistedState, key: string): PersistedState {
+  const normalized = key.trim().toLowerCase();
+  return {
+    ...state,
+    bindings: state.bindings.filter(
+      (row) => row.alias !== normalized && row.packageName.toLowerCase() !== normalized,
+    ),
+  };
+}
+
+export function replaceBindings(
+  state: PersistedState,
+  bindings: PackageBinding[],
+): PersistedState {
+  return { ...state, bindings };
+}
+
 export function resetState(): PersistedState {
   const fresh = {
     ...EMPTY,
@@ -97,6 +140,7 @@ export function resetState(): PersistedState {
     pins: [],
     recents: [],
     history: [],
+    bindings: [],
   };
   saveState(fresh);
   return fresh;
