@@ -47,6 +47,8 @@ jobs:
 
       - name: Build web bundle without database migration
         run: npm run build:web
+        env:
+          MVM_SKIP_DB_BOOTSTRAP: "true"
 
       - name: Typecheck generated route tree
         run: npm run typecheck
