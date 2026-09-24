@@ -1,16 +1,39 @@
 # Testing
 
-## Automated
+## CI
 
-`npm test` covers the existing project tests plus MVMCMD command/catalog/persistence/URL tests.
-
-The CI workflow runs:
+The cross-platform GitHub Actions workflow runs:
 
 1. `npm ci`
-2. `npm run typecheck`
-3. `npm run lint`
-4. `npm test`
-5. `npm audit --audit-level=high`
-6. `npm un build:webËˆØ\XÚ]ÜˆŞ[˜ÂˆÜ˜YHÛX[ˆ
-ÈTÈZ[KˆTÈÚYÛ˜]\™KÜXÚØYÙKİ™\œÚ[Ûˆ™\šYšXØ][Û‚ŒLˆÛÈ\İ
-ÈÚ[™İÜÈKÙ[X™YYX[™H™\šYšXØ][Û‚‚ˆÈÈ]šXÙH\İÈİ[™\]Z\™Y‚•H›ÛİÚ[™ÈØ[››İ™HÛ™\İHX\šÙY\È\ÚXØ[H™\šYšYYHÚ]XˆXİ[ÛœÈ[Û™N‚‚‹HİËÛZYÚYÚY[™[™›ÚYØ[Y\˜HX]š^‹H™X[È[™Œ”ÈÙ[œÛÜ‹Ù[˜ÛÙ\ˆÛÛXš[˜][ÛœÂ‹H\ÚXØ[›\ÚÙ›Øİ\ËÜ›İ][Û‹ÛY™XŞXÛHØ\Ù\Â‹HİË\İÜ˜YÙH[™[\œ\YYYXTİÜ™HÜš]\Â‹HZ\œ[™KÛÙ™›[™H™Z]š[ÜˆÛˆH]šXÙB‹HÚKQšH8¡¥[Øš[HÙX”•È[™Ù™‚‹H™X[U˜]™\œØ[[™T“ˆ™[^HÙ[Xİ[Û‚‚•\ÙH\™H^XÚ]X[X[]˜[Y][Ûˆ›ØÚÙ\œË›İ˜ZÙHİXØÙ\ÜÈİ]\Ë‚
+2. dependency audit
+3. `npm run build:web` without deployment-time database migration
+4. TypeScript typecheck
+5. ESLint
+6. automated unit/contract tests
+7. Capacitor sync
+8. Gradle clean + Android debug APK build
+9. APK signature/package/version/SDK/permission verification
+10. Go module tests
+11. real Windows x64 EXE build
+12. Windows MZ/PE and embedded-bundle verification
+13. final artifact download and cross-platform verification
+
+The workflow is failed unless the web, Android and Windows jobs all succeed.
+
+## Automated coverage
+
+Current tests cover command parsing, aliases, catalog identifiers, Android package-name handling, persistence/migration behavior and unsafe URL rejection. The project test suite also covers auth gate/session contracts and app-data behavior.
+
+## Android
+
+CI can prove compilation, packaging, APK integrity and manifest metadata. A GitHub-hosted runner cannot provide a physical camera or sensor.
+
+Manual/device validation is still required for real sensor resolution modes, 4K availability, 60 FPS support, autofocus, flash, stabilization, encoder profiles, thermal behavior, low-storage handling and lifecycle interruption.
+
+## WebRTC
+
+CI validates signaling and client state/validation code. Real NAT traversal, TURN relay selection, Wi-Fi/mobile handoff and two-device recovery require deployed network/device testing.
+
+## Manual matrix
+
+Exercise `open`, `find`, `ls`, `bind`, `unbind`, `pack`, `store`, camera/photo/video, permission flows, resolution/FPS fallback, persistence restart and WebRTC reconnect on low-end, mid-range and flagship Android devices where available.

@@ -60,3 +60,5 @@ See:
 - [Commands](docs/commands.md)
 - [WebRTC](docs/webrtc.md)
 - [Testing](docs/testing.md)
+- [Windows](docs/windows.md)
+- [Security](docs/security.md)

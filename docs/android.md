@@ -11,7 +11,7 @@ Target configuration:
 - minSdk 24
 - Capacitor 8.x
 
-The workflow runs `npm ci`, typecheck/tests/lint, builds the web bundle, runs Capacitor sync, cleans Gradle, builds the debug APK, verifies the APK with `apksigner` and `aapt2`, and uploads a manifest.
+The CI workflow installs locked dependencies, builds the web bundle, synchronizes Capacitor, cleans Gradle, builds the debug APK, verifies its signature and packaged metadata, then uploads the artifact.
 
 ## Native launcher
 
@@ -19,12 +19,27 @@ The workflow runs `npm ci`, typecheck/tests/lint, builds the web bundle, runs Ca
 
 - `openCamera`
 - `inspectPackage`
+- `listInstalledApps`
 - `openPackage`
 - `openUrl`
 - `openStore`
 
-Package operations validate Android package identifiers and use Android PackageManager. Store fallback reports whether the fallback actually opened.
+Package operations validate Android package identifiers and use PackageManager. Launch failures return explicit results and can fall back to Play Store/web when appropriate.
 
-## Package visibility
+## Package visibility and discovery
 
-Binding an explicitly named package uses PackageManager lookup for that package. The project does not require `QUERY_ALL_PACKAGES` just to bind a known package.
+Installed-app discovery uses `PackageManager.queryIntentActivities(ACTION_MAIN + CATEGORY_LAUNCHER)` and an explicit manifest `<queries>` entry for that launcher intent.
+
+MVMCMD does not request `QUERY_ALL_PACKAGES`. The command engine briefly caches discovered launchable packages and merges them with the static catalog and persisted user bindings.
+
+## Binding
+
+`bind <package>` and `bind <package> <alias>` use real Android PackageManager inspection on Android. Bindings are persisted and can be revalidated with `refresh`.
+
+## Camera
+
+CameraX/Media3 remain the production native implementation. Capability-dependent 4K/60 FPS modes use actual device support and fallbacks rather than fixed claims.
+
+## Device limitation
+
+CI cannot verify physical camera sensors, real encoder combinations, flash/autofocus/stabilization, thermal limits, low-storage failures or interrupted lifecycle behavior. Those remain genuine physical-device tests.

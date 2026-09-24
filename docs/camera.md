@@ -6,19 +6,23 @@ The implementation covers preview, photo capture, video capture, camera switchin
 
 ## Resolution and FPS
 
-The app must distinguish:
+The app distinguishes:
 
 1. requested resolution/FPS
 2. actual supported resolution/FPS
 3. fallback resolution/FPS
 
-4K and 60 FPS are device capabilitiees, not unconditional guarantees.
+4K and 60 FPS are device capabilities, not unconditional guarantees. Unsupported requests fall back to supported device modes and the encoded result is measured where possible.
 
 ## Processing
 
 Photo reconstruction uses a native processing pipeline. Runtime heap checks choose a safer working resolution on lower-memory devices before the final reconstruction step.
 
-This does not turn a low-resolution source into genuine optical 4K Detail; output should be described as reconstruction/upscaling where appropriate.
+Reconstruction/upscaling must not be described as genuine optical 4K detail when the source does not contain that detail.
+
+## Storage and lifecycle
+
+Camera exports use MediaStore with pending-item handling, cleanup on write/finalization failure and collision-safe display names. Camera resources and executors are released with the activity lifecycle.
 
 ## Physical-device validation
 

@@ -7,3 +7,5 @@ The live-preview OAuth client secret is intentionally absent from source control
 Android app discovery uses an explicit `MAIN` + `LAUNCHER` package-visibility query and does not request `QUERY_ALL_PACKAGES`.
 
 Native package names and external URL schemes are validated before Android launch operations. Unexpected WebRTC data-channel message types are ignored before application callbacks.
+
+A credential that was previously present in repository history must be rotated in the external auth broker/deployment environment; repository removal alone does not revoke an already-issued secret.
