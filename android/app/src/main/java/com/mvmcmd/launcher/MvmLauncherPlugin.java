@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 
 import androidx.annotation.NonNull;
@@ -71,6 +72,46 @@ public class MvmLauncherPlugin extends Plugin {
 
     private static boolean isValidPackageName(String packageName) {
         return packageName.matches("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$");
+    }
+
+    @PluginMethod
+    public void listInstalledApps(PluginCall call) {
+        PackageManager pm = getContext().getPackageManager();
+        try {
+            Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
+            launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            java.util.List<ResolveInfo> activities = pm.queryIntentActivities(launcherIntent, 0);
+            java.util.HashSet<String> seen = new java.util.HashSet<>();
+            com.getcapacitor.JSArray apps = new com.getcapacitor.JSArray();
+
+            for (ResolveInfo resolveInfo : activities) {
+                if (resolveInfo.activityInfo == null) continue;
+                String packageName = resolveInfo.activityInfo.packageName;
+                if (packageName == null || !isValidPackageName(packageName) || !seen.add(packageName)) continue;
+                try {
+                    ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+                    if (!appInfo.enabled) continue;
+                    PackageInfo packageInfo = pm.getPackageInfo(packageName, 0);
+                    JSObject app = new JSObject();
+                    app.put("packageName", packageName);
+                    app.put("label", String.valueOf(pm.getApplicationLabel(appInfo)));
+                    app.put("enabled", true);
+                    app.put("launcherAvailable", true);
+                    app.put("versionName", packageInfo.versionName == null ? "" : packageInfo.versionName);
+                    if (android.os.Build.VERSION.SDK_INT >= 28) app.put("versionCode", packageInfo.getLongVersionCode());
+                    else app.put("versionCode", packageInfo.versionCode);
+                    apps.put(app);
+                } catch (PackageManager.NameNotFoundException ignored) {
+                    // Package disappeared between launcher query and metadata lookup.
+                }
+            }
+            JSObject result = new JSObject();
+            result.put("apps", apps);
+            result.put("count", apps.length());
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Unable to discover installed launchable apps: " + e.getMessage(), e);
+        }
     }
 
     @PluginMethod

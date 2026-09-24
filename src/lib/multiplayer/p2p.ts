@@ -358,7 +358,7 @@ export class P2PRoom {
           slot.pingSentAt = undefined;
           this.emitPeers();
         }
-      } else {
+      } else if (msg.t === "d") {
         this.opts.onMessage?.(
           slot.info.id,
           msg.d,

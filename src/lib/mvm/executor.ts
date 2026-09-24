@@ -3,7 +3,12 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeInspectPackage, nativeOpenCamera } from "./native-launcher";
+import {
+  canUseNativeAndroidLauncher,
+  nativeInspectPackage,
+  nativeListInstalledApps,
+  nativeOpenCamera,
+} from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -61,15 +66,47 @@ function boundCatalog(state: PersistedState): CatalogApp[] {
   }));
 }
 
-function allApps(state: PersistedState): CatalogApp[] {
-  const seen = new Set(CATALOG.map((app) => app.id));
-  return [...CATALOG, ...boundCatalog(state).filter((app) => !seen.has(app.id))];
+let installedAppsCache: { at: number; apps: CatalogApp[] } | null = null;
+
+function allApps(state: PersistedState, discovered: CatalogApp[] = []): CatalogApp[] {
+  const out: CatalogApp[] = [];
+  const seenIds = new Set<string>();
+  const seenPackages = new Set<string>();
+  for (const app of [...boundCatalog(state), ...CATALOG, ...discovered]) {
+    const packageName = app.androidPackage?.trim();
+    if (seenIds.has(app.id) || (packageName && seenPackages.has(packageName))) continue;
+    seenIds.add(app.id);
+    if (packageName) seenPackages.add(packageName);
+    out.push(app);
+  }
+  return out;
 }
 
-function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[]; bound?: string } {
+async function discoverInstalledApps(): Promise<CatalogApp[]> {
+  if (!canUseNativeAndroidLauncher()) return [];
+  const now = Date.now();
+  if (installedAppsCache && now - installedAppsCache.at < 5_000) return installedAppsCache.apps;
+  try {
+    const packages = await nativeListInstalledApps();
+    const apps: CatalogApp[] = packages.filter((item) => item.packageName).map((item) => ({
+      id: item.packageName,
+      name: item.label || item.packageName,
+      aliases: [],
+      androidPackage: item.packageName,
+      category: "tool",
+      weight: 40,
+    }));
+    installedAppsCache = { at: now, apps };
+    return apps;
+  } catch {
+    return installedAppsCache?.apps ?? [];
+  }
+}
+
+function resolveQuery(query: string, state: PersistedState, discovered: CatalogApp[] = []): { hits: MatchHit[]; bound?: string } {
   const aliased = resolveAliasTarget(query, state.aliases);
   const q = aliased ?? query;
-  const hits = rankApps(q, allApps(state), state.usage, 8);
+  const hits = rankApps(q, allApps(state, discovered), state.usage, 8);
 
   // A bind may intentionally target a raw Android package that is not in the
   // catalog. Treat that package as a first-class launch target instead of
@@ -147,7 +184,8 @@ export async function execute(rawLine: string, ctx: ExecContext): Promise<ExecRe
         lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${trimmed}` : "URL rejected")],
       };
     }
-    const { hits, bound } = resolveQuery(trimmed, state0);
+    const discovered = await discoverInstalledApps();
+    const { hits, bound } = resolveQuery(trimmed, state0, discovered);
     if (hits.length === 0) {
       return {
         state: state0,
@@ -211,7 +249,8 @@ export async function execute(rawLine: string, ctx: ExecContext): Promise<ExecRe
       if (!q) {
         return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
       }
-      const { hits, bound } = resolveQuery(q, state0);
+      const discovered = await discoverInstalledApps();
+      const { hits, bound } = resolveQuery(q, state0, discovered);
       if (!hits[0]) {
         return {
           state: state0,
@@ -232,7 +271,7 @@ export async function execute(rawLine: string, ctx: ExecContext): Promise<ExecRe
     case "find": {
       const q = parsed.args.join(" ");
       if (!q) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
-      const hits = rankApps(q, allApps(state0), state0.usage, 10);
+      const hits = rankApps(q, allApps(state0, await discoverInstalledApps()), state0.usage, 10);
       if (hits.length === 0) {
         return {
           state: state0,
@@ -252,8 +291,8 @@ export async function execute(rawLine: string, ctx: ExecContext): Promise<ExecRe
     case "ls": {
       const cat = parsed.args[0]?.toLowerCase();
       const list = cat
-        ? allApps(state0).filter((a) => a.category === cat || a.category.startsWith(cat))
-        : allApps(state0);
+        ? allApps(state0, await discoverInstalledApps()).filter((a) => a.category === cat || a.category.startsWith(cat))
+        : allApps(state0, await discoverInstalledApps());
       if (list.length === 0) {
         return {
           state: state0,

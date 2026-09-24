@@ -7,8 +7,18 @@ export interface NativeLaunchResult {
   fallbackOpened?: boolean;
 }
 
+export interface NativeInstalledPackage {
+  packageName: string;
+  label?: string;
+  enabled?: boolean;
+  launcherAvailable?: boolean;
+  versionName?: string;
+  versionCode?: number;
+}
+
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
+  listInstalledApps(): Promise<{ apps: NativeInstalledPackage[]; count?: number }>;
   inspectPackage(options: { packageName: string }): Promise<{
     found: boolean;
     packageName: string;
@@ -78,4 +88,10 @@ export async function nativeInspectPackage(packageName: string): Promise<{
   error?: string;
 }> {
   return NativeLauncher.inspectPackage({ packageName });
+}
+
+
+export async function nativeListInstalledApps(): Promise<NativeInstalledPackage[]> {
+  const result = await NativeLauncher.listInstalledApps();
+  return Array.isArray(result.apps) ? result.apps : [];
 }

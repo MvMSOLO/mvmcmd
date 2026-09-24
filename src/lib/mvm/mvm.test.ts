@@ -56,3 +56,15 @@ test("unknown input returns an actual failure instead of fake success", async ()
 test("dangerous URL schemes are rejected by the web launcher", () => {
   assert.equal(launchRawUrl("javascript:alert(1)"), false);
 });
+
+
+test("catalog does not duplicate concrete Android package ids", () => {
+  const packages = CATALOG.map((app) => app.androidPackage).filter((pkg): pkg is string => Boolean(pkg));
+  assert.equal(new Set(packages).size, packages.length);
+});
+
+test("raw Android package names resolve as real launch targets", async () => {
+  const result = await execute("open com.example.unlisted", { state: EMPTY, lang: "en" });
+  assert.equal(result.hits?.[0]?.app.androidPackage, "com.example.unlisted");
+  assert.equal(result.hits?.[0]?.reason, "package");
+});
