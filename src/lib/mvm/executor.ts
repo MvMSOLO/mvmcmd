@@ -452,7 +452,7 @@ export async function execute(rawLine: string, ctx: ExecContext): Promise<ExecRe
     case "store": {
       const q = parsed.args.join(" ") || state0.recents[0] || "";
       if (!q) return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
-      const app = findByIdOrName(q) ?? rankApps(q, CATALOG, state0.usage, 1)[0]?.app;
+      const app = allApps(state0).find((a) => findByIdOrName(q)?.id === a.id) ?? rankApps(q, allApps(state0), state0.usage, 1)[0]?.app;
       if (!app) return { state: state0, lines: [line("warn", L(ctx2, "Ilova yo‘q", "No app"))] };
       const runtime = detectRuntime();
       const result = await launchStore(app, runtime.platform);
