@@ -9,6 +9,16 @@ export interface NativeLaunchResult {
 
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
+  inspectPackage(options: { packageName: string }): Promise<{
+    found: boolean;
+    packageName: string;
+    label?: string;
+    enabled?: boolean;
+    launcherAvailable?: boolean;
+    versionName?: string;
+    versionCode?: number;
+    error?: string;
+  }>;
   openPackage(options: {
     packageName: string;
     action?: string;
@@ -55,4 +65,17 @@ export async function nativeOpenStore(
     packageName,
     ...(webUrl ? { webUrl } : {}),
   });
+}
+
+export async function nativeInspectPackage(packageName: string): Promise<{
+  found: boolean;
+  packageName: string;
+  label?: string;
+  enabled?: boolean;
+  launcherAvailable?: boolean;
+  versionName?: string;
+  versionCode?: number;
+  error?: string;
+}> {
+  return NativeLauncher.inspectPackage({ packageName });
 }
