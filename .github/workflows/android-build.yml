@@ -1,35 +1,98 @@
-name: Build Android APK
-# Capacitor 8 / Java 21 / static Vercel web bundle
+name: Build MVMCMD — Web + Android APK + Windows EXE
 
 on:
   push:
     branches:
-      - '**'
+      - "**"
   workflow_dispatch:
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: mvmcmd-cross-platform-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
-jobs:
-  build-android:
-    name: Build Android APK
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      CAPACITOR_BUILD: "true"
+env:
+  NODE_VERSION: "22"
+  JAVA_VERSION: "21"
+  CAPACITOR_BUILD: "true"
 
+jobs:
+  build-web:
+    name: Build and verify web bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify toolchain
+        run: |
+          node --version
+          npm --version
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run automated tests
+        run: npm test
+
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
+
+      - name: Build web bundle without database migration
+        run: npm run build:web
+
+      - name: Verify static bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s ".vercel/output/static/index.html"
+          test -d ".vercel/output/static/assets"
+          rm -rf web-bundle
+          mkdir -p web-bundle
+          cp -a ".vercel/output/static/." web-bundle/
+          test -s "web-bundle/index.html"
+          test -d "web-bundle/assets"
+          printf 'commit=%s\nrun=%s\nversion=%s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" \
+            "$(node -p "require('./package.json').version")" > web-bundle/build-manifest.txt
+
+      - name: Upload verified web bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: mvmcmd-web-bundle-${{ github.run_number }}
+          path: web-bundle
+          if-no-files-found: error
+          retention-days: 14
+
+  build-android:
+    name: Build and verify Android APK
+    needs: build-web
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: package-lock.json
 
@@ -37,37 +100,38 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+      - name: Install locked dependencies
+        run: npm ci
 
-      - name: Typecheck web application
-        run: npm run typecheck
-
-      - name: Run JavaScript/TypeScript tests
-        run: npm test
+      - name: Download verified web bundle
+        uses: actions/download-artifact@v5
+        with:
+          name: mvmcmd-web-bundle-${{ github.run_number }}
+          path: .vercel/output/static
 
       - name: Verify native launcher source
         shell: bash
         run: |
+          set -euo pipefail
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
 
-      - name: Build web application
-        run: npm run build
-
-      - name: Verify Capacitor web bundle
+      - name: Read synchronized version
         shell: bash
         run: |
-          test -f ".vercel/output/static/index.html"
-          test -d ".vercel/output/static/assets"
-          echo "Verified web bundle for Capacitor:"
-          ls -lah ".vercel/output/static"
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          VERSION_CODE="$(node -p "require('./package.json').version.split('.')[0]")"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "APP_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "APP_VERSION=$VERSION APP_VERSION_CODE=$VERSION_CODE"
 
-      - name: Sync native Android project
+      - name: Capacitor sync
         run: npx cap sync android
 
       - name: Make Gradle wrapper executable
@@ -76,9 +140,20 @@ jobs:
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Print Gradle environment
+        working-directory: android
+        run: ./gradlew --version
+
+      - name: Clean Android build
+        working-directory: android
+        run: ./gradlew clean --no-daemon
+
       - name: Build installable debug APK
         working-directory: android
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace -PappVersion="$APP_VERSION" -PappVersionCode="$APP_VERSION_CODE"
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+          APP_VERSION_CODE: ${{ env.APP_VERSION_CODE }}
 
       - name: Verify APK
         shell: bash
@@ -86,23 +161,136 @@ jobs:
           set -euo pipefail
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          ls -lh "$APK"
-
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           test -x "$APKSIGNER"
+          test -x "$AAPT2"
           "$APKSIGNER" verify --verbose "$APK"
-
-          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
-          printf 'apk=%s\nsha256=%s\nsize_bytes=%s\ncommit=%s\nrun=%s\n'             "$APK" "$SHA256" "$(stat -c '%s' "$APK")"             "${GITHUB_SHA}" "${GITHUB_RUN_NUMBER}" > apk-build-manifest.txt
-
+          "$AAPT2" dump badging "$APK" > apk-badging.txt
+          grep -F "package: name='com.mvmcmd.launcher'" apk-badging.txt
+          grep -F "versionName='$APP_VERSION'" apk-badging.txt
+          grep -F "versionCode='$APP_VERSION_CODE'" apk-badging.txt
+          {
+            echo "platform=android"
+            echo "artifact=app-debug.apk"
+            echo "sha256=$(sha256sum "$APK" | awk '{print $1}')"
+            echo "size_bytes=$(stat -c '%s' "$APK")"
+            echo "package=com.mvmcmd.launcher"
+            echo "version=$APP_VERSION"
+            echo "version_code=$APP_VERSION_CODE"
+            echo "commit=$GITHUB_SHA"
+            echo "run=$GITHUB_RUN_NUMBER"
+          } > apk-build-manifest.txt
           cat apk-build-manifest.txt
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v6
         with:
-          name: mvmcmd-debug-apk-${{ github.run_number }}
+          name: mvmcmd-android-apk-${{ github.run_number }}
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             apk-build-manifest.txt
+            apk-badging.txt
           if-no-files-found: error
           retention-days: 14
+
+  build-windows:
+    name: Build and verify Windows EXE
+    needs: build-web
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download verified web bundle
+        uses: actions/download-artifact@v5
+        with:
+          name: mvmcmd-web-bundle-${{ github.run_number }}
+          path: .vercel/output/static
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: desktop/launcher/go.mod
+          cache: true
+          cache-dependency-path: desktop/launcher/go.mod
+
+      - name: Read synchronized version
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid package version: $($pkg.version)" }
+          "APP_VERSION=$($pkg.version)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Stage real web application into EXE
+        run: |
+          $destination = Join-Path $env:GITHUB_WORKSPACE "desktop/launcher/web"
+          if (Test-Path $destination) { Remove-Item $destination -Recurse -Force }
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          Copy-Item ".vercel/output/static/*" $destination -Recurse -Force
+          if (-not (Test-Path (Join-Path $destination "index.html"))) { throw "index.html missing" }
+          if (-not (Test-Path (Join-Path $destination "assets"))) { throw "assets/ missing" }
+
+      - name: Go module tests
+        working-directory: desktop/launcher
+        run: go test ./...
+
+      - name: Build real Windows EXE
+        working-directory: desktop/launcher
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          go build -trimpath -ldflags="-s -w -X main.appVersion=$env:APP_VERSION" -o dist/MVMCMD.exe .
+
+      - name: Verify EXE binary and embedded bundle
+        working-directory: desktop/launcher
+        run: |
+          $exe = Join-Path (Get-Location) "dist/MVMCMD.exe"
+          if (-not (Test-Path $exe)) { throw "MVMCMD.exe was not produced" }
+          $bytes = [IO.File]::ReadAllBytes($exe)
+          if ($bytes.Length -lt 256) { throw "EXE is unexpectedly small" }
+          if ([BitConverter]::ToUInt16($bytes, 0) -ne 0x5A4D) { throw "Invalid MZ header" }
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          if ($peOffset -lt 64 -or $peOffset + 4 -ge $bytes.Length) { throw "Invalid PE offset" }
+          $signature = [Text.Encoding]::ASCII.GetString($bytes, $peOffset, 4)
+          if ($signature -ne "PE"+[char]0+[char]0) { throw "Invalid PE signature" }
+          .\dist\MVMCMD.exe --check
+          .\dist\MVMCMD.exe --version
+          @(
+            "platform=windows-x64"
+            "artifact=MVMCMD.exe"
+            "sha256=$((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant())"
+            "size_bytes=$((Get-Item $exe).Length)"
+            "version=$env:APP_VERSION"
+            "commit=$env:GITHUB_SHA"
+            "run=$env:GITHUB_RUN_NUMBER"
+          ) | Set-Content -Path dist/exe-build-manifest.txt -Encoding utf8
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v6
+        with:
+          name: mvmcmd-windows-exe-${{ github.run_number }}
+          path: |
+            desktop/launcher/dist/MVMCMD.exe
+            desktop/launcher/dist/exe-build-manifest.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  final-verification:
+    name: Cross-platform final verification
+    needs: [build-web, build-android, build-windows]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every required job to succeed
+        run: |
+          set -euo pipefail
+          echo "build-web: ${{ needs.build-web.result }}"
+          echo "build-android: ${{ needs.build-android.result }}"
+          echo "build-windows: ${{ needs.build-windows.result }}"
+          test "${{ needs.build-web.result }}" = success
+          test "${{ needs.build-android.result }}" = success
+          test "${{ needs.build-windows.result }}" = success
+          echo "Cross-platform build SUCCESS."
