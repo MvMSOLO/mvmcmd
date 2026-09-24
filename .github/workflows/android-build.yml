@@ -173,36 +173,41 @@ jobs:
           test -x "$APKANALYZER"
 
           "$AAPT2" dump badging "$APK" > apk-badging.txt
-          "$APKANALYZER" apk summary "$APK" > apk-summary.txt
-          "$APKANALYZER" manifest min-sdk "$APK" > apk-min-sdk.txt
-          "$APKANALYZER" manifest target-sdk "$APK" > apk-target-sdk.txt
           "$APKANALYZER" manifest permissions "$APK" > apk-permissions.txt
 
           grep -F "package: name='com.mvmcmd.launcher'" apk-badging.txt
           grep -F "versionName='$APP_VERSION'" apk-badging.txt
           grep -F "versionCode='$APP_VERSION_CODE'" apk-badging.txt
 
-          APK_SUMMARY="$(cat apk-summary.txt | tr -d '\r\n')"
-          MIN_SDK="$(cat apk-min-sdk.txt | tr -d '\r\n')"
-          TARGET_SDK="$(cat apk-target-sdk.txt | tr -d '\r\n')"
+          APK_ID="$("$APKANALYZER" manifest application-id "$APK" | tr -d '\r\n')"
+          APK_CODE="$("$APKANALYZER" manifest version-code "$APK" | tr -d '\r\n')"
+          APK_NAME="$("$APKANALYZER" manifest version-name "$APK" | tr -d '\r\n')"
+          MIN_SDK="$("$APKANALYZER" manifest min-sdk "$APK" | tr -d '\r\n')"
+          TARGET_SDK="$("$APKANALYZER" manifest target-sdk "$APK" | tr -d '\r\n')"
 
-          test "$APK_SUMMARY" = "com.mvmcmd.launcher $APP_VERSION_CODE $APP_VERSION"
+          echo "APK Analyzer values:"
+          printf 'applicationId=[%s]\n' "$APK_ID"
+          printf 'versionCode=[%s]\n' "$APK_CODE"
+          printf 'versionName=[%s]\n' "$APK_NAME"
+          printf 'minSdk=[%s]\n' "$MIN_SDK"
+          printf 'targetSdk=[%s]\n' "$TARGET_SDK"
+          echo "permissions:"
+          cat apk-permissions.txt
+
+          test "$APK_ID" = "com.mvmcmd.launcher"
+          test "$APK_CODE" = "$APP_VERSION_CODE"
+          test "$APK_NAME" = "$APP_VERSION"
           test "$MIN_SDK" = "24"
           test "$TARGET_SDK" = "36"
 
-          grep -Fxq 'android.permission.CAMERA' apk-permissions.txt
-          grep -Fxq 'android.permission.RECORD_AUDIO' apk-permissions.txt
-          grep -Fxq 'android.permission.INTERNET' apk-permissions.txt
-          if grep -Fxq 'android.permission.QUERY_ALL_PACKAGES' apk-permissions.txt; then
+          tr -d '\r' < apk-permissions.txt > apk-permissions.normalized.txt
+          grep -Fxq 'android.permission.CAMERA' apk-permissions.normalized.txt
+          grep -Fxq 'android.permission.RECORD_AUDIO' apk-permissions.normalized.txt
+          grep -Fxq 'android.permission.INTERNET' apk-permissions.normalized.txt
+          if grep -Fxq 'android.permission.QUERY_ALL_PACKAGES' apk-permissions.normalized.txt; then
             echo "Unexpected QUERY_ALL_PACKAGES permission detected in packaged APK."
             exit 1
           fi
-
-          echo "APK Analyzer verification:"
-          cat apk-summary.txt
-          echo "minSdk=$MIN_SDK"
-          echo "targetSdk=$TARGET_SDK"
-          cat apk-permissions.txt
           {
             echo "platform=android"
             echo "artifact=app-debug.apk"
