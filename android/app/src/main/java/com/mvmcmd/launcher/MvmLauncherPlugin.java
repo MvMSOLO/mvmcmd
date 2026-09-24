@@ -2,6 +2,8 @@ package com.mvmcmd.launcher;
 
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 
@@ -29,6 +31,48 @@ public class MvmLauncherPlugin extends Plugin {
         }
     }
 
+
+    @PluginMethod
+    public void inspectPackage(PluginCall call) {
+        String packageName = call.getString("packageName");
+        if (packageName == null || !isValidPackageName(packageName)) {
+            call.reject("Invalid Android package name");
+            return;
+        }
+
+        PackageManager pm = getContext().getPackageManager();
+        try {
+            ApplicationInfo info = pm.getApplicationInfo(packageName, 0);
+            PackageInfo packageInfo = pm.getPackageInfo(packageName, 0);
+            Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
+            JSObject result = new JSObject();
+            result.put("found", true);
+            result.put("packageName", packageName);
+            result.put("label", String.valueOf(pm.getApplicationLabel(info)));
+            result.put("enabled", info.enabled);
+            result.put("launcherAvailable", launchIntent != null);
+            result.put("versionName", packageInfo.versionName == null ? "" : packageInfo.versionName);
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                result.put("versionCode", packageInfo.getLongVersionCode());
+            } else {
+                result.put("versionCode", packageInfo.versionCode);
+            }
+            call.resolve(result);
+        } catch (PackageManager.NameNotFoundException e) {
+            JSObject result = new JSObject();
+            result.put("found", false);
+            result.put("packageName", packageName);
+            result.put("error", "NOT_INSTALLED");
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Unable to inspect package: " + e.getMessage(), e);
+        }
+    }
+
+    private static boolean isValidPackageName(String packageName) {
+        return packageName.matches("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$");
+    }
+
     @PluginMethod
     public void openPackage(PluginCall call) {
         String packageName = call.getString("packageName");
@@ -36,8 +80,8 @@ public class MvmLauncherPlugin extends Plugin {
         String data = call.getString("data");
         String fallbackUrl = call.getString("fallbackUrl");
 
-        if (packageName == null || packageName.trim().isEmpty()) {
-            call.reject("packageName is required");
+        if (packageName == null || !isValidPackageName(packageName)) {
+            call.reject("Invalid Android package name");
             return;
         }
 
@@ -151,8 +195,8 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openUrl(PluginCall call) {
         String url = call.getString("url");
-        if (url == null || url.trim().isEmpty()) {
-            call.reject("url is required");
+        if (url == null || url.trim().isEmpty() || !isSafeExternalUrl(url)) {
+            call.reject("Unsupported or unsafe URL");
             return;
         }
 
@@ -169,6 +213,16 @@ public class MvmLauncherPlugin extends Plugin {
             result.put("opened", false);
             call.resolve(result);
         }
+    }
+
+    private static boolean isSafeExternalUrl(String url) {
+        Uri uri = Uri.parse(url);
+        String scheme = uri.getScheme();
+        return "https".equalsIgnoreCase(scheme)
+                || "http".equalsIgnoreCase(scheme)
+                || "tel".equalsIgnoreCase(scheme)
+                || "sms".equalsIgnoreCase(scheme)
+                || "mailto".equalsIgnoreCase(scheme);
     }
 
     @PluginMethod
