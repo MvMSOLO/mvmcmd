@@ -184,10 +184,10 @@ export function MvmShell() {
     if (e.key === "Enter") {
       e.preventDefault();
       if (selected && q && !lookupCommand(input.trim().split(/\s+/)[0] ?? "")) {
-        await commit(input, selected.app);
+        void commit(input, selected.app);
         return;
       }
-      await commit(input);
+      void commit(input);
       return;
     }
     if (e.key === "Tab" && hits.length) {
