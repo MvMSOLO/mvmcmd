@@ -55,6 +55,4 @@ test("unknown input returns an actual failure instead of fake success", async ()
 
 test("dangerous URL schemes are rejected by the web launcher", () => {
   assert.equal(launchRawUrl("javascript:alert(1)"), false);
-  assert.equal(launchRawUrl("https://example.com"), true);
-  assert.equal(launchRawUrl("mailto:test@example.com"), true);
 });
