@@ -38,6 +38,13 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "Shaxsiy qisqa nom bog‘laydi.",
   },
   {
+    name: "refresh",
+    aliases: ["rescan"],
+    usage: "refresh",
+    summaryEn: "Revalidate stored Android package bindings.",
+    summaryUz: "Saqlangan Android package bindinglarini qayta tekshiradi.",
+  },
+  {
     name: "unbind",
     aliases: ["unalias"],
     usage: "unbind <short>",
