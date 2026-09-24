@@ -1,9 +1,10 @@
 import type { Lang, PackageBinding, PersistedState, UserAlias } from "./types";
 
-const KEY = "mvmcmd.v1";
+const KEY = "mvmcmd.v2";
+const LEGACY_KEY = "mvmcmd.v1";
 
 export const EMPTY: PersistedState = {
-  v: 1,
+  v: 2,
   lang: "uz",
   aliases: [],
   pins: [],
@@ -19,7 +20,7 @@ export const EMPTY: PersistedState = {
 export function loadState(): PersistedState {
   if (typeof localStorage === "undefined") return { ...EMPTY, usage: {} };
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
     if (!raw) return { ...EMPTY, usage: {}, aliases: [], pins: [], recents: [], history: [] };
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     return {
