@@ -111,7 +111,7 @@ function resolveQuery(query: string, state: PersistedState, discovered: CatalogA
   // A bind may intentionally target a raw Android package that is not in the
   // catalog. Treat that package as a first-class launch target instead of
   // reporting "not found" after the alias was successfully saved.
-  if (hits.length === 0 && /^[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z0-9_]+)+$/.test(q)) {
+  if (hits.length === 0 && /^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+$/.test(q)) {
     const app: CatalogApp = {
       id: q,
       name: q,

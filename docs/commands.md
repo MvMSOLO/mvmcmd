@@ -1,5 +1,56 @@
 # Commands
 
-## open
+MVMCMD commands are real operations. A success line is emitted only after the underlying web/native operation reports success.
 
-`Ü[ˆ˜[YO˜™\ÛÛ™\È[ˆ[X\ËZ[Z[ˆØ][ÙÈ[KÜˆ\œÚ\İYXÚØYÙHš[™[™È[™ØZ]È›ÜˆH˜]]™H[™›ÚY™\İ[™Y›Ü™H™\Ü[™ÈİXØÙ\ÜË‚‚ˆÈÈš[™‚”İ\ÜY›Ü›\Î‚‚ˆš[™ÛÛK™^[\K˜\ˆš[™ÛÛK™^[\K˜\^X\ˆš[™^X\ÛÛK™^[\K˜\ˆš[™^X\Ú]X‚‚“Ûˆ[™›ÚY[ˆ\˜š]˜\HXÚØYÙH\È™\šYšYYÚ]XÚØYÙSX[˜YÙ\ˆ™Y›Ü™H]ÈY]Y]H\È\œÚ\İY‚‚ˆÈÈ[˜š[™‚˜[˜š[™[X\Ë[Ü‹\XÚØYÙO˜™[[İ™\ÈH[˜[ZXÈš[™[™È[™ØØ[[X\Ë‚‚ˆÈÈ™Yœ™\Ú€™Yœ™\Ú™XÚXÚÜÈ\œÚ\İY[™›ÚYXÚØYÙHš[™[™ÜË\]\ÈZ\ˆX™[İ™\œÚ[Û‹Û][˜ÚXš[]HY]Y]K[™™[[İ™\Èš[™[™ÜÈ›Üˆ[š[œİ[YXÚØYÙ\Ë‚‚ˆÈÈš[™ÈÂ‚”ÙX\˜Ú[™\İZ[Z[ˆØ][ÙÈ[šY\È\È\œÚ\İY[˜[ZXÈš[™[™ÜË‚‚ˆÈÈXÚÂ‚˜XÚÈXÚØYÙK›˜[YO˜\È[™›ÚY[Û›H[™ØZ]È›ÜˆHXİX[˜]]™H][˜Ú™\İ[‚‚ˆÈÈİÜ™B‚”İÜ™H][˜Ú™\ÜÈH˜]]™H^HİÜ™KØœ›İÜÙ\ˆ˜[˜XÚÈ™\İ[[œİXYÙˆÛZ[Z[™ÈİXØÙ\ÜÈ™Y›Ü™H\Ü]Ú‚
+## Launch
+
+### `open <name>`
+Searches the static catalog, persisted bindings and launchable installed Android apps, then launches the selected target.
+
+### `find <text>`
+Searches catalog entries, persisted bindings and launchable installed Android apps by app name, alias and Android package without launching.
+
+### `ls [category]`
+Lists known catalog entries, persisted bindings and launchable installed Android apps, optionally filtered by category.
+
+## Android package binding
+
+### `bind <package>`
+Binds an arbitrary installed Android package using PackageManager metadata.
+
+### `bind <package> <alias>`
+Binds an arbitrary installed Android package to a custom alias.
+
+### `bind <alias> <app>`
+Legacy/known-app form that binds a catalog app to a personal alias.
+
+### `unbind <alias>`
+Removes a saved alias/package binding.
+
+### `refresh`
+Revalidates every saved Android package binding and removes packages that are no longer installed.
+
+## Package/store
+
+### `pack <package.name>`
+Launches a raw Android package. It is an Android launcher command, not a package export/archive command.
+
+### `store <app>`
+Opens the platform store target. Native Android reports whether the Play Store or web fallback actually opened.
+
+## Camera and installation
+
+### `camera`
+Opens the real native CameraX camera on Android. Non-Android runtimes return an explicit unsupported message.
+
+### `perm`
+Requests the browser capabilities MVMCMD actually uses: persistent storage and notifications when supported.
+
+### `install`
+Uses the real PWA installation prompt when the browser provides one; otherwise shows the platform-specific manual path.
+
+## Persistence and safety
+
+Aliases, bindings, pins, recents, usage and history persist in versioned local storage. Legacy `mvmcmd.v1` state is loaded into the current v2 shape.
+
+Invalid package names and unsafe URL schemes are rejected. Native launch failures return explicit failure/error information rather than fake success.
