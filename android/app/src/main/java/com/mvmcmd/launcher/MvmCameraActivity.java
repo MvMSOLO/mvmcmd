@@ -536,18 +536,10 @@ public final class MvmCameraActivity extends AppCompatActivity {
                 realtimeEffect = null;
             }
             try {
+                cameraProvider.unbindAll();
                 camera = cameraProvider.bindToLifecycle(
                         this, selector, preview, imageCapture, videoCapture);
-                SessionConfig fallbackSession =
-                        new SessionConfig.Builder(preview, imageCapture, videoCapture)
-                                .build();
-                camera = cameraProvider.bindToLifecycle(
-                        this, selector, fallbackSession);
                 fpsStatus.setText("MAX FPS");
-                if (target60) {
-                    // The plain camera session can still be used if the optional
-                    // realtime effect path is unsupported.
-                }
             } catch (Exception fallback) {
                 if (target60) {
                     bindCamera(false);
