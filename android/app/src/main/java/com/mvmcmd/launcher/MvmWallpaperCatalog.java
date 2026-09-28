@@ -14,7 +14,7 @@ public final class MvmWallpaperCatalog {
         }
     }
     private static final List<Spec> ITEMS = Collections.unmodifiableList(Arrays.asList(
-        new Spec("scarlet_focus","Scarlet Focus","wallpapers/scarlet_focus.webp","anime",.52f,.38f,.30f,.11f,.033f),
+        new Spec("scarlet_focus","Scarlet Focus","wallpapers_b64/scarlet_focus.txt","anime",.52f,.38f,.30f,.11f,.033f),
         new Spec("midnight_tree","Midnight Tree","wallpapers/midnight_tree.webp","tree",.50f,.47f,.30f,.10f,.020f),
         new Spec("moon_garden","Moon Garden","wallpapers/moon_garden.webp","garden",.56f,.45f,.38f,.10f,.022f),
         new Spec("quiet_grove","Quiet Grove","wallpapers/quiet_grove.webp","grove",.60f,.50f,.42f,.10f,.026f),
