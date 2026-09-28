@@ -127,7 +127,7 @@ public final class MvmWallpaperRenderer {
                 smallDate(c,dt.toUpperCase(Locale.ENGLISH),w*.73f,h*.35f,w*.027f,0xe5ffb5b0,Paint.Align.CENTER); break;
             case "space":
                 giantFill(c,tm,w*.20f,h*.52f,w*.14f,0xc9dcecff,Paint.Align.LEFT);
-                smallDate(c,dt.toUpperCase(Locale.ENGLISH),w*.80f,h*.22f,w*.027f,0xdbeffffff,Paint.Align.CENTER); break;
+                smallDate(c,dt.toUpperCase(Locale.ENGLISH),w*.80f,h*.22f,w*.027f,0xdbefffff,Paint.Align.CENTER); break;
             default:
                 giantFill(c,tm,w*.50f,h*.36f,w*.15f,0xddffffff,Paint.Align.CENTER);
                 smallDate(c,dt,w*.50f,h*.22f,w*.030f,0xe5ffffff,Paint.Align.CENTER);
