@@ -25,6 +25,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.Camera;
@@ -58,6 +60,8 @@ public final class MvmQrActivity extends AppCompatActivity {
     private ScanAuraView aura;
     private TextView status;
     private TextView flash;
+    private TextView imageButton;
+    private ActivityResultLauncher<String> imagePicker;
     private Camera camera;
     private ProcessCameraProvider cameraProvider;
     private ImageAnalysis imageAnalysis;
@@ -75,6 +79,10 @@ public final class MvmQrActivity extends AppCompatActivity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
+        imagePicker = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                this::decodeImage
+        );
 
         buildUi();
 
@@ -130,6 +138,12 @@ public final class MvmQrActivity extends AppCompatActivity {
         titleBox.addView(title);
         top.addView(titleBox, new LinearLayout.LayoutParams(0, dp(48), 1f));
 
+        imageButton = text("▧", 22, true);
+        imageButton.setGravity(Gravity.CENTER);
+        imageButton.setContentDescription("Scan QR or barcode from image");
+        imageButton.setOnClickListener(v -> openImagePicker());
+        top.addView(imageButton, lp(48, 48));
+
         flash = text("ϟ", 25, true);
         flash.setGravity(Gravity.CENTER);
         flash.setContentDescription("Toggle flashlight");
@@ -166,7 +180,7 @@ public final class MvmQrActivity extends AppCompatActivity {
                 .enableAllPotentialBarcodes()
                 .build();
 
-        scanner = BarcodeScanning.getClient(options);
+        ensureScanner();
 
         ListenableFuture<ProcessCameraProvider> future =
                 ProcessCameraProvider.getInstance(this);
@@ -198,6 +212,84 @@ public final class MvmQrActivity extends AppCompatActivity {
         }, ContextCompat.getMainExecutor(this));
     }
 
+    private void ensureScanner() {
+        if (scanner != null) return;
+        BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+                .enableAllPotentialBarcodes()
+                .build();
+        scanner = BarcodeScanning.getClient(options);
+    }
+
+    private void openImagePicker() {
+        if (imagePicker == null) {
+            toast("Image picker unavailable");
+            return;
+        }
+        status.setText("SELECTING IMAGE…");
+        status.setTextColor(0xFFBFC8D6);
+        if (resultCard != null) {
+            root.removeView(resultCard);
+            resultCard = null;
+        }
+        if (aura != null) aura.setSuccess(false);
+        imagePicker.launch("image/*");
+    }
+
+    private void decodeImage(Uri uri) {
+        if (uri == null) {
+            status.setText("ALIGN CODE INSIDE THE FRAME");
+            return;
+        }
+
+        ensureScanner();
+        scanning = false;
+        status.setText("DECODING IMAGE…");
+        status.setTextColor(0xFFBFC8D6);
+
+        try {
+            InputImage image = InputImage.fromFilePath(this, uri);
+            scanner.process(image)
+                    .addOnSuccessListener(this, barcodes -> {
+                        Barcode best = chooseBarcode(barcodes);
+                        String raw = best == null ? null : best.getRawValue();
+                        if ((raw == null || raw.trim().isEmpty()) && best != null
+                                && best.getDisplayValue() != null) {
+                            raw = best.getDisplayValue();
+                        }
+
+                        if (best == null || raw == null || raw.trim().isEmpty()) {
+                            runOnUiThread(() -> {
+                                status.setText("NO CODE FOUND");
+                                status.setTextColor(0xFFFFB7A8);
+                                aura.setSuccess(false);
+                                toast("No QR/barcode detected in this image");
+                            });
+                            scanning = true;
+                            return;
+                        }
+
+                        final String value = raw.trim();
+                        runOnUiThread(() -> showResult(best, value));
+                    })
+                    .addOnFailureListener(this, e -> {
+                        runOnUiThread(() -> {
+                            status.setText("IMAGE DECODE FAILED");
+                            status.setTextColor(0xFFFFB7A8);
+                            aura.setSuccess(false);
+                            toast("Could not decode this image");
+                        });
+                        scanning = true;
+                    });
+        } catch (Exception e) {
+            status.setText("IMAGE OPEN FAILED");
+            status.setTextColor(0xFFFFB7A8);
+            aura.setSuccess(false);
+            scanning = true;
+            toast("Could not open this image");
+        }
+    }
+
     private void analyze(ImageProxy proxy) {
         if (!scanning) {
             proxy.close();
@@ -220,6 +312,7 @@ public final class MvmQrActivity extends AppCompatActivity {
                     if (!scanning || barcodes == null || barcodes.isEmpty()) return;
 
                     Barcode best = chooseBarcode(barcodes);
+                    if (best == null) return;
                     String raw = best.getRawValue();
                     if ((raw == null || raw.trim().isEmpty())
                             && best.getDisplayValue() != null) {
@@ -238,6 +331,7 @@ public final class MvmQrActivity extends AppCompatActivity {
     }
 
     private Barcode chooseBarcode(List<Barcode> barcodes) {
+        if (barcodes == null || barcodes.isEmpty()) return null;
         Barcode best = barcodes.get(0);
         for (Barcode code : barcodes) {
             String raw = code.getRawValue();

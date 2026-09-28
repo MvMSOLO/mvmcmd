@@ -55,6 +55,10 @@ jobs:
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           grep -q 'FORMAT_ALL_FORMATS' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           grep -q 'openQr' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'ActivityResultContracts.GetContent' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
+          grep -q 'InputImage.fromFilePath' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
+          grep -q 'android:icon="@drawable/mvmcmd_logo"' "android/app/src/main/AndroidManifest.xml"
+          test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
 
       - name: Build web application
         run: npm run build
