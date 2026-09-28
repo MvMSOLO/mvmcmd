@@ -53,10 +53,14 @@ jobs:
           grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
           grep -q 'FORMAT_ALL_FORMATS' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           grep -q 'openQr' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'ActivityResultContracts.GetContent' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           grep -q 'InputImage.fromFilePath' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
+          grep -q 'startActivityAndCollapse' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
+          grep -q 'android.service.quicksettings.action.QS_TILE' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'BIND_QUICK_SETTINGS_TILE' "android/app/src/main/AndroidManifest.xml"
           grep -q 'android:icon="@drawable/mvmcmd_logo"' "android/app/src/main/AndroidManifest.xml"
           test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
 
@@ -96,7 +100,7 @@ jobs:
         shell: bash
         run: |
           echo "ACTION_SUCCESS"
-          echo "MVMCMD Android build and QR scanner checks completed successfully."
+          echo "MVMCMD Android build, QR scanner, and Quick Settings tile checks completed successfully."
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
