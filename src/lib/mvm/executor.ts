@@ -3,7 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr } from "./native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper } from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -199,6 +199,23 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         lines: [
           line("ok", "QR", { meta: "NATIVE SCANNER · ALL FORMATS" }),
           line("dim", L(ctx2, "QR/barcode kamerasi ochildi — kodni ramka ichiga olib keling.", "QR/barcode scanner opened — align a code inside the frame.")),
+        ],
+      };
+    }
+    case "wallpaper": {
+      const runtime = detectRuntime();
+      if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, "WALLPAPER hozir native Android APK ichida ishlaydi.", "WALLPAPER currently runs in the native Android APK."))],
+        };
+      }
+      void nativeOpenWallpaper().catch(() => undefined);
+      return {
+        state: state0,
+        lines: [
+          line("ok", "WALLPAPER", { meta: "NATIVE 3D GALLERY" }),
+          line("dim", L(ctx2, "17 ta 3D scene: HOME live + LOCK native clock bilan.", "17 custom 3D scenes: HOME live + LOCK with the native clock.")),
         ],
       };
     }
