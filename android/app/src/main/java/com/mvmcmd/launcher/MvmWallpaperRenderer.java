@@ -2,8 +2,11 @@ package com.mvmcmd.launcher;
 
 import android.content.Context;
 import android.graphics.*;
-import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import android.util.Base64;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -29,10 +32,18 @@ public final class MvmWallpaperRenderer {
 
     private static Bitmap load(Context c,String path,boolean thumb){
         BitmapFactory.Options o=new BitmapFactory.Options();
-        o.inPreferredConfig=Bitmap.Config.RGB_565; o.inDither=true;
+        o.inPreferredConfig=Bitmap.Config.ARGB_8888;
+        o.inDither=true;
         if(thumb) o.inSampleSize=2;
-        try(InputStream in=c.getAssets().open(path)){ return BitmapFactory.decodeStream(in,null,o); }
-        catch(IOException e){ return null; }
+        try{
+            StringBuilder encoded=new StringBuilder(32768);
+            try(InputStream in=c.getAssets().open(path)){
+                byte[] buf=new byte[8192]; int n;
+                while((n=in.read(buf))>0) encoded.append(new String(buf,0,n,"US-ASCII"));
+            }
+            byte[] bytes=Base64.decode(encoded.toString(),Base64.DEFAULT);
+            return BitmapFactory.decodeStream(new ByteArrayInputStream(bytes),null,o);
+        }catch(Exception e){ return null; }
     }
 
     public Bitmap renderBitmap(MvmWallpaperCatalog.Spec s,int w,int h,long now){
