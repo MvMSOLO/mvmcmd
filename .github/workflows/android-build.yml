@@ -94,6 +94,63 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
 
+      - name: Prepare wallpaper assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --quiet pillow
+          mkdir -p /tmp/mvm_wallpapers /tmp/mvm_processed
+          ASSET_URL="$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/MvMSOLO/mvmcmd/releases/tags/wallpaper-pack-transport-v1 \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(a["browser_download_url"] for a in d["assets"] if a["name"]=="mvmcmd-wallpapers.zip"))')"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/octet-stream" "${ASSET_URL}" -o /tmp/mvm_wallpapers.zip
+          unzip -q /tmp/mvm_wallpapers.zip -d /tmp/mvm_wallpapers
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps, ImageFilter
+
+          root = Path("/tmp/mvm_wallpapers")
+          out = Path("android/app/src/main/assets/wallpapers")
+          out.mkdir(parents=True, exist_ok=True)
+
+          items = [
+              ("scarlet_focus","1_13822.jpg",(.52,.27)),
+              ("midnight_tree","5207381.jpg",(.50,.47)),
+              ("moon_garden","images (1).jpeg",(.56,.38)),
+              ("quiet_grove","shikamaru-tree-shadow-calm-vibe-live-wallpapers-mobile-8k.jpg",(.60,.50)),
+              ("orbital_bloom","790bca75efe763082d0eb18b8b1278d1.jpg",(.50,.50)),
+              ("midnight_bmw","wp15151675.webp",(.52,.58)),
+              ("crimson_spider","images (2).jpeg",(.50,.57)),
+              ("silent_alps","8961336.jpg",(.50,.43)),
+              ("azure_creek","f5cf621c2dc8ff4610bf54443301aa2e.jpg",(.54,.57)),
+              ("starlit_field","61b3d22ef2c8808171a50070b6cff9c6.jpg",(.50,.45)),
+              ("fluid_signal","wavy-background-colorful-gradient_677411-3443.jpg",(.53,.50)),
+              ("red_ronin","a1d3dbeaf54e5bc463d5c1bdf0ac15f7.jpg",(.50,.69)),
+              ("gotham_rain","batman_wallpaper_for_mobile__by_lord12dark_dcc4cf3-fullview.jpg",(.50,.47)),
+              ("deep_space","wp6223561.jpg",(.50,.48)),
+              ("midnight_p1","mclaren-p1-8k-black-1080x1920-16227.jpg",(.55,.67)),
+              ("amber_orbit","fortune-leaf-ai-live-wallpaper-8k-tablet-mobile.jpg",(.50,.46)),
+              ("ice_eyes","HD-wallpaper-cat-8k-black-blue-cool-eyes-full-ultra-thumbnail.jpg",(.50,.48)),
+          ]
+
+          for wid, src, center in items:
+              p = next(root.rglob(src))
+              im = Image.open(p).convert("RGB")
+              if wid in {"midnight_tree","moon_garden","quiet_grove","silent_alps","azure_creek","fluid_signal"}:
+                  target=(360,640)
+              else:
+                  target=(360,640)
+              im = ImageOps.fit(
+                  im, target, method=Image.Resampling.LANCZOS,
+                  centering=center, bleed=0.0
+              )
+              im = im.filter(ImageFilter.UnsharpMask(radius=0.65, percent=78, threshold=3))
+              im.save(out/f"{wid}.webp", "WEBP", quality=82, method=6)
+          print(f"prepared {len(items)} wallpaper assets")
+          PY
+          test "$(find android/app/src/main/assets/wallpapers -type f -name '*.webp' | wc -l)" -eq 17
+
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v6
 
