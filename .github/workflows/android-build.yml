@@ -54,6 +54,10 @@ jobs:
           grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperRenderer.java"
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperCatalog.java"
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmHomeWallpaperService.java"
           grep -q 'FORMAT_ALL_FORMATS' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           grep -q 'openQr' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'ActivityResultContracts.GetContent' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
@@ -61,6 +65,15 @@ jobs:
           grep -q 'startActivityAndCollapse' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
           grep -q 'android.service.quicksettings.action.QS_TILE' "android/app/src/main/AndroidManifest.xml"
           grep -q 'BIND_QUICK_SETTINGS_TILE' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'SET_WALLPAPER' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'android.service.wallpaper.WallpaperService' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'WallpaperService' "android/app/src/main/java/com/mvmcmd/launcher/MvmHomeWallpaperService.java"
+          grep -q 'FLAG_LOCK' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
+          grep -q 'ACTION_CHANGE_LIVE_WALLPAPER' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
+          grep -q 'EXTRA_LIVE_WALLPAPER_COMPONENT' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
+          grep -q 'wallpaper_description' "android/app/src/main/res/values/strings.xml"
+          test -d "android/app/src/main/assets/wallpapers"
+          test "$(find android/app/src/main/assets/wallpapers -maxdepth 1 -type f | wc -l)" -eq 17
           grep -q 'android:icon="@drawable/mvmcmd_logo"' "android/app/src/main/AndroidManifest.xml"
           test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
 
@@ -100,7 +113,7 @@ jobs:
         shell: bash
         run: |
           echo "ACTION_SUCCESS"
-          echo "MVMCMD Android build, QR scanner, and Quick Settings tile checks completed successfully."
+          echo "MVMCMD Android build, QR scanner, Quick Settings tile, and 3D wallpaper checks completed successfully."
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
