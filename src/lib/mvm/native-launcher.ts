@@ -9,6 +9,7 @@ export interface NativeLaunchResult {
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;
+  openWallpaper(): Promise<{ opened: boolean }>;
   openPackage(options: {
     packageName: string;
     action?: string;
@@ -30,6 +31,10 @@ export async function nativeOpenCamera(): Promise<{ opened: boolean }> {
 
 export async function nativeOpenQr(): Promise<{ opened: boolean }> {
   return NativeLauncher.openQr();
+}
+
+export async function nativeOpenWallpaper(): Promise<{ opened: boolean }> {
+  return NativeLauncher.openWallpaper();
 }
 
 export async function nativeOpenPackage(
