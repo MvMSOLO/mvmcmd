@@ -8,6 +8,7 @@ export interface NativeLaunchResult {
 
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
+  openQr(): Promise<{ opened: boolean }>;
   openPackage(options: {
     packageName: string;
     action?: string;
@@ -25,6 +26,10 @@ export function canUseNativeAndroidLauncher(): boolean {
 
 export async function nativeOpenCamera(): Promise<{ opened: boolean }> {
   return NativeLauncher.openCamera();
+}
+
+export async function nativeOpenQr(): Promise<{ opened: boolean }> {
+  return NativeLauncher.openQr();
 }
 
 export async function nativeOpenPackage(

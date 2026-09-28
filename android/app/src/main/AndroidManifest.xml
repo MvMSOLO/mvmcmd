@@ -15,6 +15,12 @@
         android:theme="@style/AppTheme">
 
         <activity
+            android:name=".MvmQrActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            android:theme="@style/AppTheme.Camera" />
+
+        <activity
             android:name=".MvmCameraActivity"
             android:screenOrientation="portrait"
             android:exported="false"

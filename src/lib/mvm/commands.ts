@@ -10,6 +10,14 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "MVMCMD native kamerasini ochadi.",
   },
   {
+    name: "qr",
+    aliases: [],
+    hidden: true,
+    usage: "QR",
+    summaryEn: "Open the native MVMCMD QR/barcode scanner.",
+    summaryUz: "MVMCMD native QR/barcode skanerini ochadi.",
+  },
+  {
     name: "open",
     aliases: ["o", "go", "run", "start", "launch"],
     usage: "open <name>",
