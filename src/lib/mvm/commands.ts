@@ -18,6 +18,13 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "MVMCMD native QR/barcode skanerini ochadi.",
   },
   {
+    name: "wallpaper",
+    aliases: ["wall", "wp"],
+    usage: "WALLPAPER",
+    summaryEn: "Open the native 3D wallpaper gallery.",
+    summaryUz: "Native 3D wallpaper galereyasini ochadi.",
+  },
+  {
     name: "open",
     aliases: ["o", "go", "run", "start", "launch"],
     usage: "open <name>",
