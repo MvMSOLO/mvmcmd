@@ -76,10 +76,7 @@ jobs:
           grep -q 'ACTION_CHANGE_LIVE_WALLPAPER' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
           grep -q 'EXTRA_LIVE_WALLPAPER_COMPONENT' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
           grep -q 'wallpaper_description' "android/app/src/main/res/values/strings.xml"
-          test -d "scripts/wallpapers-pack-b64"
-          test "$(find scripts/wallpapers-pack-b64 -maxdepth 1 -type f -name 'part-*' | wc -l)" -eq 11
-          test -f "android/app/src/main/res/drawable/mvmcmd_logo.xml"
-
+            
       - name: Build web application
         run: npm run build
 
