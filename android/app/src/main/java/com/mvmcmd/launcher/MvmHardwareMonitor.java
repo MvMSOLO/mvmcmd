@@ -7,7 +7,6 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
 import android.os.SystemClock;
-import android.os.Temperature;
 import android.os.PowerManager;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
