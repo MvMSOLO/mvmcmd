@@ -10,6 +10,7 @@ import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
+import { WebVideo } from "./web-video";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -80,6 +81,8 @@ export function MvmShell() {
   const [histIdx, setHistIdx] = useState(-1);
   const [platform, setPlatform] = useState<PlatformKind>("desktop");
   const [standalone, setStandalone] = useState(false);
+  const [webVideoOpen, setWebVideoOpen] = useState(false);
+  const [webVideoUrl, setWebVideoUrl] = useState("");
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clock = useClock();
@@ -155,6 +158,16 @@ export function MvmShell() {
     if (!text.trim()) return;
     const parsed = parseLine(text);
 
+    if (parsed.cmd?.name === "webvideo") {
+      const url = parsed.args.join(" ").trim();
+      append([makeLine("in", text), makeLine("ok", "WEBVIDEO", { meta: url ? "PLAYER · URL READY" : "PLAYER · WAITING FOR URL" })]);
+      setWebVideoUrl(url);
+      setWebVideoOpen(true);
+      setInput("");
+      setHistIdx(-1);
+      return;
+    }
+
     if (parsed.cmd?.name === "perm") {
       append([makeLine("in", text)]);
       void runPermRequest({ state, lang }).then((res) => {
@@ -227,6 +240,10 @@ export function MvmShell() {
       setInput("");
       setSel(0);
     }
+  }
+
+  if (webVideoOpen) {
+    // Keep the shell mounted underneath so closing the player returns to the same command history.
   }
 
   if (phase === "gate") {
@@ -439,6 +456,15 @@ export function MvmShell() {
         </form>
       </div>
     </div>
+      <WebVideo
+        open={webVideoOpen}
+        initialUrl={webVideoUrl}
+        onClose={() => {
+          setWebVideoOpen(false);
+          setWebVideoUrl("");
+          inputRef.current?.focus();
+        }}
+      />
   );
 }
 
