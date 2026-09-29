@@ -105,7 +105,7 @@ jobs:
           expected = [
               ("scarlet_focus","1_13822.jpg"), ("midnight_tree","5207381.jpg"),
               ("moon_garden","images (1).jpeg"), ("quiet_grove","shikamaru-tree-shadow-calm-vibe-live-wallpapers-mobile-8k.jpg"),
-              ("orbital_bloom","790bca75efe763082d0eb18b8b1278d1.jpg"), ("midnight_bmw","wp15151675.png"),
+              ("orbital_bloom","790bca75efe763082d0eb18b8b1278d1.jpg"), ("midnight_bmw","wp15151675.webp"),
               ("crimson_spider","images (2).jpeg"), ("silent_alps","8961336.jpg"),
               ("azure_creek","f5cf621c2dc8ff4610bf54443301aa2e.jpg"), ("starlit_field","61b3d22ef2c8808171a50070b6cff9c6.jpg"),
               ("fluid_signal","wavy-background-colorful-gradient_677411-3443.jpg"), ("red_ronin","a1d3dbeaf54e5bc463d5c1bdf0ac15f7.jpg"),
