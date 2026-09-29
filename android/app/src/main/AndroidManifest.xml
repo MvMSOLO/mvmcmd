@@ -3,6 +3,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
@@ -50,6 +54,21 @@
             android:screenOrientation="portrait"
             android:exported="false"
             android:theme="@style/AppTheme.Camera" />
+
+        <activity
+            android:name=".MvmHardwareMonitorActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            android:theme="@style/AppTheme.Camera" />
+
+        <service
+            android:name=".MvmHardwareOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Persistent user-visible hardware monitor overlay for FPS, battery and device thermal telemetry." />
+        </service>
 
         <activity
             android:name=".MvmCameraActivity"
