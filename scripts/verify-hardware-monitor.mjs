@@ -1,0 +1,7 @@
+import { readFileSync } from "node:fs";
+const read=p=>readFileSync(p,"utf8");
+const files={plugin:read("android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"),monitor:read("android/app/src/main/java/com/mvmcmd/launcher/MvmHardwareMonitor.java"),activity:read("android/app/src/main/java/com/mvmcmd/launcher/MvmHardwareMonitorActivity.java"),overlay:read("android/app/src/main/java/com/mvmcmd/launcher/MvmHardwareOverlayService.java"),manifest:read("android/app/src/main/AndroidManifest.xml"),native:read("src/lib/mvm/native-launcher.ts"),commands:read("src/lib/mvm/commands.ts"),executor:read("src/lib/mvm/executor.ts")};
+const checks=[
+[/@CapacitorPlugin\(name = "MvmLauncher"\)/,"plugin"],[/void openTemperature\(/,"plugin"],[/void stopTemperatureOverlay\(/,"plugin"],[/void shareTemperatureReport\(/,"plugin"],[/HardwarePropertiesManager/,"monitor"],[/getCurrentThermalStatus/,"monitor"],[/getThermalHeadroom/,"monitor"],[/readCoreUsages/,"monitor"],[/Debug\.getPss/,"monitor"],[/SYSTEM_ALERT_WINDOW/,"manifest"],[/FOREGROUND_SERVICE_SPECIAL_USE/,"manifest"],[/MvmHardwareOverlayService/,"manifest"],[/nativeStopTemperatureOverlay/,"native"],[/nativeShareTemperatureReport/,"native"],[/TEMPERATURE \[overlay\|stop\|report\]/,"commands"],[/nativeShareTemperatureReport/,"executor"]];
+for(const [regex,file] of checks){if(!regex.test(files[file]))throw new Error("hardware monitor verification failed in "+file);}
+console.log("MVMCMD hardware monitor static verification: PASS");
