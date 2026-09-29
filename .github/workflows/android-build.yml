@@ -1,5 +1,5 @@
 name: Build Android APK
-# Capacitor 8 / Java 21 / static Vercel web bundle
+# Capacitor 8 / Java 21 / deterministic wallpaper asset bundle
 
 on:
   push:
@@ -49,6 +49,7 @@ jobs:
       - name: Verify native launcher source
         shell: bash
         run: |
+          set -euo pipefail
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
@@ -72,7 +73,8 @@ jobs:
           grep -q 'ACTION_CHANGE_LIVE_WALLPAPER' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
           grep -q 'EXTRA_LIVE_WALLPAPER_COMPONENT' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
           grep -q 'wallpaper_description' "android/app/src/main/res/values/strings.xml"
-          grep -q 'android:icon="@drawable/mvmcmd_logo"' "android/app/src/main/AndroidManifest.xml"
+          test -d "scripts/wallpapers-pack-b64"
+          test "$(find scripts/wallpapers-pack-b64 -maxdepth 1 -type f -name 'part-*' | wc -l)" -eq 11
           test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
 
       - name: Build web application
@@ -83,100 +85,44 @@ jobs:
         run: |
           test -f ".vercel/output/static/index.html"
           test -d ".vercel/output/static/assets"
-          echo "Verified web bundle for Capacitor:"
-          ls -lah ".vercel/output/static"
+          echo "Verified web bundle for Capacitor."
+
+      - name: Restore original wallpaper assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mvm_wallpapers android/app/src/main/assets/wallpapers
+          mkdir -p /tmp/mvm_wallpapers android/app/src/main/assets/wallpapers
+          cat scripts/wallpapers-pack-b64/part-* | base64 -d > /tmp/mvmcmd-wallpapers.zip
+          test "$(sha256sum /tmp/mvmcmd-wallpapers.zip | cut -d' ' -f1)" = "df908ba85062bd4d8820e269a92fc0b05d86462337355e5e58a83cddd4dcf30a"
+          unzip -q /tmp/mvmcmd-wallpapers.zip -d /tmp/mvm_wallpapers
+          for p in /tmp/mvm_wallpapers/*.webp; do
+            cp "$p" android/app/src/main/assets/wallpapers/
+          done
+          test "$(find android/app/src/main/assets/wallpapers -maxdepth 1 -type f -name '*.webp' | wc -l)" -eq 17
+
+      - name: Verify wallpaper assets
+        shell: bash
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          root=Path("android/app/src/main/assets/wallpapers")
+          files=sorted(root.glob("*.webp"))
+          assert len(files)==17, len(files)
+          for p in files:
+              with Image.open(p) as im:
+                  print(f"{p.name}: {im.size} {p.stat().st_size} bytes")
+                  assert im.width >= 320 and im.height >= 560
+          print("Verified 17 bundled wallpaper assets.")
+          PY
 
       - name: Sync native Android project
         run: npx cap sync android
 
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
-
-      - name: Prepare wallpaper assets
-        run: |
-          set -euo pipefail
-          python3 -m pip install --disable-pip-version-check --quiet pillow
-          mkdir -p android/app/src/main/assets/wallpapers
-          python3 - <<'PY'
-          from pathlib import Path
-          from PIL import Image, ImageDraw, ImageFilter
-          import math
-
-          out = Path("android/app/src/main/assets/wallpapers")
-          scenes = [
-              ("scarlet_focus",(128,24,34),"anime"),
-              ("midnight_tree",(12,24,42),"tree"),
-              ("moon_garden",(25,20,52),"garden"),
-              ("quiet_grove",(18,38,32),"grove"),
-              ("orbital_bloom",(22,34,60),"orbital"),
-              ("midnight_bmw",(8,12,20),"bmw"),
-              ("crimson_spider",(54,10,18),"spider"),
-              ("silent_alps",(42,68,92),"alps"),
-              ("azure_creek",(10,72,104),"creek"),
-              ("starlit_field",(18,40,36),"field"),
-              ("fluid_signal",(34,18,74),"ribbon"),
-              ("red_ronin",(76,10,18),"ronin"),
-              ("gotham_rain",(12,16,24),"batman"),
-              ("deep_space",(5,8,24),"space"),
-              ("midnight_p1",(18,18,24),"p1"),
-              ("amber_orbit",(78,48,12),"amber"),
-              ("ice_eyes",(12,32,48),"cat"),
-          ]
-
-          def make_scene(name, base, kind):
-              w,h=360,640
-              im=Image.new("RGB",(w,h))
-              px=im.load()
-              for y in range(h):
-                  t=y/(h-1)
-                  for x in range(w):
-                      q=x/(w-1)
-                      glow=0.5+0.5*math.sin((q*1.7+t*1.2)*math.pi)
-                      px[x,y]=tuple(min(255,int(base[i]*(0.72+0.34*(1-t))+glow*18)) for i in range(3))
-              d=ImageDraw.Draw(im,"RGBA")
-              if kind in {"space","orbital","amber"}:
-                  for i in range(55):
-                      x=(i*83)%w; y=(i*137)%int(h*.82)
-                      r=1+(i%2)
-                      d.ellipse((x-r,y-r,x+r,y+r),fill=(255,255,255,130+(i%4)*20))
-                  d.ellipse((w*.35,h*.18,w*.65,h*.48),fill=(255,210,120,35),outline=(255,230,170,90),width=2)
-              if kind in {"tree","grove","garden"}:
-                  d.polygon([(0,h*.68),(w*.22,h*.52),(w*.44,h*.7),(w*.66,h*.5),(w,h*.7),(w,h),(0,h)],fill=(3,12,14,180))
-                  d.line((w*.5,h*.8,w*.5,h*.25),fill=(8,8,8,230),width=10)
-                  for k in range(8):
-                      x=w*.18+k*w*.09
-                      y=h*.3+(k%3)*18
-                      d.ellipse((x-38,y-35,x+38,y+35),fill=(5,20,18,190))
-              if kind in {"alps","creek","field"}:
-                  d.polygon([(0,h*.62),(w*.18,h*.35),(w*.34,h*.57),(w*.54,h*.28),(w*.78,h*.56),(w,h*.38),(w,h),(0,h)],fill=(10,25,32,180))
-                  d.polygon([(0,h*.72),(w*.35,h*.48),(w*.6,h*.66),(w,h*.5),(w,h),(0,h)],fill=(6,18,20,210))
-              if kind in {"bmw","p1"}:
-                  d.rounded_rectangle((w*.12,h*.56,w*.88,h*.78),35,fill=(8,10,14,235),outline=(220,225,230,110),width=2)
-                  d.polygon([(w*.24,h*.56),(w*.38,h*.45),(w*.66,h*.45),(w*.78,h*.56)],fill=(18,22,30,240))
-                  d.ellipse((w*.18,h*.71,w*.3,h*.83),fill=(4,4,6,255)); d.ellipse((w*.7,h*.71,w*.82,h*.83),fill=(4,4,6,255))
-              if kind=="cat":
-                  d.ellipse((w*.23,h*.26,w*.77,h*.72),fill=(20,24,30,230))
-                  d.polygon([(w*.27,h*.34),(w*.28,h*.18),(w*.42,h*.29),(w*.58,h*.29),(w*.72,h*.18),(w*.73,h*.34)],fill=(22,26,32,240))
-                  for x in (w*.39,w*.61):
-                      d.ellipse((x-15,h*.43,x+15,h*.49),fill=(90,220,255,230))
-              if kind in {"spider","ronin","batman","anime"}:
-                  d.ellipse((w*.25,h*.22,w*.75,h*.75),fill=(8,8,12,150),outline=(255,55,65,90),width=2)
-                  d.line((w*.2,h*.75,w*.8,h*.25),fill=(255,45,55,70),width=3)
-              if kind=="ribbon":
-                  pts=[]
-                  for x in range(0,w+1,8):
-                      y=h*.48+math.sin(x/42)*70
-                      pts.append((x,y))
-                  d.line(pts,fill=(120,220,255,180),width=24)
-                  d.line([(x,y-8) for x,y in pts],fill=(255,120,220,130),width=5)
-              im=im.filter(ImageFilter.GaussianBlur(0.35))
-              im.save(out/f"{name}.webp","WEBP",quality=84,method=6)
-
-          for name,base,kind in scenes:
-              make_scene(name,base,kind)
-          assert len(list(out.glob("*.webp")))==17
-          print("Prepared 17 wallpaper scenes")
-          PY
 
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -197,7 +143,7 @@ jobs:
         shell: bash
         run: |
           echo "ACTION_SUCCESS"
-          echo "MVMCMD Android build, QR scanner, Quick Settings tile, and 3D wallpaper checks completed successfully."
+          echo "MVMCMD Android build + original wallpaper engine completed."
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

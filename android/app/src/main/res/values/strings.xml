@@ -1,8 +1,8 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MVMCMD</string>
     <string name="title_activity_main">MVMCMD</string>
     <string name="package_name">com.mvmcmd.launcher</string>
     <string name="custom_url_scheme">com.mvmcmd.launcher</string>
-    <string name="wallpaper_description">MVMCMD 3D live wallpaper</string>
+    <string name="wallpaper_description">MVMCMD original 3D home wallpaper engine</string>
 </resources>
