@@ -10,6 +10,7 @@ import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
+import { VisionPanel } from "./vision";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -80,6 +81,7 @@ export function MvmShell() {
   const [histIdx, setHistIdx] = useState(-1);
   const [platform, setPlatform] = useState<PlatformKind>("desktop");
   const [standalone, setStandalone] = useState(false);
+  const [visionMode, setVisionMode] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clock = useClock();
@@ -176,6 +178,7 @@ export function MvmShell() {
     const result = execute(text, { state, lang });
     setState(result.state);
     append([makeLine("in", text), ...result.lines], result.clearLog);
+    if (result.openVision) setVisionMode(true);
     setInput("");
     setHistIdx(-1);
   }
@@ -238,6 +241,18 @@ export function MvmShell() {
           saveState(next);
           setState(next);
           setPhase("boot");
+        }}
+      />
+    );
+  }
+
+  if (visionMode) {
+    return (
+      <VisionPanel
+        lang={lang}
+        onExit={() => {
+          setVisionMode(false);
+          window.setTimeout(() => inputRef.current?.focus(), 0);
         }}
       />
     );
