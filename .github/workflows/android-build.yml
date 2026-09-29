@@ -103,23 +103,11 @@ jobs:
           root=Path("/tmp/mvm_wallpapers")
           out=Path("android/app/src/main/assets/wallpapers")
           out.mkdir(parents=True, exist_ok=True)
-          expected = [
-              ("scarlet_focus","1_13822.jpg"), ("midnight_tree","5207381.jpg"),
-              ("moon_garden","images (1).jpeg"), ("quiet_grove","shikamaru-tree-shadow-calm-vibe-live-wallpapers-mobile-8k.jpg"),
-              ("orbital_bloom","790bca75efe763082d0eb18b8b1278d1.jpg"), ("midnight_bmw","wp15151675.webp"),
-              ("crimson_spider","images (2).jpeg"), ("silent_alps","8961336.jpg"),
-              ("azure_creek","f5cf621c2dc8ff4610bf54443301aa2e.jpg"), ("starlit_field","61b3d22ef2c8808171a50070b6cff9c6.jpg"),
-              ("fluid_signal","wavy-background-colorful-gradient_677411-3443.jpg"), ("red_ronin","a1d3dbeaf54e5bc463d5c1bdf0ac15f7.jpg"),
-              ("gotham_rain","batman_wallpaper_for_mobile__by_lord12dark_dcc4cf3-fullview.jpg"), ("deep_space","wp6223561.jpg"),
-              ("midnight_p1","mclaren-p1-8k-black-1080x1920-16227.jpg"), ("amber_orbit","fortune-leaf-ai-live-wallpaper-8k-tablet-mobile.jpg"),
-              ("ice_eyes","HD-wallpaper-cat-8k-black-blue-cool-eyes-full-ultra-thumbnail.jpg")
-          ]
-          for wid, src in expected:
-              matches=list(root.rglob(src))
-              assert len(matches)==1, (wid, src, len(matches))
-              with Image.open(matches[0]) as im:
-                  im=im.convert("RGB")
-                  im.save(out/f"{wid}.png","PNG",compress_level=6,optimize=True)
+          files=sorted(root.glob("*.webp"))
+          assert len(files)==17, files
+          for src in files:
+              with Image.open(src) as im:
+                  im.convert("RGB").save(out/(src.stem+".png"), "PNG", compress_level=6, optimize=True)
           assert len(list(out.glob("*.png")))==17
           PY
           test "$(find android/app/src/main/assets/wallpapers -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 17
