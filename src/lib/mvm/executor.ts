@@ -3,7 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenTemperature } from "./native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenTemperature, nativeStopTemperatureOverlay, nativeShareTemperatureReport } from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -166,8 +166,21 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
         return { state: state0, lines: [line("warn", L(ctx2, "TEMPERATURE faqat native Android APK ichida ishlaydi.", "TEMPERATURE currently runs in the native Android APK."))] };
       }
-      void nativeOpenTemperature().catch(() => undefined);
-      return { state: state0, lines: [line("ok", "TEMPERATURE", { meta: "HARDWARE MONITOR · OVERLAY READY" })] };
+      const action = parsed.args[0]?.toLowerCase();
+      if (action === "stop" || action === "off") {
+        void nativeStopTemperatureOverlay().catch(() => undefined);
+        return { state: state0, lines: [line("dim", "TEMPERATURE · OVERLAY STOP REQUEST SENT", { meta: "NATIVE ANDROID" })] };
+      }
+      if (action === "report" || action === "share") {
+        void nativeShareTemperatureReport().catch(() => undefined);
+        return { state: state0, lines: [line("dim", "TEMPERATURE · REPORT SHARE REQUEST SENT", { meta: "NATIVE ANDROID" })] };
+      }
+      if (action === "overlay" || action === "on") {
+        void nativeOpenTemperature({ enableOverlay: true }).catch(() => undefined);
+        return { state: state0, lines: [line("dim", "TEMPERATURE · MONITOR + OVERLAY REQUEST SENT", { meta: "NATIVE ANDROID" })] };
+      }
+      void nativeOpenTemperature({ enableOverlay: false }).catch(() => undefined);
+      return { state: state0, lines: [line("dim", "TEMPERATURE · MONITOR REQUEST SENT", { meta: "NATIVE ANDROID" })] };
     }
     case "camera": {
       const runtime = detectRuntime();
