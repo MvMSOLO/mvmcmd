@@ -47,6 +47,7 @@ public final class MvmWallpaperRenderer {
         opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
         opts.inSampleSize = Math.max(1, sample);
         opts.inDither = true;
+        opts.inScaled = false;
         try (InputStream in = c.getAssets().open(path)) {
             return BitmapFactory.decodeStream(in, null, opts);
         } catch (Exception e) {
@@ -67,7 +68,7 @@ public final class MvmWallpaperRenderer {
 
         c.drawColor(Color.BLACK);
 
-        float scale = Math.max(w / (float) bitmap.getWidth(), h / (float) bitmap.getHeight()) * 1.050f;
+        float scale = Math.max(w / (float) bitmap.getWidth(), h / (float) bitmap.getHeight()) * 1.012f;
         float driftX = (float) Math.sin(now * 0.00012) * s.drift;
         float driftY = (float) Math.cos(now * 0.00016) * s.drift * 0.70f;
 
@@ -76,18 +77,14 @@ public final class MvmWallpaperRenderer {
         float py = (tiltY * s.depth + driftY) * h * 0.018f;
         drawCover(c, w, h, scale, px, py, 255);
 
-        // Dynamic Atmospheric Lighting Glow
-        drawAtmosphere(c, s, w, h, now);
-
-        // Foregound 3D Subject Focus Layer (Parallax Pop Effect)
-        drawFocus3DDepth(c, w, h, s, scale, tiltX, tiltY, now);
-
+        // Single high-quality bitmap pass. No duplicate/feathered copy is drawn,
+        // so the source image stays crisp while the scene still moves subtly.
         // Clock & Date UI Widget Rendering
         if (showClock) {
             drawClock(c, s, w, h, now);
         }
 
-        // Cinematic Vignette & Depth Mask
+        // Subtle edge vignette only; no bitmap blur/filter overlay.
         drawVignette(c, w, h);
     }
 
@@ -96,34 +93,6 @@ public final class MvmWallpaperRenderer {
         RectF d = new RectF((w - bw) * 0.5f + dx, (h - bh) * 0.5f + dy, (w + bw) * 0.5f + dx, (h + bh) * 0.5f + dy);
         bitmapPaint.setAlpha(alpha);
         c.drawBitmap(bitmap, null, d, bitmapPaint);
-        bitmapPaint.setAlpha(255);
-    }
-
-    private void drawFocus3DDepth(Canvas c, int w, int h, MvmWallpaperCatalog.Spec s, float baseScale, float tx, float ty, long now) {
-        float fx = s.focusX * w, fy = s.focusY * h;
-        float scale = baseScale * (1.0f + s.depth * 0.12f);
-
-        // 3D Parallax Offset for Foreground Focal Point
-        float dx = tx * Math.min(w, h) * s.depth * 0.055f + (float) Math.sin(now * 0.00022) * 1.5f;
-        float dy = ty * Math.min(w, h) * s.depth * 0.040f;
-
-        float bw = bitmap.getWidth() * scale, bh = bitmap.getHeight() * scale;
-        float left = fx - s.focusX * bw + dx;
-        float top = fy - s.focusY * bh + dy;
-
-        int save = c.saveLayer(0, 0, w, h, null);
-        bitmapPaint.setAlpha(180);
-        c.drawBitmap(bitmap, null, new RectF(left, top, left + bw, top + bh), bitmapPaint);
-
-        // Radial Feather Mask centered around focal point
-        float maskRadius = Math.min(w, h) * Math.max(0.35f, s.depth * 3.2f);
-        mask.setShader(new RadialGradient(fx, fy, maskRadius,
-                new int[]{0xffffffff, 0xddffffff, 0x00ffffff}, new float[]{0.0f, 0.65f, 1.0f}, Shader.TileMode.CLAMP));
-        mask.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-        c.drawRect(0, 0, w, h, mask);
-        mask.setXfermode(null);
-        mask.setShader(null);
-        c.restoreToCount(save);
         bitmapPaint.setAlpha(255);
     }
 
@@ -145,6 +114,8 @@ public final class MvmWallpaperRenderer {
         }
 
         text.setTypeface(Typeface.create(clockFace, Typeface.NORMAL));
+        text.setAntiAlias(true);
+        text.setSubpixelText(true);
         text.setTextSize(size);
         text.setTextAlign(s.align);
         text.setLetterSpacing(0.015f);
@@ -209,23 +180,13 @@ public final class MvmWallpaperRenderer {
         shapePaint.setStyle(Paint.Style.FILL);
     }
 
-    private void drawAtmosphere(Canvas c, MvmWallpaperCatalog.Spec s, int w, int h, long now) {
-        float pulse = 0.5f + 0.5f * (float) Math.sin(now * 0.0018);
-        int glow = s.accentColor;
-        float radius = Math.min(w, h) * (0.45f + pulse * 0.020f);
-        shapePaint.setShader(new RadialGradient(s.focusX * w, s.focusY * h, radius,
-                (glow & 0x55ffffff) | (0x22 << 24), 0x00000000, Shader.TileMode.CLAMP));
-        c.drawCircle(s.focusX * w, s.focusY * h, radius, shapePaint);
-        shapePaint.setShader(null);
-    }
-
     private void drawVignette(Canvas c, int w, int h) {
         shapePaint.setShader(new RadialGradient(w * 0.5f, h * 0.48f, Math.max(w, h) * 0.72f,
-                0x00000000, 0x58000000, Shader.TileMode.CLAMP));
+                0x00000000, 0x3a000000, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, shapePaint);
         shapePaint.setShader(null);
 
-        shapePaint.setShader(new LinearGradient(0, 0, 0, h, 0x0a000000, 0x32000000, Shader.TileMode.CLAMP));
+        shapePaint.setShader(new LinearGradient(0, 0, 0, h, 0x06000000, 0x24000000, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, shapePaint);
         shapePaint.setShader(null);
     }
