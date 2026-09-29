@@ -10,7 +10,9 @@ interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;
   openWallpaper(): Promise<{ opened: boolean }>;
-  openTemperature(): Promise<{ opened: boolean; overlayPermission?: boolean }>;
+  openTemperature(options?: { enableOverlay?: boolean }): Promise<{ opened: boolean; overlayPermission?: boolean }>;
+  stopTemperatureOverlay(): Promise<{ stopped: boolean }>;
+  shareTemperatureReport(): Promise<{ opened: boolean }>;
   openPackage(options: {
     packageName: string;
     action?: string;
@@ -38,9 +40,11 @@ export async function nativeOpenWallpaper(): Promise<{ opened: boolean }> {
   return NativeLauncher.openWallpaper();
 }
 
-export async function nativeOpenTemperature(): Promise<{ opened: boolean; overlayPermission?: boolean }> {
-  return NativeLauncher.openTemperature();
-}
+export async function nativeOpenTemperature(options?: { enableOverlay?: boolean }): Promise<{ opened: boolean; overlayPermission?: boolean }> { return NativeLauncher.openTemperature(options); }
+
+export async function nativeStopTemperatureOverlay(): Promise<{ stopped: boolean }> { return NativeLauncher.stopTemperatureOverlay(); }
+
+export async function nativeShareTemperatureReport(): Promise<{ opened: boolean }> { return NativeLauncher.shareTemperatureReport(); }
 
 export async function nativeOpenPackage(
   packageName: string,
