@@ -267,7 +267,8 @@ export function MvmShell() {
     .slice(0, 8);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
+    <>
+      <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <header className="enter-down d1 flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
@@ -454,8 +455,8 @@ export function MvmShell() {
             {t(lang, "launch")}
           </button>
         </form>
+        </div>
       </div>
-    </div>
       <WebVideo
         open={webVideoOpen}
         initialUrl={webVideoUrl}
@@ -465,6 +466,7 @@ export function MvmShell() {
           inputRef.current?.focus();
         }}
       />
+    </>
   );
 }
 
