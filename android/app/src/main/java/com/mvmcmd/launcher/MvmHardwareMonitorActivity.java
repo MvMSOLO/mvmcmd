@@ -27,6 +27,8 @@ public final class MvmHardwareMonitorActivity extends Activity {
 
     private LinearLayout content;
     private TextView status;
+    private Button overlayButton;
+    private boolean pendingOverlayStart;
     private android.os.Handler handler;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
@@ -41,6 +43,7 @@ public final class MvmHardwareMonitorActivity extends Activity {
         getWindow().setNavigationBarColor(Color.BLACK);
         handler = new android.os.Handler(getMainLooper());
         buildUi();
+        if(getIntent().getBooleanExtra("enableOverlay",false)) pendingOverlayStart=true;
         render();
     }
 
@@ -66,9 +69,9 @@ public final class MvmHardwareMonitorActivity extends Activity {
         overlayRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView label = text("FLOATING OVERLAY", 11, true);
         overlayRow.addView(label, new LinearLayout.LayoutParams(0, dp(48), 1));
-        Button overlay = button("ENABLE");
-        overlay.setOnClickListener(v -> toggleOverlay());
-        overlayRow.addView(overlay, new LinearLayout.LayoutParams(dp(105), dp(44)));
+        overlayButton=button("ENABLE");
+        overlayButton.setOnClickListener(v -> toggleOverlay());
+        overlayRow.addView(overlayButton,new LinearLayout.LayoutParams(dp(105),dp(44)));
         root.addView(overlayRow);
 
         LinearLayout modes = new LinearLayout(this);
@@ -86,6 +89,12 @@ public final class MvmHardwareMonitorActivity extends Activity {
         }
         root.addView(modes);
 
+        LinearLayout actions=new LinearLayout(this);
+        Button refreshButton=button("REFRESH"); refreshButton.setOnClickListener(v->render()); actions.addView(refreshButton,new LinearLayout.LayoutParams(0,dp(42),1));
+        Button copyButton=button("COPY REPORT"); copyButton.setOnClickListener(v->copyReport()); actions.addView(copyButton,new LinearLayout.LayoutParams(0,dp(42),1));
+        Button shareButton=button("SHARE"); shareButton.setOnClickListener(v->shareReport()); actions.addView(shareButton,new LinearLayout.LayoutParams(0,dp(42),1));
+        root.addView(actions);
+
         ScrollView scroll = new ScrollView(this);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -101,21 +110,16 @@ public final class MvmHardwareMonitorActivity extends Activity {
                 + "\nDisplay: " + s.width + " × " + s.height + " @ " + fmt(s.refreshRate) + " Hz"
                 + "\nCores: " + s.cores + "  ·  CPU freq: " + s.cpuFreq
                 + "\nUptime: " + formatUptime(s.uptimeMs));
-        section("CPU / MEMORY", "CPU load: " + fmt(s.cpu) + "%"
-                + "\nRAM used: " + MvmHardwareMonitor.bytes(s.ramTotal - s.ramAvail)
-                + " / " + MvmHardwareMonitor.bytes(s.ramTotal)
-                + "  · free " + MvmHardwareMonitor.bytes(s.ramAvail)
-                + "\nCPU cores: " + s.cores);
+        section("CPU / MEMORY", "CPU load: " + fmt(s.cpu) + "%\nRAM used: " + MvmHardwareMonitor.bytes(s.ramTotal-s.ramAvail) + " / " + MvmHardwareMonitor.bytes(s.ramTotal) + " · free " + MvmHardwareMonitor.bytes(s.ramAvail) + "\nCPU cores: " + s.cores + " · process PSS: " + s.processMemoryMb + " MB");
+        section("PER-CORE LOAD",formatCoreLoads(s.coreUsages));
         section("BATTERY", "Level: " + (s.batteryLevel >= 0 ? s.batteryLevel + "%" : "n/a")
                 + "\nBattery temp: " + temp(s.batteryTempC)
                 + "  · device thermal max: " + temp(s.thermalC)
-                + "\nVoltage: " + (s.voltageMv > 0 ? s.voltageMv + " mV" : "n/a")
-                + "  · current: " + MvmHardwareMonitor.current(s.currentUa)
-                + "\nStatus: " + batteryStatus(s.batteryStatus) + "  · power save: " + (s.powerSave ? "ON" : "OFF"));
-        section("THERMAL", "Thermal zones readable: " + s.thermalZoneCount
-                + "\nReported device temperature: " + temp(s.thermalC)
-                + "\nBattery sensor temperature: " + temp(s.batteryTempC)
-                + "\nNote: Android does not expose one universal CPU-temperature API; MVMCMD uses readable thermal zones and battery temperature.");
+                + "\nVoltage: " + (s.voltageMv>0?s.voltageMv+" mV":"n/a") + " · current: " + MvmHardwareMonitor.current(s.currentUa)
+                + "\nPower: " + (s.batteryPowerMw>0?String.format(Locale.US,"%.0f mW",s.batteryPowerMw):"n/a") + " · health: " + MvmHardwareMonitor.health(s.batteryHealth)
+                + "\nCharge counter: " + (s.chargeCounterUah==Long.MIN_VALUE?"n/a":String.format(Locale.US,"%.0f mAh",s.chargeCounterUah/1000d))
+                + "\nStatus: " + batteryStatus(s.batteryStatus) + " · power save: " + (s.powerSave?"ON":"OFF"));
+        section("THERMAL","Overall max: "+temp(s.thermalC)+"\nCPU: "+temp(s.cpuTempC)+" · GPU: "+temp(s.gpuTempC)+" · skin: "+temp(s.skinTempC)+"\nStatus: "+MvmHardwareMonitor.thermalStatus(s.thermalStatus)+" · headroom: "+(s.thermalHeadroom<0?"n/a":String.format(Locale.US,"%.2f",s.thermalHeadroom))+"\nZones readable: "+s.thermalZoneCount+" · fan: "+(s.fanRpm<0?"n/a":String.format(Locale.US,"%.0f RPM",s.fanRpm)));
         section("STORAGE", "Internal total: " + MvmHardwareMonitor.bytes(s.storageTotal)
                 + "\nFree: " + MvmHardwareMonitor.bytes(s.storageFree)
                 + "\nUsed: " + MvmHardwareMonitor.bytes(s.storageTotal - s.storageFree));
@@ -123,25 +127,35 @@ public final class MvmHardwareMonitorActivity extends Activity {
                 + (s.sensorNames.isEmpty() ? "" : "\n" + join(s.sensorNames)));
         section("DISPLAY FPS", "Display refresh target: " + fmt(s.refreshRate) + " Hz"
                 + "\nOverlay FPS is a frame-pacing measurement from Android's Choreographer, not a private per-game renderer counter.");
-        status.setText("LIVE · refreshed every 1s · overlay " + (Settings.canDrawOverlays(this) ? "READY" : "PERMISSION REQUIRED"));
+        status.setText("LIVE · refreshed 1s · overlay " + (Settings.canDrawOverlays(this) ? "READY" : "PERMISSION REQUIRED"));
+        if(overlayButton!=null) overlayButton.setText(getSharedPreferences("mvm_hardware",MODE_PRIVATE).getBoolean("overlay_enabled",false)?"STOP":"ENABLE");
     }
 
     private void toggleOverlay() {
-        if (!Settings.canDrawOverlays(this)) {
-            try {
-                Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getPackageName()));
-                startActivity(i);
-            } catch (Exception e) {
-                startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION));
-            }
-            return;
-        }
-        Intent service = new Intent(this, MvmHardwareOverlayService.class);
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
-        Toast.makeText(this, "Floating monitor ON", Toast.LENGTH_SHORT).show();
+        boolean enabled=getSharedPreferences("mvm_hardware",MODE_PRIVATE).getBoolean("overlay_enabled",false);
+        if(enabled){stopService(new Intent(this,MvmHardwareOverlayService.class));getSharedPreferences("mvm_hardware",MODE_PRIVATE).edit().putBoolean("overlay_enabled",false).apply();render();Toast.makeText(this,"Floating monitor OFF",Toast.LENGTH_SHORT).show();return;}
+        if(!Settings.canDrawOverlays(this)){pendingOverlayStart=true;try{startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())));}catch(Exception e){startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION));}return;}
+        startOverlay();
     }
 
+    private void startOverlay(){
+        Intent service=new Intent(this,MvmHardwareOverlayService.class); if(Build.VERSION.SDK_INT>=26)startForegroundService(service);else startService(service);
+        getSharedPreferences("mvm_hardware",MODE_PRIVATE).edit().putBoolean("overlay_enabled",true).apply(); pendingOverlayStart=false; render(); Toast.makeText(this,"Floating monitor ON",Toast.LENGTH_SHORT).show();
+    }
+
+    private void copyReport(){
+        android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE); if(cm==null)return;
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("MVMCMD hardware report",MvmHardwareMonitor.report(this))); Toast.makeText(this,"Report copied",Toast.LENGTH_SHORT).show();
+    }
+
+    private void shareReport(){
+        Intent send=new Intent(Intent.ACTION_SEND);send.setType("text/plain");send.putExtra(Intent.EXTRA_SUBJECT,"MVMCMD hardware report");send.putExtra(Intent.EXTRA_TEXT,MvmHardwareMonitor.report(this));startActivity(Intent.createChooser(send,"Share hardware report"));
+    }
+
+    private String formatCoreLoads(java.util.List<Double> values){
+        if(values==null||values.isEmpty())return "n/a"; StringBuilder b=new StringBuilder(); int n=Math.min(values.size(),16);
+        for(int i=0;i<n;i++){if(i>0)b.append(" · ");b.append("C").append(i).append(" ").append(String.format(Locale.US,"%.0f%%",values.get(i)));} return b.toString();
+    }
     private void section(String title, String body) {
         TextView t = text(title + "\n" + body, 12, false);
         t.setTextColor(Color.WHITE);
@@ -196,7 +210,8 @@ public final class MvmHardwareMonitorActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        if (handler != null) { handler.removeCallbacks(refresh); handler.post(refresh); }
+        if(pendingOverlayStart && Settings.canDrawOverlays(this)) startOverlay();
+        if(handler!=null){handler.removeCallbacks(refresh);handler.post(refresh);}
     }
     @Override protected void onPause() {
         if (handler != null) handler.removeCallbacks(refresh);
