@@ -100,7 +100,8 @@ public final class MvmWallpaperRenderer {
         String dt=date.format(new Date(now)).toUpperCase(Locale.ENGLISH);
         float min=Math.min(w,h);
         float x=s.clockX*w, y=s.clockY*h, size=s.clockSize*min;
-        text.setTypeface(Typeface.create("sans-serif-condensed",Typeface.NORMAL));
+        String clockFace=("outline".equals(s.style)||"ghost".equals(s.style))?"sans-serif-thin":"sans-serif-condensed";
+        text.setTypeface(Typeface.create(clockFace,Typeface.NORMAL));
         text.setTextSize(size);
         text.setTextAlign(s.align);
         text.setLetterSpacing(.012f);

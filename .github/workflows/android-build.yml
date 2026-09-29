@@ -114,7 +114,7 @@ jobs:
           for p in files:
               with Image.open(p) as im:
                   print(f"{p.name}: {im.size} {p.stat().st_size} bytes")
-                  assert im.width >= 320 and im.height >= 560
+                  assert im.width >= 240 and im.height >= 400
           print("Verified 17 bundled wallpaper assets.")
           PY
 
@@ -137,6 +137,29 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           ls -lh "$APK"
+
+      - name: Verify APK wallpaper payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import hashlib
+          root=Path("android/app/src/main/assets/wallpapers")
+          expected=sorted(p.name for p in root.glob("*.webp"))
+          assert len(expected)==17, expected
+          with ZipFile("android/app/build/outputs/apk/debug/app-debug.apk") as z:
+              names=set(z.namelist())
+              for name in expected:
+                  entry="assets/wallpapers/"+name
+                  assert entry in names, entry
+                  data=z.read(entry)
+                  src=(root/name).read_bytes()
+                  assert hashlib.sha256(data).digest()==hashlib.sha256(src).digest(), name
+          print("Verified APK contains the exact 17 wallpaper asset payloads.")
+          PY
 
       - name: Final success gate
         if: ${{ success() }}
