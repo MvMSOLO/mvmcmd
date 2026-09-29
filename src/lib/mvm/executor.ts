@@ -3,7 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper } from "./native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenTemperature } from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -161,22 +161,13 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
-    case "webvideo": {
-      const url = parsed.args.join(" ").trim();
-      return {
-        state: state0,
-        lines: [
-          line("ok", "WEBVIDEO", { meta: url ? "PLAYER · URL READY" : "PLAYER · WAITING FOR URL" }),
-          line(
-            "dim",
-            L(
-              ctx2,
-              "Web video oynasi ochiladi. Faqat ruxsat etilgan embed yoki to‘g‘ridan-to‘g‘ri media URL ishlatiladi.",
-              "Web video player opens. It supports permitted embeds or direct media URLs.",
-            ),
-          ),
-        ],
-      };
+    case "temperature": {
+      const runtime = detectRuntime();
+      if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
+        return { state: state0, lines: [line("warn", L(ctx2, "TEMPERATURE faqat native Android APK ichida ishlaydi.", "TEMPERATURE currently runs in the native Android APK."))] };
+      }
+      void nativeOpenTemperature().catch(() => undefined);
+      return { state: state0, lines: [line("ok", "TEMPERATURE", { meta: "HARDWARE MONITOR · OVERLAY READY" })] };
     }
     case "camera": {
       const runtime = detectRuntime();
