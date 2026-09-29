@@ -22,7 +22,7 @@ import android.widget.TextView;
 
 import androidx.core.app.ServiceCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.ServiceInfo;
+import android.content.pm.ServiceInfo;
 
 import java.util.Locale;
 
