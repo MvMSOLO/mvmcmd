@@ -1,6 +1,7 @@
 package com.mvmcmd.launcher;
 
 import android.app.WallpaperManager;
+import android.hardware.SensorManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
