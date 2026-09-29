@@ -1,191 +1,85 @@
-package com.mvmcmd.launcher;
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
-import android.content.ActivityNotFoundException;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/mvmcmd_logo"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/mvmcmd_logo"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
 
-import androidx.annotation.NonNull;
+        <service
+            android:name=".MvmQrTileService"
+            android:exported="true"
+            android:icon="@drawable/mvmcmd_logo"
+            android:label="QR Scanner"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
-import com.getcapacitor.JSObject;
-import com.getcapacitor.Plugin;
-import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.CapacitorPlugin;
+        <activity
+            android:name=".MvmWallpaperActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            android:theme="@style/AppTheme.Camera" />
 
-@CapacitorPlugin(name = "MvmLauncher")
-public class MvmLauncherPlugin extends Plugin {
+        <service
+            android:name=".MvmHomeWallpaperService"
+            android:exported="true"
+            android:label="MVMCMD 3D Home Wallpaper"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/mvm_home_wallpaper" />
+        </service>
 
-    @PluginMethod
-    public void openCamera(PluginCall call) {
-        try {
-            Intent intent = new Intent(getActivity(), MvmCameraActivity.class);
-            getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
-        } catch (Exception e) {
-            call.reject("Unable to open camera: " + e.getMessage(), e);
-        }
-    }
+        <activity
+            android:name=".MvmQrActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            android:theme="@style/AppTheme.Camera" />
 
-    @PluginMethod
-    public void openQr(PluginCall call) {
-        try {
-            Intent intent = new Intent(getActivity(), MvmQrActivity.class);
-            getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
-        } catch (Exception e) {
-            call.reject("Unable to open QR scanner: " + e.getMessage(), e);
-        }
-    }
+        <activity
+            android:name=".MvmCameraActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            android:theme="@style/AppTheme.Camera" />
 
-    @PluginMethod
-    public void openWallpaper(PluginCall call) {
-        try {
-            Intent intent = new Intent(getActivity(), MvmWallpaperActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
-        } catch (Exception e) {
-            call.reject("Unable to open wallpaper gallery: " + e.getMessage(), e);
-        }
-    }
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
-    @PluginMethod
-    public void openPackage(PluginCall call) {
-        String packageName = call.getString("packageName");
-        String action = call.getString("action");
-        String data = call.getString("data");
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
 
-        if (packageName == null || packageName.trim().isEmpty()) {
-            call.reject("packageName is required");
-            return;
-        }
-
-        PackageManager pm = getContext().getPackageManager();
-        Intent launchIntent = null;
-
-        try {
-            if (action != null && !action.trim().isEmpty()) {
-                launchIntent = new Intent(action);
-                launchIntent.setPackage(packageName);
-                if (data != null && !data.trim().isEmpty()) {
-                    launchIntent.setData(Uri.parse(data));
-                }
-                if (Intent.ACTION_MAIN.equals(action)) {
-                    launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-                }
-            } else {
-                launchIntent = pm.getLaunchIntentForPackage(packageName);
-                if (launchIntent == null) {
-                    launchIntent = pm.getLeanbackLaunchIntentForPackage(packageName);
-                }
-            }
-        } catch (Exception ignored) {
-            launchIntent = null;
-        }
-
-        boolean installed;
-        try {
-            pm.getApplicationInfo(packageName, 0);
-            installed = true;
-        } catch (PackageManager.NameNotFoundException e) {
-            installed = false;
-        }
-
-        if (launchIntent == null) {
-            JSObject result = new JSObject();
-            result.put("launched", false);
-            result.put("installed", installed);
-            result.put("error", installed ? "NO_LAUNCH_ACTIVITY" : "NOT_INSTALLED");
-            call.resolve(result);
-            return;
-        }
-
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        try {
-            getActivity().startActivity(launchIntent);
-            JSObject result = new JSObject();
-            result.put("launched", true);
-            result.put("installed", true);
-            call.resolve(result);
-        } catch (ActivityNotFoundException e) {
-            JSObject result = new JSObject();
-            result.put("launched", false);
-            result.put("installed", installed);
-            result.put("error", "ACTIVITY_NOT_FOUND");
-            call.resolve(result);
-        } catch (Exception e) {
-            JSObject result = new JSObject();
-            result.put("launched", false);
-            result.put("installed", installed);
-            result.put("error", e.getClass().getSimpleName());
-            call.resolve(result);
-        }
-    }
-
-    @PluginMethod
-    public void openUrl(PluginCall call) {
-        String url = call.getString("url");
-        if (url == null || url.trim().isEmpty()) {
-            call.reject("url is required");
-            return;
-        }
-
-        try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getActivity().startActivity(intent);
-
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
-        } catch (Exception e) {
-            JSObject result = new JSObject();
-            result.put("opened", false);
-            call.resolve(result);
-        }
-    }
-
-    @PluginMethod
-    public void openStore(PluginCall call) {
-        String packageName = call.getString("packageName");
-        String webUrl = call.getString("webUrl");
-
-        if (packageName == null || packageName.trim().isEmpty()) {
-            call.reject("packageName is required");
-            return;
-        }
-
-        boolean opened = false;
-
-        try {
-            Intent market = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + Uri.encode(packageName)));
-            market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getActivity().startActivity(market);
-            opened = true;
-        } catch (Exception ignored) {
-            // Google Play may be unavailable. Fall back to the normal HTTPS page.
-        }
-
-        if (!opened && webUrl != null && !webUrl.trim().isEmpty()) {
-            try {
-                Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(webUrl));
-                web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getActivity().startActivity(web);
-                opened = true;
-            } catch (Exception ignored) {
-                // Report failure to JavaScript.
-            }
-        }
-
-        JSObject result = new JSObject();
-        result.put("opened", opened);
-        call.resolve(result);
-    }
-}
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
