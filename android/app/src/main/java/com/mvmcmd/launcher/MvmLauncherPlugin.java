@@ -36,6 +36,32 @@ public class MvmLauncherPlugin extends Plugin {
 
 
     @PluginMethod
+    public void openQr(PluginCall call) {
+        try {
+            getActivity().startActivity(new Intent(getActivity(), MvmQrActivity.class));
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Unable to open QR scanner: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
+    public void openWallpaper(PluginCall call) {
+        try {
+            Intent intent = new Intent(getActivity(), MvmWallpaperActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Unable to open wallpaper gallery: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void openTemperature(PluginCall call) {
         try {
             boolean enableOverlay = call.getBoolean("enableOverlay", false);
