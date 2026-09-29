@@ -2,6 +2,14 @@ import type { CommandSpec } from "./types";
 
 export const COMMANDS: CommandSpec[] = [
   {
+    name: "webvideo",
+    aliases: ["web-video", "video-web"],
+    hidden: true,
+    usage: "WEBVIDEO",
+    summaryEn: "Open the MVMCMD web video player.",
+    summaryUz: "MVMCMD web video playerini ochadi.",
+  },
+  {
     name: "camera",
     aliases: [],
     hidden: true,
