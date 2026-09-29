@@ -79,7 +79,7 @@ public final class MvmHardwareMonitorActivity extends Activity {
             Button b = button(names[i]);
             final int mode = modesIds[i];
             b.setOnClickListener(v -> {
-                getPreferences(MODE_PRIVATE).edit().putInt("overlay_mode", mode).apply();
+                getSharedPreferences("mvm_hardware", MODE_PRIVATE).edit().putInt("overlay_mode", mode).apply();
                 status.setText("Overlay mode: " + names[mode] + " · tap the floating chip to expand for 3s");
             });
             modes.addView(b, new LinearLayout.LayoutParams(0, dp(42), 1));
