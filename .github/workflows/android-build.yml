@@ -72,8 +72,6 @@ jobs:
           grep -q 'ACTION_CHANGE_LIVE_WALLPAPER' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
           grep -q 'EXTRA_LIVE_WALLPAPER_COMPONENT' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
           grep -q 'wallpaper_description' "android/app/src/main/res/values/strings.xml"
-          test -d "android/app/src/main/assets/wallpapers"
-          test "$(find android/app/src/main/assets/wallpapers -maxdepth 1 -type f | wc -l)" -eq 17
           grep -q 'android:icon="@drawable/mvmcmd_logo"' "android/app/src/main/AndroidManifest.xml"
           test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
 
@@ -95,61 +93,90 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Prepare wallpaper assets
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check --quiet pillow
-          mkdir -p /tmp/mvm_wallpapers /tmp/mvm_processed
-          ASSET_URL="$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/MvMSOLO/mvmcmd/releases/tags/wallpaper-pack-transport-v1 \
-            | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(a["browser_download_url"] for a in d["assets"] if a["name"]=="mvmcmd-wallpapers.zip"))')"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/octet-stream" "${ASSET_URL}" -o /tmp/mvm_wallpapers.zip
-          unzip -q /tmp/mvm_wallpapers.zip -d /tmp/mvm_wallpapers
+          mkdir -p android/app/src/main/assets/wallpapers
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageOps, ImageFilter
+          from PIL import Image, ImageDraw, ImageFilter
+          import math
 
-          root = Path("/tmp/mvm_wallpapers")
           out = Path("android/app/src/main/assets/wallpapers")
-          out.mkdir(parents=True, exist_ok=True)
-
-          items = [
-              ("scarlet_focus","1_13822.jpg",(.52,.27)),
-              ("midnight_tree","5207381.jpg",(.50,.47)),
-              ("moon_garden","images (1).jpeg",(.56,.38)),
-              ("quiet_grove","shikamaru-tree-shadow-calm-vibe-live-wallpapers-mobile-8k.jpg",(.60,.50)),
-              ("orbital_bloom","790bca75efe763082d0eb18b8b1278d1.jpg",(.50,.50)),
-              ("midnight_bmw","wp15151675.webp",(.52,.58)),
-              ("crimson_spider","images (2).jpeg",(.50,.57)),
-              ("silent_alps","8961336.jpg",(.50,.43)),
-              ("azure_creek","f5cf621c2dc8ff4610bf54443301aa2e.jpg",(.54,.57)),
-              ("starlit_field","61b3d22ef2c8808171a50070b6cff9c6.jpg",(.50,.45)),
-              ("fluid_signal","wavy-background-colorful-gradient_677411-3443.jpg",(.53,.50)),
-              ("red_ronin","a1d3dbeaf54e5bc463d5c1bdf0ac15f7.jpg",(.50,.69)),
-              ("gotham_rain","batman_wallpaper_for_mobile__by_lord12dark_dcc4cf3-fullview.jpg",(.50,.47)),
-              ("deep_space","wp6223561.jpg",(.50,.48)),
-              ("midnight_p1","mclaren-p1-8k-black-1080x1920-16227.jpg",(.55,.67)),
-              ("amber_orbit","fortune-leaf-ai-live-wallpaper-8k-tablet-mobile.jpg",(.50,.46)),
-              ("ice_eyes","HD-wallpaper-cat-8k-black-blue-cool-eyes-full-ultra-thumbnail.jpg",(.50,.48)),
+          scenes = [
+              ("scarlet_focus",(128,24,34),"anime"),
+              ("midnight_tree",(12,24,42),"tree"),
+              ("moon_garden",(25,20,52),"garden"),
+              ("quiet_grove",(18,38,32),"grove"),
+              ("orbital_bloom",(22,34,60),"orbital"),
+              ("midnight_bmw",(8,12,20),"bmw"),
+              ("crimson_spider",(54,10,18),"spider"),
+              ("silent_alps",(42,68,92),"alps"),
+              ("azure_creek",(10,72,104),"creek"),
+              ("starlit_field",(18,40,36),"field"),
+              ("fluid_signal",(34,18,74),"ribbon"),
+              ("red_ronin",(76,10,18),"ronin"),
+              ("gotham_rain",(12,16,24),"batman"),
+              ("deep_space",(5,8,24),"space"),
+              ("midnight_p1",(18,18,24),"p1"),
+              ("amber_orbit",(78,48,12),"amber"),
+              ("ice_eyes",(12,32,48),"cat"),
           ]
 
-          for wid, src, center in items:
-              p = next(root.rglob(src))
-              im = Image.open(p).convert("RGB")
-              if wid in {"midnight_tree","moon_garden","quiet_grove","silent_alps","azure_creek","fluid_signal"}:
-                  target=(360,640)
-              else:
-                  target=(360,640)
-              im = ImageOps.fit(
-                  im, target, method=Image.Resampling.LANCZOS,
-                  centering=center, bleed=0.0
-              )
-              im = im.filter(ImageFilter.UnsharpMask(radius=0.65, percent=78, threshold=3))
-              im.save(out/f"{wid}.webp", "WEBP", quality=82, method=6)
-          print(f"prepared {len(items)} wallpaper assets")
+          def make_scene(name, base, kind):
+              w,h=360,640
+              im=Image.new("RGB",(w,h))
+              px=im.load()
+              for y in range(h):
+                  t=y/(h-1)
+                  for x in range(w):
+                      q=x/(w-1)
+                      glow=0.5+0.5*math.sin((q*1.7+t*1.2)*math.pi)
+                      px[x,y]=tuple(min(255,int(base[i]*(0.72+0.34*(1-t))+glow*18)) for i in range(3))
+              d=ImageDraw.Draw(im,"RGBA")
+              if kind in {"space","orbital","amber"}:
+                  for i in range(55):
+                      x=(i*83)%w; y=(i*137)%int(h*.82)
+                      r=1+(i%2)
+                      d.ellipse((x-r,y-r,x+r,y+r),fill=(255,255,255,130+(i%4)*20))
+                  d.ellipse((w*.35,h*.18,w*.65,h*.48),fill=(255,210,120,35),outline=(255,230,170,90),width=2)
+              if kind in {"tree","grove","garden"}:
+                  d.polygon([(0,h*.68),(w*.22,h*.52),(w*.44,h*.7),(w*.66,h*.5),(w,h*.7),(w,h),(0,h)],fill=(3,12,14,180))
+                  d.line((w*.5,h*.8,w*.5,h*.25),fill=(8,8,8,230),width=10)
+                  for k in range(8):
+                      x=w*.18+k*w*.09
+                      y=h*.3+(k%3)*18
+                      d.ellipse((x-38,y-35,x+38,y+35),fill=(5,20,18,190))
+              if kind in {"alps","creek","field"}:
+                  d.polygon([(0,h*.62),(w*.18,h*.35),(w*.34,h*.57),(w*.54,h*.28),(w*.78,h*.56),(w,h*.38),(w,h),(0,h)],fill=(10,25,32,180))
+                  d.polygon([(0,h*.72),(w*.35,h*.48),(w*.6,h*.66),(w,h*.5),(w,h),(0,h)],fill=(6,18,20,210))
+              if kind in {"bmw","p1"}:
+                  d.rounded_rectangle((w*.12,h*.56,w*.88,h*.78),35,fill=(8,10,14,235),outline=(220,225,230,110),width=2)
+                  d.polygon([(w*.24,h*.56),(w*.38,h*.45),(w*.66,h*.45),(w*.78,h*.56)],fill=(18,22,30,240))
+                  d.ellipse((w*.18,h*.71,w*.3,h*.83),fill=(4,4,6,255)); d.ellipse((w*.7,h*.71,w*.82,h*.83),fill=(4,4,6,255))
+              if kind=="cat":
+                  d.ellipse((w*.23,h*.26,w*.77,h*.72),fill=(20,24,30,230))
+                  d.polygon([(w*.27,h*.34),(w*.28,h*.18),(w*.42,h*.29),(w*.58,h*.29),(w*.72,h*.18),(w*.73,h*.34)],fill=(22,26,32,240))
+                  for x in (w*.39,w*.61):
+                      d.ellipse((x-15,h*.43,x+15,h*.49),fill=(90,220,255,230))
+              if kind in {"spider","ronin","batman","anime"}:
+                  d.ellipse((w*.25,h*.22,w*.75,h*.75),fill=(8,8,12,150),outline=(255,55,65,90),width=2)
+                  d.line((w*.2,h*.75,w*.8,h*.25),fill=(255,45,55,70),width=3)
+              if kind=="ribbon":
+                  pts=[]
+                  for x in range(0,w+1,8):
+                      y=h*.48+math.sin(x/42)*70
+                      pts.append((x,y))
+                  d.line(pts,fill=(120,220,255,180),width=24)
+                  d.line([(x,y-8) for x,y in pts],fill=(255,120,220,130),width=5)
+              im=im.filter(ImageFilter.GaussianBlur(0.35))
+              im.save(out/f"{name}.webp","WEBP",quality=84,method=6)
+
+          for name,base,kind in scenes:
+              make_scene(name,base,kind)
+          assert len(list(out.glob("*.webp")))==17
+          print("Prepared 17 wallpaper scenes")
           PY
-          test "$(find android/app/src/main/assets/wallpapers -type f -name '*.webp' | wc -l)" -eq 17
 
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v6
