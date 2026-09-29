@@ -94,7 +94,7 @@ jobs:
           rm -rf /tmp/mvm_wallpapers android/app/src/main/assets/wallpapers
           mkdir -p /tmp/mvm_wallpapers android/app/src/main/assets/wallpapers
           cat scripts/wallpapers-pack-b64/part-* | base64 -d > /tmp/mvmcmd-wallpapers.zip
-          test "$(sha256sum /tmp/mvmcmd-wallpapers.zip | cut -d' ' -f1)" = "df908ba85062bd4d8820e269a92fc0b05d86462337355e5e58a83cddd4dcf30a"
+          test "$(sha256sum /tmp/mvmcmd-wallpapers.zip | cut -d' ' -f1)" = "631eda5bf27ad4df220e78cc9af8da8abdbcf33dec0fc1a72a471dcacd9d1af2"
           unzip -q /tmp/mvmcmd-wallpapers.zip -d /tmp/mvm_wallpapers
           for p in /tmp/mvm_wallpapers/*.webp; do
             cp "$p" android/app/src/main/assets/wallpapers/
