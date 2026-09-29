@@ -161,6 +161,23 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
+    case "webvideo": {
+      const url = parsed.args.join(" ").trim();
+      return {
+        state: state0,
+        lines: [
+          line("ok", "WEBVIDEO", { meta: url ? "PLAYER · URL READY" : "PLAYER · WAITING FOR URL" }),
+          line(
+            "dim",
+            L(
+              ctx2,
+              "Web video oynasi ochiladi. Faqat ruxsat etilgan embed yoki to‘g‘ridan-to‘g‘ri media URL ishlatiladi.",
+              "Web video player opens. It supports permitted embeds or direct media URLs.",
+            ),
+          ),
+        ],
+      };
+    }
     case "camera": {
       const runtime = detectRuntime();
       if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
