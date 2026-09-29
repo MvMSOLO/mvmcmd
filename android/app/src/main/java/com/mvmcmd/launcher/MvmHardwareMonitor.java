@@ -98,7 +98,7 @@ public final class MvmHardwareMonitor {
             try { s.thermalStatus = pm.getCurrentThermalStatus(); } catch (Throwable ignored) {}
         }
         if (Build.VERSION.SDK_INT >= 30 && pm != null) {
-            try { s.thermalHeadroom = pm.getThermalHeadroom(10f); } catch (Throwable ignored) {}
+            try { s.thermalHeadroom = pm.getThermalHeadroom(10); } catch (Throwable ignored) {}
         }
         s.uptimeMs = SystemClock.uptimeMillis();
 
