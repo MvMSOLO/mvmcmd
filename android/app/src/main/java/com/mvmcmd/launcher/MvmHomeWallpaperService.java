@@ -1,6 +1,7 @@
 package com.mvmcmd.launcher;
 
 import android.content.SharedPreferences;
+import android.graphics.Canvas;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
