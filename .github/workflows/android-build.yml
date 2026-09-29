@@ -49,34 +49,9 @@ jobs:
       - name: Verify hardware monitor implementation
         run: node scripts/verify-hardware-monitor.mjs
 
-      - name: Verify native launcher source
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
-          grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
-          grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperRenderer.java"
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperCatalog.java"
-          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmHomeWallpaperService.java"
-          grep -q 'FORMAT_ALL_FORMATS' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
-          grep -q 'openQr' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
-          grep -q 'ActivityResultContracts.GetContent' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
-          grep -q 'InputImage.fromFilePath' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
-          grep -q 'startActivityAndCollapse' "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
-          grep -q 'android.service.quicksettings.action.QS_TILE' "android/app/src/main/AndroidManifest.xml"
-          grep -q 'BIND_QUICK_SETTINGS_TILE' "android/app/src/main/AndroidManifest.xml"
-          grep -q 'SET_WALLPAPER' "android/app/src/main/AndroidManifest.xml"
-          grep -q 'android.service.wallpaper.WallpaperService' "android/app/src/main/AndroidManifest.xml"
-          grep -q 'WallpaperService' "android/app/src/main/java/com/mvmcmd/launcher/MvmHomeWallpaperService.java"
-          grep -q 'FLAG_LOCK' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
-          grep -q 'ACTION_CHANGE_LIVE_WALLPAPER' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
-          grep -q 'EXTRA_LIVE_WALLPAPER_COMPONENT' "android/app/src/main/java/com/mvmcmd/launcher/MvmWallpaperActivity.java"
-          grep -q 'wallpaper_description' "android/app/src/main/res/values/strings.xml"
-            
+      - name: Verify native launcher implementation
+        run: node scripts/verify-native-launcher.mjs
+
       - name: Build web application
         run: npm run build
 
