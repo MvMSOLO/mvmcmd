@@ -41,10 +41,13 @@ jobs:
           cache: gradle
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
       - name: Typecheck web application
         run: npm run typecheck
+
+      - name: Verify hardware monitor implementation
+        run: node scripts/verify-hardware-monitor.mjs
 
       - name: Verify native launcher source
         shell: bash
