@@ -150,7 +150,7 @@ public final class MvmHardwareMonitor {
         return String.format(Locale.US, "%.0f MB", bytes / 1048576d);
     }
 
-    public static String current(int ua) {
+    public static String current(long ua) {
         if (ua == Integer.MIN_VALUE || ua == 0) return "n/a";
         return String.format(Locale.US, "%.0f mA", Math.abs(ua) / 1000d);
     }
