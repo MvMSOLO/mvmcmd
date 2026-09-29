@@ -5,9 +5,9 @@ export const COMMANDS: CommandSpec[] = [
     name: "temperature",
     aliases: ["temp", "monitor", "hardware", "hw"],
     hidden: true,
-    usage: "TEMPERATURE",
-    summaryEn: "Open the real-time hardware monitor and floating overlay.",
-    summaryUz: "Real-time hardware monitor va floating overlayni ochadi.",
+    usage: "TEMPERATURE [overlay|stop|report]",
+    summaryEn: "Open the real-time hardware monitor; control overlay/report actions.",
+    summaryUz: "Real-time hardware monitorni ochadi va overlay/report buyruqlarini boshqaradi.",
   },
   {
     name: "camera",
