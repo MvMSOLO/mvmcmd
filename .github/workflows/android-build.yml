@@ -96,6 +96,7 @@ jobs:
           cat scripts/wallpapers-pack-b64/part-* | base64 -d > /tmp/mvmcmd-wallpapers.zip
           test "$(sha256sum /tmp/mvmcmd-wallpapers.zip | cut -d' ' -f1)" = "df908ba85062bd4d8820e269a92fc0b05d86462337355e5e58a83cddd4dcf30a"
           unzip -q /tmp/mvmcmd-wallpapers.zip -d /tmp/mvm_wallpapers
+          python3 -m pip install --disable-pip-version-check --quiet pillow
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
