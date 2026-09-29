@@ -2,6 +2,14 @@ import type { CommandSpec } from "./types";
 
 export const COMMANDS: CommandSpec[] = [
   {
+    name: "temperature",
+    aliases: ["temp", "monitor", "hardware", "hw"],
+    hidden: true,
+    usage: "TEMPERATURE",
+    summaryEn: "Open the real-time hardware monitor and floating overlay.",
+    summaryUz: "Real-time hardware monitor va floating overlayni ochadi.",
+  },
+  {
     name: "camera",
     aliases: [],
     hidden: true,
@@ -207,6 +215,7 @@ const EMPTY_OK = new Set([
   "whoami",
   "birthday",
   "reset",
+  "temperature",
 ]);
 
 export function parseLine(line: string): { cmd?: CommandSpec; args: string[]; raw: string } {
