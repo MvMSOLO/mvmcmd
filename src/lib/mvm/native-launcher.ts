@@ -7,6 +7,7 @@ export interface NativeLaunchResult {
 }
 
 interface MvmLauncherPlugin {
+  openVision(): Promise<{ opened: boolean }>;
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;
   openWallpaper(): Promise<{ opened: boolean }>;
@@ -23,6 +24,10 @@ const NativeLauncher = registerPlugin<MvmLauncherPlugin>("MvmLauncher");
 
 export function canUseNativeAndroidLauncher(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+}
+
+export async function nativeOpenVision(): Promise<{ opened: boolean }> {
+  return NativeLauncher.openVision();
 }
 
 export async function nativeOpenCamera(): Promise<{ opened: boolean }> {
