@@ -48,6 +48,7 @@ public final class MvmHardwareOverlayService extends Service {
         handler = new Handler(getMainLooper());
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
         fpsWindowStart = System.currentTimeMillis();
+        startAsForeground();
         buildOverlay();
         startMonitoring();
     }
@@ -73,8 +74,7 @@ public final class MvmHardwareOverlayService extends Service {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.START;
-        params.x = dp(12);
-        params.y = dp(180);
+        android.content.SharedPreferences prefs=getSharedPreferences("mvm_hardware",MODE_PRIVATE); params.x=prefs.getInt("overlay_x",dp(12)); params.y=prefs.getInt("overlay_y",dp(180));
 
         panel.setOnTouchListener((v, e) -> {
             switch (e.getActionMasked()) {
@@ -90,7 +90,8 @@ public final class MvmHardwareOverlayService extends Service {
                     try { wm.updateViewLayout(panel, params); } catch (Exception ignored) {}
                     return true;
                 case MotionEvent.ACTION_UP:
-                    if (!moved) revealForThreeSeconds();
+                    getSharedPreferences("mvm_hardware",MODE_PRIVATE).edit().putInt("overlay_x",params.x).putInt("overlay_y",params.y).apply();
+                    if(!moved)revealForThreeSeconds();
                     return true;
                 default: return true;
             }
@@ -132,10 +133,7 @@ public final class MvmHardwareOverlayService extends Service {
         else if (mode == 2) collapsed.setText("BAT " + b);
         else if (mode == 3) collapsed.setText("TEMP " + t);
         else collapsed.setText("FPS " + f + "  ·  BAT " + b + "  ·  TEMP " + t);
-        expanded.setText("CPU " + fmt(s.cpu) + "%  RAM " + MvmHardwareMonitor.bytes(s.ramTotal - s.ramAvail)
-                + "/" + MvmHardwareMonitor.bytes(s.ramTotal)
-                + "\nTEMP " + t + "  BAT " + b + "  " + MvmHardwareMonitor.current(s.currentUa)
-                + "\n" + s.model + "  ·  " + s.android);
+        expanded.setText("CPU "+fmt(s.cpu)+"% · RAM "+MvmHardwareMonitor.bytes(s.ramTotal-s.ramAvail)+"/"+MvmHardwareMonitor.bytes(s.ramTotal)+"\nTEMP "+t+" · THERMAL "+MvmHardwareMonitor.thermalStatus(s.thermalStatus)+" · HEAD "+(s.thermalHeadroom<0?"--":String.format(Locale.US,"%.2f",s.thermalHeadroom))+"\nBAT "+b+" · POWER "+(s.batteryPowerMw>0?String.format(Locale.US,"%.0f mW",s.batteryPowerMw):"--")+"\n"+s.model+" · "+s.android);
     }
 
     private void revealForThreeSeconds() {
@@ -149,10 +147,7 @@ public final class MvmHardwareOverlayService extends Service {
         handler.postDelayed(collapseTask, 3000);
     }
 
-    @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        startAsForeground();
-        return START_STICKY;
-    }
+    @Override public int onStartCommand(Intent intent,int flags,int startId){return START_NOT_STICKY;}
 
     private void startAsForeground() {
         String channelId = "mvm_hardware";
