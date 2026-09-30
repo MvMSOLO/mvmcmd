@@ -15,20 +15,6 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 @CapacitorPlugin(name = "MvmLauncher")
 public class MvmLauncherPlugin extends Plugin {
-
-    @PluginMethod
-    public void openVision(PluginCall call) {
-        try {
-            Intent intent = new Intent(getActivity(), MvmVisionActivity.class);
-            getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
-        } catch (Exception e) {
-            call.reject("Unable to open Vision: " + e.getMessage(), e);
-        }
-    }
-
     @PluginMethod
     public void openCamera(PluginCall call) {
         try {
