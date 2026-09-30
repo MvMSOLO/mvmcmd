@@ -364,11 +364,12 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         ));
         TextView prompt=tv(test.get(0).prompt,19,FG);prompt.setTypeface(Typeface.DEFAULT,Typeface.BOLD);content.addView(prompt);gap(8);
         LinearLayout answers=col();content.addView(answers);
-        Runnable render=()->{
+        final Runnable[] render={null};
+        render[0]=()->{
             answers.removeAllViews();Item q=test.get(i[0]);prompt.setText(q.prompt);
-            for(String o:q.options){Button b=button(o);b.setOnClickListener(v->{if(o.equals(q.answer))score[0]++;i[0]++;if(i[0]>=test.size()){int inferred=score[0];level=Math.min(5,Math.max(0,inferred));xp+=30;save();event("placement","score="+score[0]);new android.app.AlertDialog.Builder(this).setTitle("PLACEMENT COMPLETE").setMessage("Diagnostic signal: "+LEVELS[level]+"\nCorrect: "+score[0]+"/"+test.size()+"\nThis is a practice estimate, not an official CEFR certificate.").setPositiveButton("OPEN LAB", (d,w)->home()).show();}else render.run();});answers.addView(b);gap(5);}
+            for(String o:q.options){Button b=button(o);b.setOnClickListener(v->{if(o.equals(q.answer))score[0]++;i[0]++;if(i[0]>=test.size()){int inferred=score[0];level=Math.min(5,Math.max(0,inferred));xp+=30;save();event("placement","score="+score[0]);new android.app.AlertDialog.Builder(this).setTitle("PLACEMENT COMPLETE").setMessage("Diagnostic signal: "+LEVELS[level]+"\nCorrect: "+score[0]+"/"+test.size()+"\nThis is a practice estimate, not an official CEFR certificate.").setPositiveButton("OPEN LAB", (d,w)->home()).show();        }else render[0].run();});answers.addView(b);gap(5);}
         };
-        render.run();
+        render[0].run();
     }
 
     private void speakingCoach(){
@@ -434,13 +435,16 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         final String[] prompts=name.equals("LISTENING")?new String[]{"What time does the train leave?","Which number is mentioned?","What does the speaker recommend?","What is the main reason?","Which option is correct?"}:new String[]{"What is the main idea?","Which statement is supported?","What problem is mentioned?","What does the writer imply?","Which detail is given?"};
         final String[][] opts={{"8:30","9:30","10:30","11:30"},{"14","24","40","44"},{"Book online","Call later","Visit Monday","Do nothing"},{"Cost","Weather","Distance","Age"},{"A","B","C","D"}};
         final CountDownTimer[] ct={null};
-        Runnable render=()->{
+        final LinearLayout answers=col(); content.addView(answers);
+        final Runnable[] render={null};
+        render[0]=()->{
+            answers.removeAllViews();
             if(n[0]>=count){if(ct[0]!=null)ct[0].cancel();int pct=correct[0]*100/Math.max(1,count);event("ielts_"+name,"correct="+correct[0]+"/"+count);new android.app.AlertDialog.Builder(this).setTitle(name+" COMPLETE").setMessage("Practice result: "+correct[0]+"/"+count+" ("+pct+"%)\nThis is a local simulation, not an official IELTS score.").setPositiveButton("DONE",(d,w)->ielts()).show();return;}
             qv.setText((n[0]+1)+"/"+count+"  ·  "+prompts[n[0]%prompts.length]);
-            for(int j=0;j<4;j++){Button b=button(opts[j][n[0]%opts[j].length]);final int pick=j;b.setOnClickListener(v->{if(pick==n[0]%4)correct[0]++;n[0]++;render.run();});content.addView(b,new LinearLayout.LayoutParams(-1,dp(50)));gap(5);}
+            for(int j=0;j<4;j++){Button b=button(opts[j][n[0]%opts[j].length]);final int pick=j;b.setOnClickListener(v->{if(pick==n[0]%4)correct[0]++;n[0]++;render[0].run();});answers.addView(b,new LinearLayout.LayoutParams(-1,dp(50)));
         };
         ct[0]=new CountDownTimer(minutes*60L*1000L,1000L){public void onTick(long ms){timerText.setText("TIME "+(ms/60000)+":"+String.format(Locale.US,"%02d",(ms/1000)%60));}public void onFinish(){timerText.setText("TIME 0:00");n[0]=count;render.run();}}.start();
-        render.run();
+        render[0].run();
     }
 
     private void ieltsWriting(){
