@@ -56,6 +56,98 @@
 }
 
 @layer components {
+  .mvm-hero {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.09), transparent 34%),
+      radial-gradient(circle at 85% 15%, rgba(196, 181, 253, 0.08), transparent 30%),
+      linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+    box-shadow: 0 30px 90px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .mvm-orb {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(55px);
+    opacity: 0.55;
+  }
+
+  .mvm-orb-a {
+    width: 14rem;
+    height: 14rem;
+    top: -6rem;
+    right: 8%;
+    background: rgba(56, 189, 248, 0.14);
+  }
+
+  .mvm-orb-b {
+    width: 10rem;
+    height: 10rem;
+    bottom: -5rem;
+    left: 30%;
+    background: rgba(168, 85, 247, 0.1);
+  }
+
+  .mvm-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 1.75rem;
+    padding: 0 0.65rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.035);
+    color: rgba(255,255,255,0.44);
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.14em;
+  }
+
+  .mvm-pulse {
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: #9aaa96;
+    box-shadow: 0 0 14px rgba(154,170,150,0.75);
+    animation: mvm-pulse 1.8s ease-in-out infinite;
+  }
+
+  .mvm-glass-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.55rem;
+    padding: 0 0.85rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.85rem;
+    background: rgba(255,255,255,0.045);
+    color: rgba(255,255,255,0.74);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+  }
+
+  .mvm-glass-button:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+  }
+
+  .mvm-glass-button kbd {
+    margin-left: 0.25rem;
+    padding: 0.12rem 0.32rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.35rem;
+    color: rgba(255,255,255,0.35);
+    font-size: 0.5rem;
+  }
+
+  @keyframes mvm-pulse {
+    0%, 100% { transform: scale(0.86); opacity: 0.6; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
   .mvm-frame {
     box-shadow: var(--shadow-border);
   }
