@@ -36,7 +36,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Install desktop builder
-        run: npm install --no-save --no-package-lock electron@44.3.0 electron-builder@26.17.0
+        run: npm install --no-save --no-package-lock electron-builder@26.17.0 --ignore-scripts --no-audit --no-fund
 
       - name: Typecheck web application
         run: npm run typecheck
