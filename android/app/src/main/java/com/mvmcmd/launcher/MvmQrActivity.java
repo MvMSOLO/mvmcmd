@@ -5,6 +5,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.util.Base64;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -69,10 +71,12 @@ public final class MvmQrActivity extends AppCompatActivity {
     private ExecutorService analyzerExecutor;
     private boolean scanning = true;
     private FrameLayout resultCard;
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        prefs=getSharedPreferences("mvm_qr_history",MODE_PRIVATE);
 
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
@@ -143,6 +147,12 @@ public final class MvmQrActivity extends AppCompatActivity {
         imageButton.setContentDescription("Scan QR or barcode from image");
         imageButton.setOnClickListener(v -> openImagePicker());
         top.addView(imageButton, lp(48, 48));
+
+        TextView history = text("◴", 21, true);
+        history.setGravity(Gravity.CENTER);
+        history.setContentDescription("Open scan history");
+        history.setOnClickListener(v -> showHistory());
+        top.addView(history, lp(48, 48));
 
         flash = text("ϟ", 25, true);
         flash.setGravity(Gravity.CENTER);
@@ -342,7 +352,65 @@ public final class MvmQrActivity extends AppCompatActivity {
         return best;
     }
 
+    private void saveHistory(String format, String raw) {
+        if (prefs == null || raw == null || raw.isEmpty()) return;
+        String encoded = Base64.encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8), Base64.NO_WRAP);
+        String old = prefs.getString("items", "");
+        String line = System.currentTimeMillis() + "|" + format + "|" + encoded;
+        String[] rows = old.isEmpty() ? new String[0] : old.split("\\n");
+        StringBuilder out = new StringBuilder();
+        int start = Math.max(0, rows.length - 29);
+        for (int i = start; i < rows.length; i++) {
+            if (i > start) out.append("\\n");
+            out.append(rows[i]);
+        }
+        if (out.length() > 0) out.append("\\n");
+        out.append(line);
+        prefs.edit().putString("items", out.toString()).apply();
+    }
+
+    private void showHistory() {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(8), dp(8), dp(8), dp(8));
+        String rawHistory = prefs == null ? "" : prefs.getString("items", "");
+        String[] rows = rawHistory.isEmpty() ? new String[0] : rawHistory.split("\\n");
+        if (rows.length == 0) {
+            list.addView(text("No scans yet. Results will appear here automatically.", 14, Color.LTGRAY));
+        } else {
+            for (int i = rows.length - 1; i >= 0; i--) {
+                String[] parts = rows[i].split("\\|", 3);
+                if (parts.length < 3) continue;
+                final String value;
+                try {
+                    value = new String(Base64.decode(parts[2], Base64.NO_WRAP), java.nio.charset.StandardCharsets.UTF_8);
+                } catch (Exception ignored) {
+                    continue;
+                }
+                TextView item = text(parts[1] + "\\n" + value, 13, Color.WHITE);
+                item.setPadding(dp(12), dp(12), dp(12), dp(12));
+                item.setBackground(round(0x6614171C, 14));
+                item.setOnClickListener(v -> copy(value));
+                list.addView(item, new LinearLayout.LayoutParams(-1, dp(76)));
+                Space gap = new Space(this);
+                list.addView(gap, new LinearLayout.LayoutParams(1, dp(7)));
+            }
+        }
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(list);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("SCAN HISTORY")
+                .setView(scroll)
+                .setNegativeButton("CLEAR", (d, which) -> {
+                    if (prefs != null) prefs.edit().remove("items").apply();
+                    toast("History cleared");
+                })
+                .setPositiveButton("DONE", null)
+                .show();
+    }
+
     private void showResult(Barcode code, String raw) {
+        saveHistory(formatName(code.getFormat()), raw);
         if (camera != null) {
             try {
                 camera.getCameraControl().enableTorch(false);
