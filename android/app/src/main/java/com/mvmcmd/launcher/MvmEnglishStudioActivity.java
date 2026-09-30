@@ -551,12 +551,21 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     private int countWords(String s,String...terms){int n=0;String x=s.toLowerCase(Locale.ROOT);for(String t:terms){String[] a=x.split("\\\b"+java.util.regex.Pattern.quote(t)+"\\\b");n+=Math.max(0,a.length-1);}return n;}
     private int countLongWords(String s){int n=0;for(String w:s.split("\\s+"))if(w.replaceAll("[^A-Za-z]","").length()>=7)n++;return n;}
 
+    private int savedBand(String skill){return prefs.getInt("band_"+skill.toLowerCase(Locale.ROOT),0);}
+    private String overallBand(){
+        int[] b={savedBand("listening"),savedBand("reading"),savedBand("writing"),savedBand("speaking")};
+        int sum=0,n=0;for(int x:b)if(x>0){sum+=x;n++;}
+        if(n<4)return "—";
+        double avg=sum/4.0;return String.format(Locale.US,"%.1f",Math.round(avg*2.0)/2.0);
+    }
+
     private void ielts(){
-        base("IELTS / LAB","Four-skill practice engine · local estimates · official format awareness.");
-        addCard("LISTENING","40 questions · ~30 min","Practice simulation. Local question bank.");
-        addCard("READING","40 questions · 60 min","Practice simulation. Local question bank.");
-        addCard("WRITING","Task 1 + Task 2 · 60 min","Grammar + coherence heuristic, not official marking.");
-        addCard("SPEAKING","Part 1 + Part 2 + Part 3 · ~11–14 min","Speech transcript coach; pronunciation is not automatically graded.");
+        base("IELTS / LAB","Four-skill practice engine · local estimates · practice mapping.");
+        addCard("OVERALL PRACTICE BAND",overallBand(),"Saved Listening · Reading · Writing · Speaking signals.");
+        addCard("LISTENING","40 questions · 30 min · TTS audio","40 unique local practice items; band signal saved.");
+        addCard("READING","40 questions · 60 min","40 unique local practice items; band signal saved.");
+        addCard("WRITING","Task 1 + Task 2 · 60 min","Four-criteria practice heuristic; not official marking.");
+        addCard("SPEAKING","Part 1 + Part 2 + Part 3 · ~11–14 min","Transcript-based practice; pronunciation is not automatically graded.");
         Button mock=button("START FULL MOCK  →");mock.setTextColor(BG);mock.setBackground(box(ACCENT,12));mock.setOnClickListener(v->ieltsMock());content.addView(mock);gap(8);
         Button w=button("WRITING TASK 1 + TASK 2");w.setOnClickListener(v->ieltsWriting());content.addView(w);gap(7);
         Button s=button("SPEAKING PART 1–3");s.setOnClickListener(v->ieltsSpeaking());content.addView(s);gap(7);
@@ -632,18 +641,46 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         render[0].run();
     }
 
-    private void ieltsWriting(){
-        base("IELTS / WRITING","Task 1 + Task 2 practice. Use your own ideas; the app estimates structure signals.");
-        addCard("TASK 1","Describe a chart/table/process in at least 150 words.","Suggested time: 20 minutes.");
-        EditText t1=editor("Task 1 response…");content.addView(t1,new LinearLayout.LayoutParams(-1,dp(170)));gap(8);
-        addCard("TASK 2","Write an essay response in at least 250 words.","Suggested time: 40 minutes.");
-        EditText t2=editor("Task 2 response…");content.addView(t2,new LinearLayout.LayoutParams(-1,dp(210)));gap(8);
-        Button check=button("ANALYZE BOTH TASKS");check.setTextColor(BG);check.setBackground(box(ACCENT,12));check.setOnClickListener(v->{
-            String a=t1.getText().toString(),b=t2.getText().toString();int s1=writingScore(a,150),s2=writingScore(b,250);
-            new android.app.AlertDialog.Builder(this).setTitle("WRITING PRACTICE SIGNAL").setMessage("Task 1: "+s1+"/100\nTask 2: "+s2+"/100\n\nSignals: word count, paragraphing, connectors, lexical variety.\nThis is NOT an official IELTS band score.").setPositiveButton("OK",null).show();
-            event("ielts_writing","t1="+s1+"|t2="+s2);
-        });content.addView(check);
+    private void ieltsWriting(){ieltsWriting(false);}
+
+    private int writingBand(String text,int target){
+        String s=text==null?"":text.trim();
+        int words=s.isEmpty()?0:s.split("\\s+").length;
+        int paragraphs=Math.max(1,s.split("\\n\\s*\\n").length);
+        int connectors=countWords(s,"however","therefore","because","although","moreover","for example","in contrast","as a result");
+        int longWords=countLongWords(s);
+        int grammar=checkGrammar(s).score;
+        int tr=words>=target?7:(words*7/Math.max(1,target));
+        tr=Math.min(9,Math.max(1,tr));
+        int cc=Math.min(9,Math.max(1,4+paragraphs/2+Math.min(3,connectors/2)));
+        int lr=Math.min(9,Math.max(1,4+Math.min(4,longWords/8)));
+        int gra=Math.min(9,Math.max(1,3+grammar/25));
+        double avg=(tr+cc+lr+gra)/4.0;
+        int band=(int)Math.floor(avg*2.0+0.5);
+        return Math.max(1,Math.min(9,band))/2 + (Math.max(1,Math.min(9,band))%2==0?0:0);
     }
+
+    private void ieltsWriting(boolean fromMock){
+        base("IELTS / WRITING","Task 1 + Task 2 · 20 + 40 minute targets · four-criteria practice signal.");
+        addCard("TASK 1","Describe a chart, table, process or map in at least 150 words.","Target: 20 minutes.");
+        EditText t1=editor("Task 1 response…");content.addView(t1,new LinearLayout.LayoutParams(-1,dp(175)));gap(8);
+        addCard("TASK 2","Write an essay response in at least 250 words.","Target: 40 minutes.");
+        EditText t2=editor("Task 2 response…");content.addView(t2,new LinearLayout.LayoutParams(-1,dp(220)));gap(8);
+        Button check=button("ANALYZE FOUR CRITERIA  →");check.setTextColor(BG);check.setBackground(box(ACCENT,12));
+        check.setOnClickListener(v->{
+            String a=t1.getText().toString(),b=t2.getText().toString();
+            int s1=writingBand(a,150),s2=writingBand(b,250);
+            int band=(s1+s2+1)/2;
+            saveIeltsBand("writing",band);
+            String msg="Task 1 practice band: "+s1+"/9\\nTask 2 practice band: "+s2+"/9\\nCombined writing signal: "+band+"/9\\n\\nSignals approximate Task Response, Coherence/Cohesion, Lexical Resource and Grammar.\\nThis is NOT an official IELTS band score.";
+            event("ielts_writing","t1="+s1+"|t2="+s2+"|band="+band);
+            new android.app.AlertDialog.Builder(this).setTitle("WRITING PRACTICE SIGNAL").setMessage(msg)
+                .setPositiveButton(fromMock?"START SPEAKING":"OK",(d,w)->{if(fromMock){fullMock=false;ieltsSpeaking();}})
+                .setNegativeButton("BACK",null).show();
+        });
+        content.addView(check);
+    }
+
     private int writingScore(String s,int target){
         int words=s.trim().isEmpty()?0:s.trim().split("\\s+").length;int paragraphs=s.split("\\n\\s*\\n").length;
         int connectors=countWords(s,"however","therefore","because","although","moreover","for example","in contrast");
