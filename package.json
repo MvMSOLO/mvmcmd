@@ -96,5 +96,35 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.2.0"
+  },
+  "version": "1.0.0",
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "com.mvmcmd.desktop",
+    "productName": "MVMCMD",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": ".vercel/output/static",
+        "to": "web"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "MVMCMD-${version}-Windows-${arch}.${ext}"
+    }
   }
 }
