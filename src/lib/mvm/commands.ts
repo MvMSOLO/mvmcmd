@@ -1,6 +1,13 @@
 import type { CommandSpec } from "./types";
 
-export const COMMANDS: CommandSpec[] = [  {\n    name: "notification",\n    aliases: ["notifications", "notify"],\n    hidden: true,\n    usage: "NOTIFICATION",\n    summaryEn: "Open the native MVMCMD notification center.",\n    summaryUz: "Native MVMCMD notification markazini ochadi.",\n  },  {
+export const COMMANDS: CommandSpec[] = [  {
+    name: "notification",
+    aliases: ["notifications", "notify"],
+    hidden: true,
+    usage: "NOTIFICATION",
+    summaryEn: "Open the native MVMCMD notification center.",
+    summaryUz: "Native MVMCMD notification markazini ochadi.",
+  },  {
     name: "camera",
     aliases: [],
     hidden: true,
