@@ -182,6 +182,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setMinHeight(dp(48));b.setBackground(box(PANEL,12));return b;
     }
     private void base(String title,String subtitle){
+        if(timer!=null){timer.cancel();timer=null;}
         ScrollView sc=new ScrollView(this);
         content=col(); content.setPadding(dp(16),dp(12),dp(16),dp(22)); sc.addView(content);
         LinearLayout root=col(); root.setBackgroundColor(BG);
@@ -874,6 +875,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         int score=evaluateSpeechScore(text);
         int band=score>=92?9:score>=85?8:score>=75?7:score>=65?6:score>=55?5:score>=45?4:score>=35?3:score>=25?2:1;
         saveIeltsBand("speaking",band);
+        totalAsked++;touchStudyDay();save();
         event("ielts_speaking","part="+part+"|band="+band+"|score="+score);
         new android.app.AlertDialog.Builder(this)
             .setTitle("PART "+part+" FEEDBACK")
