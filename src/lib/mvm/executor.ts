@@ -3,7 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenNotifications } from "./native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenEnglish, nativeOpenNotifications } from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -162,6 +162,14 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
+    case "english": {
+      const runtime = detectRuntime();
+      if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
+        return { state: state0, lines: [line("warn", L(ctx2, "ENGLISH LAB hozir native Android APKda ishlaydi.", "ENGLISH LAB currently runs in the native Android APK."))] };
+      }
+      void nativeOpenEnglish().catch(() => undefined);
+      return { state: state0, lines: [line("ok", "ENGLISH LAB", { meta: "A1 → C2 · IELTS · TTS · SPEAKING" })] };
+    }
     case "notification": {
       const runtime = detectRuntime();
       if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
