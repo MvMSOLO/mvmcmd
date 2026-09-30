@@ -547,14 +547,17 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
                 xp+=known[0]*3;touchStudyDay();save();
                 event("vocabulary","known="+known[0]+"/"+pool.size());
                 addCard("DECK COMPLETE",known[0]+"/"+pool.size()+" known",pct+"% recall signal · XP updated.");
-                Button again=button("REPLAY DECK");again.setOnClickListener(v->vocabularyLab());card.addView(again);
+                Button again=button("REPLAY DECK");again.setOnClickListener(v->vocabularyLab());content.addView(again);
                 return;
             }
             Word w=pool.get(i[0]);
             TextView word=tv(w.word,30,ACCENT);word.setTypeface(Typeface.DEFAULT,Typeface.BOLD);word.setGravity(Gravity.CENTER);
-            card.addView(word,new LinearLayout.LayoutParams(-1,dp(62)));
-            addCard("MEANING",w.meaning,"Target: "+w.level);
-            addCard("EXAMPLE",w.example,"Say it aloud, then make your own sentence.");
+            card.addView(word,new LinearLayout.LayoutParams(-1,dp(68)));
+            LinearLayout m=col();m.setPadding(dp(13),dp(11),dp(13),dp(11));m.setBackground(box(PANEL,12));
+            m.addView(tv("MEANING  ·  "+w.level,10,MUTED));
+            TextView meaning=tv(w.meaning,18,FG);meaning.setTypeface(Typeface.DEFAULT,Typeface.BOLD);m.addView(meaning);
+            m.addView(tv("EXAMPLE: "+w.example,12,MUTED));
+            card.addView(m,new LinearLayout.LayoutParams(-1,-2));gap(8);
             Button knew=button("✓ I KNEW IT");knew.setOnClickListener(v->{known[0]++;i[0]++;render[0].run();});card.addView(knew);gap(7);
             Button review=button("↻ NEEDS REVIEW");review.setOnClickListener(v->{event("vocab_miss",w.word+"|"+w.level);i[0]++;render[0].run();});card.addView(review);
         };
