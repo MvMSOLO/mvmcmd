@@ -169,6 +169,18 @@ export function MvmShell() {
   useKeyboardInset();
 
   useEffect(() => {
+    const onGlobalKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onGlobalKey);
+    return () => window.removeEventListener("keydown", onGlobalKey);
+  }, []);
+
+  useEffect(() => {
     const runtime = detectRuntime();
     setPlatform(runtime.platform);
     setStandalone(runtime.standalone);
