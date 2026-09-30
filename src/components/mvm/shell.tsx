@@ -32,30 +32,7 @@ function useClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
-    async function openQuickTool(tool: QuickTool) {
-    if (canUseNativeAndroidLauncher() && tool.native) {
-      try {
-        const result = await tool.native();
-        append([
-          makeLine(
-            result.opened ? "ok" : "warn",
-            result.opened ? `${tool.label.toUpperCase()}  OPENED` : `${tool.label.toUpperCase()}  FAILED`,
-            { meta: result.opened ? "NATIVE ACTIVITY" : "ANDROID ACTIVITY LAUNCH FAILED" },
-          ),
-        ]);
-      } catch (error: unknown) {
-        append([
-          makeLine("warn", `${tool.label.toUpperCase()}  FAILED`, {
-            meta: error instanceof Error ? error.message : String(error),
-          }),
-        ]);
-      }
-      return;
-    }
-    commit(tool.command);
-  }
-
-    return () => window.clearInterval(id);
+return () => window.clearInterval(id);
   }, []);
   return now;
 }
@@ -167,6 +144,29 @@ export function MvmShell() {
   const inputRef = useRef<HTMLInputElement>(null);
   const clock = useClock();
   useKeyboardInset();
+
+  async function openQuickTool(tool: QuickTool) {
+    if (canUseNativeAndroidLauncher() && tool.native) {
+      try {
+        const result = await tool.native();
+        append([
+          makeLine(
+            result.opened ? "ok" : "warn",
+            result.opened ? `${tool.label.toUpperCase()}  OPENED` : `${tool.label.toUpperCase()}  FAILED`,
+            { meta: result.opened ? "NATIVE ACTIVITY" : "ANDROID ACTIVITY LAUNCH FAILED" },
+          ),
+        ]);
+      } catch (error: unknown) {
+        append([
+          makeLine("warn", `${tool.label.toUpperCase()}  FAILED`, {
+            meta: error instanceof Error ? error.message : String(error),
+          }),
+        ]);
+      }
+      return;
+    }
+    commit(tool.command);
+  }
 
   useEffect(() => {
     const onGlobalKey = (event: KeyboardEvent) => {
