@@ -1,0 +1,82 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+concurrency:
+  group: windows-exe-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build MVMCMD Windows EXE
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CAPACITOR_BUILD: "true"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install web dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Install desktop builder
+        run: npm install --no-save --no-package-lock electron@44.3.0 electron-builder@26.17.0
+
+      - name: Typecheck web application
+        run: npm run typecheck
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Verify desktop web bundle
+        shell: pwsh
+        run: |
+          if (-not (Test-Path ".vercel/output/static/index.html")) {
+            throw "Missing .vercel/output/static/index.html"
+          }
+          if (-not (Test-Path ".vercel/output/static/assets")) {
+            throw "Missing .vercel/output/static/assets"
+          }
+
+      - name: Build portable Windows EXE
+        run: npx electron-builder --win portable --x64 --publish never
+
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "release" -Filter "*.exe" -File
+          if ($exe.Count -lt 1) {
+            throw "No Windows EXE was produced."
+          }
+          $exe | ForEach-Object { Write-Host "$($_.FullName) - $($_.Length) bytes" }
+
+      - name: Final success gate
+        if: ${{ success() }}
+        shell: pwsh
+        run: |
+          Write-Host "ACTION_SUCCESS"
+          Write-Host "MVMCMD Windows desktop build completed."
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvmcmd-windows-exe-${{ github.run_number }}
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 14
