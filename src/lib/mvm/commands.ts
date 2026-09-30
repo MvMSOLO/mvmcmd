@@ -1,15 +1,6 @@
 import type { CommandSpec } from "./types";
 
-export const COMMANDS: CommandSpec[] = [
-  {
-    name: "vision",
-    aliases: [],
-    hidden: true,
-    usage: "VISION",
-    summaryEn: "Open MVM Vision: live camera understanding and smart actions.",
-    summaryUz: "MVM Vision: kamera orqali tahlil va smart amallarni ochadi.",
-  },
-  {
+export const COMMANDS: CommandSpec[] = [  {
     name: "camera",
     aliases: [],
     hidden: true,
