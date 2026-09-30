@@ -280,30 +280,58 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
 
     private static class GrammarResult {String corrected;ArrayList<String> changes=new ArrayList<>();int score;}
     private GrammarResult checkGrammar(String raw){
-        GrammarResult r=new GrammarResult();String s=raw==null?"":raw.trim();r.corrected=s;
+        GrammarResult r=new GrammarResult();
+        String s=raw==null?"":raw.trim(); r.corrected=s;
         if(s.isEmpty()){r.score=0;return r;}
-        String x=s;
+        String x=s.replaceAll("\\s+"," ").trim();
+
         String[][] rules={
-            {"\bi am agree\b","I agree","Use “I agree”, not “I am agree.”"},
-            {"\bdiscuss about\b","discuss","“Discuss” does not need “about”."},
-            {"\bmake a photo\b","take a photo","The natural collocation is “take a photo.”"},
-            {"\bmore easier\b","easier","Avoid double comparatives."},
-            {"\bpeoples\b","people","“People” is already plural."},
-            {"\bhe go\b","he goes","Third-person singular needs -s in the present simple."},
-            {"\bshe go\b","she goes","Third-person singular needs -s in the present simple."},
-            {"\bthey was\b","they were","Use “were” with they."},
-            {"\bi has\b","I have","Use “have” with I."},
-            {"\byesterday I go\b","yesterday I went","A completed past action needs the past form."},
-            {"\binformations\b","information","“Information” is normally uncountable."},
-            {"\badvice(s)?\b","advice","“Advice” is normally uncountable."}
+            {"\\bi am agree\\b","I agree","Use “I agree”, not “I am agree.”"},
+            {"\\bdiscuss about\\b","discuss","“Discuss” does not need “about”."},
+            {"\\bmake a photo\\b","take a photo","The natural collocation is “take a photo.”"},
+            {"\\bmore easier\\b","easier","Avoid double comparatives."},
+            {"\\bmore better\\b","better","Use one comparative form."},
+            {"\\bpeoples\\b","people","“People” is already plural."},
+            {"\\badvice(s)?\\b","advice","“Advice” is normally uncountable."},
+            {"\\binformations\\b","information","“Information” is normally uncountable."},
+            {"\\bhe go\\b","he goes","Third-person singular needs -s in the present simple."},
+            {"\\bshe go\\b","she goes","Third-person singular needs -s in the present simple."},
+            {"\\bpeople is\\b","people are","“People” takes the plural verb “are.”"},
+            {"\\bthey was\\b","they were","Use “were” with they."},
+            {"\\bhe don't\\b","he doesn't","Use “doesn't” with he/she/it."},
+            {"\\bshe don't\\b","she doesn't","Use “doesn't” with he/she/it."},
+            {"\\bi has\\b","I have","Use “have” with I."},
+            {"\\bi didn't went\\b","I didn't go","After “didn't”, use the base verb."},
+            {"\\byesterday I go\\b","yesterday I went","A completed past action needs the past form."},
+            {"\\bmany money\\b","a lot of money","“Money” is uncountable in this meaning."},
+            {"\\bdepend of\\b","depend on","The natural preposition is “depend on.”"},
+            {"\\binterested on\\b","interested in","The natural preposition is “interested in.”"},
+            {"\\bgood in\\b","good at","Use “good at” for skills."},
+            {"\\bmarried with\\b","married to","The usual construction is “married to.”"},
+            {"\\bin Monday\\b","on Monday","Days normally use “on.”"},
+            {"\\bin the weekend\\b","at the weekend","“At the weekend” is standard in British English; “on the weekend” is also common in American English."}
         };
+
         for(String[] rule:rules){
-            String before=x;x=x.replaceAll("(?i)"+rule[0],rule[1]);
-            if(!before.equals(x))r.changes.add(before+"  →  "+x+"\n"+rule[2]);
+            String before=x; x=x.replaceAll("(?i)"+rule[0],rule[1]);
+            if(!before.equals(x)) r.changes.add(before+"  →  "+x+"\\n"+rule[2]);
         }
-        if(!x.matches(".*[.!?]$")){x+=".";r.changes.add("Added final punctuation.\nComplete sentences normally end with punctuation.");}
+
+        if(x.matches(".*\\bi\\b.*")){
+            String before=x; x=x.replaceAll("\\bi\\b","I");
+            if(!before.equals(x)) r.changes.add("Capitalized the pronoun “I”.\\nThe first-person pronoun is always capitalized.");
+        }
+        String spacing=x; x=x.replaceAll(" {2,}"," ");
+        if(!spacing.equals(x)) r.changes.add("Removed repeated spaces.\\nUse one space between words.");
+
+        if(!x.matches(".*[.!?]$")){
+            x+=".";
+            r.changes.add("Added final punctuation.\\nComplete sentences normally end with punctuation.");
+        }
         if(x.length()>0)x=Character.toUpperCase(x.charAt(0))+x.substring(1);
-        r.corrected=x;r.score=Math.max(1,100-r.changes.size()*12);
+
+        r.corrected=x;
+        r.score=Math.max(1,100-r.changes.size()*9);
         event("grammar_check","changes="+r.changes.size()+"|score="+r.score);
         return r;
     }
@@ -338,10 +366,10 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         x=x.replaceAll("(?i)^give me ","Could you give me ");
         x=x.replaceAll("(?i)^i want know ","I want to know ");
         x=x.replaceAll("(?i)^tell me how ","Could you explain how ");
-        x=x.replaceAll("(?i)\\benglish learning app\\b","English-learning app");
-        x=x.replaceAll("(?i)\\bmake website\\b","build a website");
-        x=x.replaceAll("(?i)\\bmake app\\b","build an app");
-        x=x.replaceAll("(?i)\\bmore better\\b","better");
+        x=x.replaceAll("(?i)\\\benglish learning app\\\b","English-learning app");
+        x=x.replaceAll("(?i)\\\bmake website\\\b","build a website");
+        x=x.replaceAll("(?i)\\\bmake app\\\b","build an app");
+        x=x.replaceAll("(?i)\\\bmore better\\\b","better");
         if(x.matches(".*\\?$")) x=x.substring(0,x.length()-1);
         if(!x.matches(".*[.!?]$")) x+="?";
         if(x.endsWith("??"))x=x.substring(0,x.length()-1);
@@ -440,7 +468,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         new android.app.AlertDialog.Builder(this).setTitle("SPEAKING FEEDBACK").setMessage("Transcript:\n"+text+"\n\nPractice score: "+score+"/100\n\n"+feedback+"\n\nPronunciation/accent are not scored from text alone.").setPositiveButton("AGAIN",null).show();
         speakingCoach();
     }
-    private int countWords(String s,String...terms){int n=0;String x=s.toLowerCase(Locale.ROOT);for(String t:terms){String[] a=x.split("\\b"+java.util.regex.Pattern.quote(t)+"\\b");n+=Math.max(0,a.length-1);}return n;}
+    private int countWords(String s,String...terms){int n=0;String x=s.toLowerCase(Locale.ROOT);for(String t:terms){String[] a=x.split("\\\b"+java.util.regex.Pattern.quote(t)+"\\\b");n+=Math.max(0,a.length-1);}return n;}
     private int countLongWords(String s){int n=0;for(String w:s.split("\\s+"))if(w.replaceAll("[^A-Za-z]","").length()>=7)n++;return n;}
 
     private void ielts(){
