@@ -67,10 +67,6 @@ public class MvmLauncherPlugin extends Plugin {
                 result.put("opened", true);
                 call.resolve(result);
             });
-            return;
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
         } catch (ActivityNotFoundException e) {
             call.reject("Notification center activity is unavailable", e);
         } catch (Exception e) {
