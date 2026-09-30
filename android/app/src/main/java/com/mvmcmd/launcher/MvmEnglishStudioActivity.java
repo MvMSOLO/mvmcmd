@@ -656,8 +656,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         int lr=Math.min(9,Math.max(1,4+Math.min(4,longWords/8)));
         int gra=Math.min(9,Math.max(1,3+grammar/25));
         double avg=(tr+cc+lr+gra)/4.0;
-        int band=(int)Math.floor(avg*2.0+0.5);
-        return Math.max(1,Math.min(9,band))/2 + (Math.max(1,Math.min(9,band))%2==0?0:0);
+        return Math.max(1,Math.min(9,(int)Math.round(avg)));
     }
 
     private void ieltsWriting(boolean fromMock){
