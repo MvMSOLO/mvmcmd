@@ -47,6 +47,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     private SpeechRecognizer speech;
     private LinearLayout content;
     private int level, xp, streak, totalCorrect, totalAsked, sessionCorrect, sessionAsked;
+    private int checkpointAsked, checkpointCorrect;
     private String lastStudyDay="";
     private int grammarErrors, vocabErrors, fluencyErrors, clarityErrors;
     private String lastSpeech="";
@@ -194,13 +195,14 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     private void load(){
         level=prefs.getInt("level",0);xp=prefs.getInt("xp",0);streak=prefs.getInt("streak",0);
         totalCorrect=prefs.getInt("correct",0);totalAsked=prefs.getInt("asked",0);
+        checkpointAsked=prefs.getInt("checkpoint_asked",0);checkpointCorrect=prefs.getInt("checkpoint_correct",0);
         lastStudyDay=prefs.getString("last_day","");
         grammarErrors=prefs.getInt("grammar_errors",0);vocabErrors=prefs.getInt("vocab_errors",0);
         fluencyErrors=prefs.getInt("fluency_errors",0);clarityErrors=prefs.getInt("clarity_errors",0);
     }
     private void save(){
         prefs.edit().putInt("level",level).putInt("xp",xp).putInt("streak",streak)
-            .putInt("correct",totalCorrect).putInt("asked",totalAsked).putString("last_day",lastStudyDay)
+            .putInt("correct",totalCorrect).putInt("asked",totalAsked).putInt("checkpoint_asked",checkpointAsked).putInt("checkpoint_correct",checkpointCorrect).putString("last_day",lastStudyDay)
             .putInt("grammar_errors",grammarErrors).putInt("vocab_errors",vocabErrors)
             .putInt("fluency_errors",fluencyErrors).putInt("clarity_errors",clarityErrors).apply();
     }
@@ -265,34 +267,41 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         for(Item x:items)if(x.level.equals(LEVELS[level]))p.add(x);
         return p;
     }
-    private Item nextItem(){
-        ArrayList<Item> p=pool();
-        return p.get((int)(Math.random()*p.size()));
+    private String weakSkill(){
+        int[] values={grammarErrors,vocabErrors,fluencyErrors,clarityErrors};
+        int max=0;for(int i=1;i<values.length;i++)if(values[i]>values[max])max=i;
+        if(values[max]==0)return "";
+        return new String[]{"grammar","vocabulary","speaking","writing"}[max];
     }
 
-    private String dayKey(){return new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new java.util.Date());}
-    private void touchStudyDay(){
-        String today=dayKey();
-        if(today.equals(lastStudyDay)) return;
-        if(lastStudyDay.isEmpty()) streak=1;
-        else{
-            try{
-                java.util.Date prev=new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US).parse(lastStudyDay);
-                long delta=(System.currentTimeMillis()-prev.getTime())/86400000L;
-                streak=delta==1 ? streak+1 : 1;
-            }catch(Exception ignored){streak=1;}
+    private Item nextItem(){
+        ArrayList<Item> p=pool();
+        String weak=weakSkill();
+        if(!weak.isEmpty()){
+            ArrayList<Item> focused=new ArrayList<>();
+            for(Item x:p)if(weak.equals(x.skill))focused.add(x);
+            if(focused.size()>=2)p=focused;
         }
-        lastStudyDay=today;
+        return p.get((int)(Math.random()*Math.max(1,p.size())));
     }
+
     private void recordAnswer(Item q,boolean ok){
-        totalAsked++;sessionAsked++;touchStudyDay();
-        if(ok){totalCorrect++;sessionCorrect++;xp+=10+level*3;event("answer","ok|"+q.level+"|"+q.skill);
-        else{
-            streak=0;event("answer","miss|"+q.level+"|"+q.skill);
+        totalAsked++;sessionAsked++;checkpointAsked++;touchStudyDay();
+        if(ok){
+            totalCorrect++;sessionCorrect++;checkpointCorrect++;xp+=10+level*3;
+            event("answer","ok|"+q.level+"|"+q.skill);
+        }else{
+            event("answer","miss|"+q.level+"|"+q.skill);
             if("grammar".equals(q.skill))grammarErrors++;
             else if("vocabulary".equals(q.skill))vocabErrors++;
             else if("speaking".equals(q.skill))fluencyErrors++;
             else clarityErrors++;
+        }
+        if(checkpointAsked>=5){
+            double rate=checkpointCorrect/5.0;
+            if(rate>=.8 && level<5){level++;event("adaptive","level_up="+LEVELS[level]);}
+            else if(rate<.4 && level>0){level--;event("adaptive","review="+LEVELS[level]);}
+            checkpointAsked=0;checkpointCorrect=0;
         }
         save();
     }
@@ -770,7 +779,10 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     }
 
     private void ieltsMock(){
-        new android.app.AlertDialog.Builder(this).setTitle("FULL MOCK").setMessage("The local mock runs Listening → Reading → Writing → Speaking.\n\nIt is a practice simulation and uses local heuristic feedback; it does not produce an official IELTS result.").setPositiveButton("START LISTENING",(d,w)->objective("LISTENING",40,30)).setNegativeButton("CANCEL",null).show();
+        new android.app.AlertDialog.Builder(this).setTitle("FULL MOCK")
+            .setMessage("The local mock runs Listening → Reading → Writing → Speaking.\\n\\nIt is a practice simulation with local heuristic feedback; it does not produce an official IELTS result.")
+            .setPositiveButton("START LISTENING",(d,w)->{fullMock=true;objective("LISTENING",40,30);})
+            .setNegativeButton("CANCEL",null).show();
     }
 
     private void analytics(){
