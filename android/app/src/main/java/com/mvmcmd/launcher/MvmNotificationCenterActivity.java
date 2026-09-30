@@ -120,6 +120,8 @@ public class MvmNotificationCenterActivity extends Activity {
         scroll.addView(list);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
+    }
+
     private void showDemo() {
         LinearLayout panel = new LinearLayout(this); panel.setOrientation(LinearLayout.VERTICAL); panel.setPadding(dp(18),dp(12),dp(18),dp(12));
         TextView h=text("LIVE NOTIFICATION PREVIEW",18,Color.WHITE); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD); panel.addView(h);
