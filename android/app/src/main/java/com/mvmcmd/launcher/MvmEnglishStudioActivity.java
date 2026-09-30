@@ -538,10 +538,20 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         speech.startListening(i);
     }
 
+    private int evaluateSpeechScore(String text){
+        int words=text==null||text.trim().isEmpty()?0:text.trim().split("\\s+").length;
+        int fillers=countWords(text,"um","uh","like","you know");int longWords=countLongWords(text);
+        int connectors=countWords(text,"because","however","although","for example","as a result","on the other hand");
+        int sentenceSignals=countSentences(text);
+        return Math.min(100,Math.max(0,45+Math.min(25,words)+Math.min(12,longWords)+Math.min(12,connectors*2)+Math.min(8,sentenceSignals)-fillers*5));
+    }
+
+    private int countSentences(String s){if(s==null||s.trim().isEmpty())return 0;return s.trim().split("[.!?]+").length;}
+
     private void evaluateSpeech(String text){
         lastSpeech=text;int words=text.trim().isEmpty()?0:text.trim().split("\\s+").length;
         int fillers=countWords(text,"um","uh","like","you know");int longWords=countLongWords(text);
-        int score=Math.min(100,Math.max(0,55+Math.min(25,words)+Math.min(15,longWords)-fillers*5));
+        int score=evaluateSpeechScore(text);
         if(fillers>=2)fluencyErrors++; if(words<12)clarityErrors++;
         totalAsked++;save();event("speaking","words="+words+"|fillers="+fillers+"|score="+score);
         String feedback=score>=80?"Strong fluency signal. Add one example and one reason next time.":score>=65?"Good start. Connect ideas with because, however, for example, or as a result.":"Try longer connected sentences. Give an answer + reason + example.";
@@ -688,11 +698,75 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     }
 
     private void ieltsSpeaking(){
-        base("IELTS / SPEAKING","Practice Part 1 → Part 2 → Part 3 with the same speech coach.");
-        addCard("PART 1","Answer short questions about familiar topics.","Target: 4–5 minutes.");
-        addCard("PART 2","Speak about one cue card for up to 2 minutes.","Use notes, then speak without reading.");
-        addCard("PART 3","Discuss ideas and reasons in depth.","Target: 4–5 minutes.");
-        Button b=button("START SPEAKING COACH");b.setOnClickListener(v->speakingCoach());content.addView(b);
+        base("IELTS / SPEAKING","Three-part speaking lab · transcript coach · practice band signal.");
+        addCard("PART 1","Familiar-topic questions.","Target: 4–5 minutes total.");
+        Button p1=button("START PART 1  ·  FAMILIAR TOPICS");p1.setOnClickListener(v->startSpeakingPart(1));content.addView(p1);gap(7);
+        addCard("PART 2","One cue card · extended turn.","Target: up to 2 minutes.");
+        Button p2=button("START PART 2  ·  CUE CARD");p2.setOnClickListener(v->startSpeakingPart(2));content.addView(p2);gap(7);
+        addCard("PART 3","Deeper discussion, reasons and examples.","Target: 4–5 minutes total.");
+        Button p3=button("START PART 3  ·  DISCUSSION");p3.setOnClickListener(v->startSpeakingPart(3));content.addView(p3);gap(8);
+        content.addView(tv("Pronunciation and accent are not scored from transcript text alone.",11,MUTED));
+    }
+
+    private void startSpeakingPart(int part){
+        base("IELTS / SPEAKING / PART "+part,"Speak naturally. The app evaluates transcript-level fluency signals only.");
+        String prompt;
+        long duration;
+        if(part==1){prompt="What do you usually do when you have free time? Give reasons and an example.";duration=240;}
+        else if(part==2){prompt="Describe a project, skill or achievement you are proud of. Say what it was, what you did, and why it mattered.";duration=120;}
+        else{prompt="Do you think technology has improved the way people learn? Discuss both benefits and possible drawbacks.";duration=300;}
+        addCard("PROMPT",prompt,part==2?"Use a 1-minute preparation idea, then speak for up to 2 minutes.":"Develop your answer with a reason, example and consequence.");
+        TextView countdown=tv("TIME "+(duration/60)+":00",14,ACCENT);content.addView(countdown);gap(8);
+        Button start=button("● START RECORDING");start.setTextColor(BG);start.setBackground(box(ACCENT,12));
+        start.setOnClickListener(v->startSpeechWindow(start,countdown,prompt,duration,part));
+        content.addView(start);gap(8);
+        content.addView(tv("Your recognized transcript will be reused by Grammar Coach for language feedback.",11,MUTED));
+    }
+
+    private void startSpeechWindow(Button b,TextView countdown,String prompt,long seconds,int part){
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},71);return;
+        }
+        if(speech==null){Toast.makeText(this,"Speech recognition is unavailable on this device.",Toast.LENGTH_LONG).show();return;}
+        if(timer!=null)timer.cancel();
+        b.setText("LISTENING…");b.setEnabled(false);
+        timer=new CountDownTimer(seconds*1000L,1000L){
+            public void onTick(long ms){countdown.setText("TIME "+(ms/60000)+":"+String.format(Locale.US,"%02d",(ms/1000)%60));}
+            public void onFinish(){countdown.setText("TIME 0:00");try{speech.stopListening();}catch(Exception ignored){}}
+        }.start();
+        Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,Locale.US.toLanguageTag());
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true);
+        speech.setRecognitionListener(new RecognitionListener(){
+            public void onReadyForSpeech(Bundle p){}
+            public void onBeginningOfSpeech(){}
+            public void onRmsChanged(float r){}
+            public void onBufferReceived(byte[] b){}
+            public void onEndOfSpeech(){}
+            public void onError(int e){if(timer!=null)timer.cancel();b.setEnabled(true);b.setText("● TRY AGAIN");Toast.makeText(MvmEnglishStudioActivity.this,"No clear speech result. Try again.",Toast.LENGTH_SHORT).show();}
+            public void onResults(Bundle r){
+                if(timer!=null)timer.cancel();
+                b.setEnabled(true);b.setText("● RECORD AGAIN");
+                ArrayList<String> a=r.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if(a!=null&&!a.isEmpty()) evaluateSpeakingPart(a.get(0),part,prompt);
+            }
+            public void onPartialResults(Bundle p){}
+            public void onEvent(int x,Bundle p){}
+        });
+        speech.startListening(i);
+    }
+
+    private void evaluateSpeakingPart(String text,int part,String prompt){
+        int score=evaluateSpeechScore(text);
+        int band=score>=92?9:score>=85?8:score>=75?7:score>=65?6:score>=55?5:score>=45?4:score>=35?3:score>=25?2:1;
+        saveIeltsBand("speaking",band);
+        event("ielts_speaking","part="+part+"|band="+band+"|score="+score);
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("PART "+part+" FEEDBACK")
+            .setMessage("Practice band signal: "+band+"\\nTranscript:\\n"+text+"\\n\\nFocus: fluency, connected ideas, lexical range and grammar signals.\\nPronunciation/accent are not scored from text alone.")
+            .setPositiveButton(part<3?"NEXT PART":"DONE",(d,w)->{if(part<3)startSpeakingPart(part+1);else ielts();})
+            .show();
     }
 
     private void ieltsMock(){
