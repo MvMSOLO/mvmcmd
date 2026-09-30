@@ -376,7 +376,7 @@ public final class MvmQrActivity extends AppCompatActivity {
         String rawHistory = prefs == null ? "" : prefs.getString("items", "");
         String[] rows = rawHistory.isEmpty() ? new String[0] : rawHistory.split("\\n");
         if (rows.length == 0) {
-            list.addView(text("No scans yet. Results will appear here automatically.", 14, Color.LTGRAY));
+            list.addView(text("No scans yet. Results will appear here automatically.", 14, false));
         } else {
             for (int i = rows.length - 1; i >= 0; i--) {
                 String[] parts = rows[i].split("\\|", 3);
@@ -387,12 +387,12 @@ public final class MvmQrActivity extends AppCompatActivity {
                 } catch (Exception ignored) {
                     continue;
                 }
-                TextView item = text(parts[1] + "\\n" + value, 13, Color.WHITE);
+                TextView item = text(parts[1] + "\\n" + value, 13, false);
                 item.setPadding(dp(12), dp(12), dp(12), dp(12));
                 item.setBackground(round(0x6614171C, 14));
                 item.setOnClickListener(v -> copy(value));
                 list.addView(item, new LinearLayout.LayoutParams(-1, dp(76)));
-                Space gap = new Space(this);
+                android.widget.Space gap = new android.widget.Space(this);
                 list.addView(gap, new LinearLayout.LayoutParams(1, dp(7)));
             }
         }
