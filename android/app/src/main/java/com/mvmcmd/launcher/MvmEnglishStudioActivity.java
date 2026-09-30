@@ -59,6 +59,13 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         Item(String l,String s,String p,String a,String...o){level=l;skill=s;prompt=p;answer=a;options=o;}
     }
 
+    private static class Word {
+        String level,word,meaning,example;
+        Word(String l,String w,String m,String e){level=l;word=w;meaning=m;example=e;}
+    }
+    private final ArrayList<Word> words=new ArrayList<>();
+
+
     private static class OQ {
         String prompt,audio; String[] options; int correct;
         OQ(String p,String a,String...o){prompt=p;audio=a;options=o;correct=0;}
@@ -146,6 +153,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         prefs=getSharedPreferences("mvm_english_studio",MODE_PRIVATE);
         load();
         seed();
+        seedWords();
         tts=new TextToSpeech(this,this);
         if(!SpeechRecognizer.isRecognitionAvailable(this)) speech=null;
         home();
@@ -215,6 +223,43 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         for(int i=start;i<rows.length;i++){if(i>start)sb.append("\n");sb.append(rows[i]);}
         if(sb.length()>0)sb.append("\n");sb.append(line);
         prefs.edit().putString("events",sb.toString()).apply();
+    }
+
+    private void seedWords(){
+        if(!words.isEmpty())return;
+        String[][] data={
+            {"A1","arrive","to get to a place","We arrive at school at eight."},
+            {"A1","borrow","to take and use something temporarily","Can I borrow your pen?"},
+            {"A1","choose","to pick one thing","Choose a colour."},
+            {"A1","quiet","making little noise","The library is quiet."},
+            {"A1","friendly","kind and pleasant","Our teacher is friendly."},
+            {"A2","improve","to make something better","I want to improve my English."},
+            {"A2","reliable","able to be trusted","She is a reliable teammate."},
+            {"A2","avoid","to stay away from something","Try to avoid distractions."},
+            {"A2","schedule","a plan of times and activities","Check the study schedule."},
+            {"A2","ordinary","normal, not special","It was an ordinary day."},
+            {"B1","purchase","to buy something","You can purchase the ticket online."},
+            {"B1","evidence","information showing whether something is true","The report contains evidence."},
+            {"B1","maintain","to keep something at the same level or condition","Maintain a regular study routine."},
+            {"B1","estimate","a rough calculation or judgement","My estimate was close."},
+            {"B1","require","to need something","The course requires daily practice."},
+            {"B2","ambiguous","open to more than one interpretation","The wording was ambiguous."},
+            {"B2","scrutinize","to examine very carefully","Researchers scrutinize the data."},
+            {"B2","substantial","large or important","There was a substantial improvement."},
+            {"B2","consecutive","following one after another","She studied for five consecutive days."},
+            {"B2","coherent","clear and logically connected","His argument was coherent."},
+            {"C1","ubiquitous","present or found almost everywhere","Smartphones are ubiquitous."},
+            {"C1","concession","an acknowledgement of an opposing point","The essay includes a useful concession."},
+            {"C1","cumulative","increasing through successive additions","The cumulative effect was significant."},
+            {"C1","mitigate","to make something less severe","The policy may mitigate the risk."},
+            {"C1","nuanced","showing subtle distinctions","Her answer was nuanced."},
+            {"C2","equivocal","open to multiple interpretations","His response was equivocal."},
+            {"C2","incongruous","out of place or inconsistent","The modern sign looked incongruous."},
+            {"C2","contingent","dependent on a condition","Approval is contingent on funding."},
+            {"C2","salient","most noticeable or important","The report highlights the salient issue."},
+            {"C2","corroborate","to confirm with additional evidence","Later data corroborated the finding."}
+        };
+        for(String[] d:data)words.add(new Word(d[0],d[1],d[2],d[3]));
     }
 
     private void seed(){
@@ -317,7 +362,8 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         Button q=button("QUERY REFINER  ·  MAKE MY ENGLISH NATURAL");q.setOnClickListener(v->queryRefiner());content.addView(q);gap(8);
         Button g=button("GRAMMAR CHECKER  ·  EXPLAIN MY MISTAKES");g.setOnClickListener(v->grammarChecker());content.addView(g);gap(8);
         Button s=button("SPEAKING COACH  ·  REAL VOICE LOOP");s.setOnClickListener(v->speakingCoach());content.addView(s);gap(8);
-        Button l=button("LANGUAGE COACH  ·  PLACEMENT DIAGNOSTIC");l.setOnClickListener(v->placement());content.addView(l);
+        Button l=button("LANGUAGE COACH  ·  PLACEMENT DIAGNOSTIC");l.setOnClickListener(v->placement());content.addView(l);gap(8);
+        Button v=button("VOCABULARY LAB  ·  CEFR FLASHCARDS");v.setOnClickListener(x->vocabularyLab());content.addView(v);
     }
 
     private void addCard(String a,String b,String c){
@@ -483,7 +529,36 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         Button q=button("QUERY / NATURAL ENGLISH COACH");q.setOnClickListener(v->queryRefiner());content.addView(q);gap(7);
         Button s=button("SPEAKING / FLUENCY COACH");s.setOnClickListener(v->speakingCoach());content.addView(s);gap(7);
         Button p=button("PLACEMENT / CEFR COACH");p.setOnClickListener(v->placement());content.addView(p);gap(7);
-        Button d=button("DAILY 12-MINUTE PLAN");d.setOnClickListener(v->dailyPlan());content.addView(d);
+        Button d=button("DAILY 12-MINUTE PLAN");d.setOnClickListener(v->dailyPlan());content.addView(d);gap(7);
+        Button v=button("VOCABULARY LAB");v.setOnClickListener(x->vocabularyLab());content.addView(v);
+    }
+
+    private void vocabularyLab(){
+        base("VOCABULARY / LAB","CEFR flashcards · meaning · example · active recall.");
+        ArrayList<Word> pool=new ArrayList<>();
+        for(Word w:words)if(w.level.equals(LEVELS[level]))pool.add(w);
+        final int[] i={0},known={0};
+        final LinearLayout card=col();content.addView(card);
+        final Runnable[] render={null};
+        render[0]=()->{
+            card.removeAllViews();
+            if(i[0]>=pool.size()){
+                int pct=known[0]*100/Math.max(1,pool.size());
+                xp+=known[0]*3;touchStudyDay();save();
+                event("vocabulary","known="+known[0]+"/"+pool.size());
+                addCard("DECK COMPLETE",known[0]+"/"+pool.size()+" known",pct+"% recall signal · XP updated.");
+                Button again=button("REPLAY DECK");again.setOnClickListener(v->vocabularyLab());card.addView(again);
+                return;
+            }
+            Word w=pool.get(i[0]);
+            TextView word=tv(w.word,30,ACCENT);word.setTypeface(Typeface.DEFAULT,Typeface.BOLD);word.setGravity(Gravity.CENTER);
+            card.addView(word,new LinearLayout.LayoutParams(-1,dp(62)));
+            addCard("MEANING",w.meaning,"Target: "+w.level);
+            addCard("EXAMPLE",w.example,"Say it aloud, then make your own sentence.");
+            Button knew=button("✓ I KNEW IT");knew.setOnClickListener(v->{known[0]++;i[0]++;render[0].run();});card.addView(knew);gap(7);
+            Button review=button("↻ NEEDS REVIEW");review.setOnClickListener(v->{event("vocab_miss",w.word+"|"+w.level);i[0]++;render[0].run();});card.addView(review);
+        };
+        render[0].run();
     }
 
     private void dailyPlan(){
