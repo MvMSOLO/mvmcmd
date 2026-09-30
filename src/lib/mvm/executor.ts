@@ -162,42 +162,6 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
-    case "vision": {
-      const runtime = detectRuntime();
-      if (runtime.platform === "android" && canUseNativeAndroidLauncher()) {
-        void nativeOpenVision().catch(() => undefined);
-        return {
-          state: state0,
-          lines: [
-            line("ok", "VISION", { meta: "NATIVE ML KIT · LIVE CAMERA" }),
-            line(
-              "dim",
-              L(
-                ctx2,
-                "Camera → matn / QR / obyekt → smart actionlar.",
-                "Camera → text / QR / object → smart actions.",
-              ),
-            ),
-          ],
-        };
-      }
-
-      return {
-        state: state0,
-        lines: [
-          line("ok", "VISION", { meta: "WEB FALLBACK" }),
-          line(
-            "dim",
-            L(
-              ctx2,
-              "Brauzer Vision oynasi ochildi. Native APK real-time ML Kit tahlilini beradi.",
-              "Browser Vision opened. The native APK provides real-time ML Kit analysis.",
-            ),
-          ),
-        ],
-        openVision: true,
-      };
-    }
     case "camera": {
       const runtime = detectRuntime();
       if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
