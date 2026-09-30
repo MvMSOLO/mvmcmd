@@ -9,7 +9,7 @@ export interface NativeLaunchResult {
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;
-  openWallpaper(): Promise<{ opened: boolean }>;
+  openWallpaper(): Promise<{ opened: boolean }>;\n  openNotifications(): Promise<{ opened: boolean }>;
   openPackage(options: {
     packageName: string;
     action?: string;

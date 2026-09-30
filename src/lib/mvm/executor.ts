@@ -3,7 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
-import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenVision, nativeOpenWallpaper } from "./native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenNotifications } from "./native-launcher";
 import {
   dropAlias,
   pushHistory,
@@ -162,6 +162,20 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 
   switch (name) {
+    case "notification": {
+      const runtime = detectRuntime();
+      if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
+        return { state: state0, lines: [line("warn", L(ctx2, "NOTIFICATION faqat native Android APKda ishlaydi.", "NOTIFICATION currently runs in the native Android APK."))] };
+      }
+      void nativeOpenNotifications().catch(() => undefined);
+      return {
+        state: state0,
+        lines: [
+          line("ok", "NOTIFICATION", { meta: "NATIVE INBOX · SAFE MODE · QUICK COPY" }),
+          line("dim", L(ctx2, "Xabarlar, kodlar va qo‘ng‘iroqlar uchun native markaz ochildi.", "Native notification center opened for messages, codes and calls.")),
+        ],
+      };
+    }
     case "camera": {
       const runtime = detectRuntime();
       if (runtime.platform !== "android" || !canUseNativeAndroidLauncher()) {
