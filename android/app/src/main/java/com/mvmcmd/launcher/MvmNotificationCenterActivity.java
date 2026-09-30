@@ -56,8 +56,7 @@ public class MvmNotificationCenterActivity extends Activity {
     private void renderList(){
         if(list==null)return;list.removeAllViews();List<MvmNotificationStore.Item> items=MvmNotificationStore.read(this);DateFormat df=DateFormat.getTimeInstance(DateFormat.SHORT);
         int shown=0;for(MvmNotificationStore.Item x:items){boolean show=filter.equals("ALL")||(filter.equals("CALLS")&&x.call)||(filter.equals("CODES")&&!x.code.isEmpty())||(filter.equals("MESSAGES")&&!x.call);if(!show)continue;shown++;addItem(x,df);}
-        if(shown==0){TextView e=text("No events here yet.
-Use RUN FULL VISUAL DEMO to populate the preview timeline.",14,MUTED);e.setPadding(0,dp(24),0,dp(24));list.addView(e);}
+        if(shown==0){TextView e=text("No events here yet. Use RUN FULL VISUAL DEMO to populate the preview timeline.",14,MUTED);e.setPadding(0,dp(24),0,dp(24));list.addView(e);}
     }
     private void addItem(MvmNotificationStore.Item x,DateFormat df){
         LinearLayout c=col();c.setPadding(dp(14),dp(13),dp(14),dp(13));c.setBackground(bg(x.call?Color.rgb(23,20,25):PANEL,14));
