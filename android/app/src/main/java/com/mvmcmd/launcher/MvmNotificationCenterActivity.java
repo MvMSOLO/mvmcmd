@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -60,7 +61,7 @@ public class MvmNotificationCenterActivity extends Activity {
         root.addView(text("2.1  ·  inbox / original-open / codes / live calls / safe edge",12,MUTED),new LinearLayout.LayoutParams(-1,dp(32)));
 
         LinearLayout setup=row();
-        Button access=btn("NOTIFICATION ACCESS");access.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));setup.addView(access,new LinearLayout.LayoutParams(0,dp(46),1));
+        Button access=btn("NOTIFICATION ACCESS");access.setOnClickListener(v->openNotificationAccess());setup.addView(access,new LinearLayout.LayoutParams(0,dp(46),1));
         Button usage=btn("USAGE ACCESS");usage.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)));setup.addView(usage,new LinearLayout.LayoutParams(0,dp(46),1));
         root.addView(setup);
 
@@ -88,6 +89,26 @@ public class MvmNotificationCenterActivity extends Activity {
 
         ScrollView scroll=new ScrollView(this);list=col();scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);renderList();updateState();
+    }
+
+    private void openNotificationAccess(){
+        try{
+            Intent intent;
+            if(Build.VERSION.SDK_INT>=30){
+                ComponentName listener=new ComponentName(this,MvmNotificationListenerService.class);
+                intent=new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,listener);
+            }else{
+                intent=new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            }
+            startActivity(intent);
+        }catch(Exception ignored){
+            try{startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));}
+            catch(Exception e){Toast.makeText(this,"Android notification access settings are unavailable.",Toast.LENGTH_LONG).show();}
+        }
+        if(Build.VERSION.SDK_INT>=33){
+            Toast.makeText(this,"If Android says \"For your security, this setting is currently unavailable\": Settings → Apps → MVMCMD → ⋮ → Allow restricted settings, then return here.",Toast.LENGTH_LONG).show();
+        }
     }
 
     private void updateState(){if(safeSwitch!=null)safeSwitch.setChecked(getSharedPreferences(PREFS,MODE_PRIVATE).getBoolean("safe_mode",true));}
