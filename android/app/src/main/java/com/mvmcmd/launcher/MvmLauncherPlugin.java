@@ -18,9 +18,7 @@ public class MvmLauncherPlugin extends Plugin {
         try {
             Intent intent = new Intent(getActivity(), MvmCameraActivity.class);
             getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
+            JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
         } catch (Exception e) { call.reject("Unable to open camera: " + e.getMessage(), e); }
     }
 
@@ -29,9 +27,7 @@ public class MvmLauncherPlugin extends Plugin {
         try {
             Intent intent = new Intent(getActivity(), MvmQrActivity.class);
             getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
+            JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
         } catch (Exception e) { call.reject("Unable to open QR scanner: " + e.getMessage(), e); }
     }
 
@@ -41,23 +37,23 @@ public class MvmLauncherPlugin extends Plugin {
             Intent intent = new Intent(getActivity(), MvmWallpaperActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             getActivity().startActivity(intent);
-            JSObject result = new JSObject();
-            result.put("opened", true);
-            call.resolve(result);
+            JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
         } catch (Exception e) { call.reject("Unable to open wallpaper gallery: " + e.getMessage(), e); }
     }
 
     @PluginMethod
     public void openEnglish(PluginCall call) {
         try {
-            Intent intent = new Intent(getActivity(), MvmEnglishActivity.class);
+            Intent intent = new Intent(getActivity(), MvmEnglishStudioActivity.class);
             intent.setPackage(getContext().getPackageName());
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             getActivity().runOnUiThread(() -> {
-                try { getActivity().startActivity(intent); JSObject r=new JSObject(); r.put("opened",true); call.resolve(r); }
-                catch(Exception e){ call.reject("Unable to open English Lab: "+e.getMessage(),e); }
+                try {
+                    getActivity().startActivity(intent);
+                    JSObject r=new JSObject(); r.put("opened",true); call.resolve(r);
+                } catch(Exception e) { call.reject("Unable to open English Studio: "+e.getMessage(),e); }
             });
-        } catch(Exception e){ call.reject("Unable to open English Lab: "+e.getMessage(),e); }
+        } catch(Exception e) { call.reject("Unable to open English Studio: "+e.getMessage(),e); }
     }
 
     @PluginMethod
@@ -65,40 +61,27 @@ public class MvmLauncherPlugin extends Plugin {
         try {
             Intent intent = new Intent(getActivity(), MvmNotificationCenterActivity.class);
             intent.setPackage(getContext().getPackageName());
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             getActivity().runOnUiThread(() -> {
                 try {
                     getActivity().startActivity(intent);
                 } catch (Exception e) {
-                    call.reject("Unable to open notification center: " + e.getMessage(), e);
-                    return;
+                    call.reject("Unable to open notification center: " + e.getMessage(), e); return;
                 }
-                JSObject result = new JSObject();
-                result.put("opened", true);
-                call.resolve(result);
+                JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
             });
-        } catch (ActivityNotFoundException e) {
-            call.reject("Notification center activity is unavailable", e);
-        } catch (Exception e) {
-            call.reject("Unable to open notification center: " + e.getMessage(), e);
-        }
+        } catch (ActivityNotFoundException e) { call.reject("Notification center activity is unavailable", e);
+        } catch (Exception e) { call.reject("Unable to open notification center: " + e.getMessage(), e); }
     }
 
     @PluginMethod
     public void openPackage(PluginCall call) {
-        String packageName = call.getString("packageName");
-        String action = call.getString("action");
-        String data = call.getString("data");
+        String packageName = call.getString("packageName"), action = call.getString("action"), data = call.getString("data");
         if (packageName == null || packageName.trim().isEmpty()) { call.reject("packageName is required"); return; }
-        PackageManager pm = getContext().getPackageManager();
-        Intent launchIntent = null;
+        PackageManager pm = getContext().getPackageManager(); Intent launchIntent = null;
         try {
             if (action != null && !action.trim().isEmpty()) {
-                launchIntent = new Intent(action);
-                launchIntent.setPackage(packageName);
+                launchIntent = new Intent(action); launchIntent.setPackage(packageName);
                 if (data != null && !data.trim().isEmpty()) launchIntent.setData(Uri.parse(data));
                 if (Intent.ACTION_MAIN.equals(action)) launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
             } else {
@@ -110,22 +93,17 @@ public class MvmLauncherPlugin extends Plugin {
         try { pm.getApplicationInfo(packageName, 0); installed = true; }
         catch (PackageManager.NameNotFoundException e) { installed = false; }
         if (launchIntent == null) {
-            JSObject result = new JSObject();
-            result.put("launched", false); result.put("installed", installed);
-            result.put("error", installed ? "NO_LAUNCH_ACTIVITY" : "NOT_INSTALLED");
-            call.resolve(result); return;
+            JSObject result = new JSObject(); result.put("launched", false); result.put("installed", installed);
+            result.put("error", installed ? "NO_LAUNCH_ACTIVITY" : "NOT_INSTALLED"); call.resolve(result); return;
         }
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             getActivity().startActivity(launchIntent);
-            JSObject result = new JSObject();
-            result.put("launched", true); result.put("installed", true); call.resolve(result);
+            JSObject result = new JSObject(); result.put("launched", true); result.put("installed", true); call.resolve(result);
         } catch (ActivityNotFoundException e) {
-            JSObject result = new JSObject();
-            result.put("launched", false); result.put("installed", installed); result.put("error", "ACTIVITY_NOT_FOUND"); call.resolve(result);
+            JSObject result = new JSObject(); result.put("launched", false); result.put("installed", installed); result.put("error", "ACTIVITY_NOT_FOUND"); call.resolve(result);
         } catch (Exception e) {
-            JSObject result = new JSObject();
-            result.put("launched", false); result.put("installed", installed); result.put("error", e.getClass().getSimpleName()); call.resolve(result);
+            JSObject result = new JSObject(); result.put("launched", false); result.put("installed", installed); result.put("error", e.getClass().getSimpleName()); call.resolve(result);
         }
     }
 
@@ -134,29 +112,20 @@ public class MvmLauncherPlugin extends Plugin {
         String url = call.getString("url");
         if (url == null || url.trim().isEmpty()) { call.reject("url is required"); return; }
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getActivity().startActivity(intent);
-            JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url)); intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent); JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
         } catch (Exception e) { JSObject result = new JSObject(); result.put("opened", false); call.resolve(result); }
     }
 
     @PluginMethod
     public void openStore(PluginCall call) {
-        String packageName = call.getString("packageName");
-        String webUrl = call.getString("webUrl");
+        String packageName = call.getString("packageName"), webUrl = call.getString("webUrl");
         if (packageName == null || packageName.trim().isEmpty()) { call.reject("packageName is required"); return; }
-        boolean opened = false;
-        try {
-            Intent market = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + Uri.encode(packageName)));
-            market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getActivity().startActivity(market); opened = true;
-        } catch (Exception ignored) {}
-        if (!opened && webUrl != null && !webUrl.trim().isEmpty()) {
-            try {
-                Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(webUrl));
-                web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getActivity().startActivity(web); opened = true;
-            } catch (Exception ignored) {}
+        boolean opened=false;
+        try { Intent market=new Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id="+Uri.encode(packageName)));market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);getActivity().startActivity(market);opened=true; } catch(Exception ignored){}
+        if(!opened&&webUrl!=null&&!webUrl.trim().isEmpty()) {
+            try { Intent web=new Intent(Intent.ACTION_VIEW,Uri.parse(webUrl));web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);getActivity().startActivity(web);opened=true; } catch(Exception ignored){}
         }
-        JSObject result = new JSObject(); result.put("opened", opened); call.resolve(result);
+        JSObject result=new JSObject();result.put("opened",opened);call.resolve(result);
     }
 }
