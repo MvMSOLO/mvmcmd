@@ -47,6 +47,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     private SpeechRecognizer speech;
     private LinearLayout content;
     private int level, xp, streak, totalCorrect, totalAsked, sessionCorrect, sessionAsked;
+    private String lastStudyDay="";
     private int grammarErrors, vocabErrors, fluencyErrors, clarityErrors;
     private String lastSpeech="";
     private CountDownTimer timer;
@@ -113,12 +114,13 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     private void load(){
         level=prefs.getInt("level",0);xp=prefs.getInt("xp",0);streak=prefs.getInt("streak",0);
         totalCorrect=prefs.getInt("correct",0);totalAsked=prefs.getInt("asked",0);
+        lastStudyDay=prefs.getString("last_day","");
         grammarErrors=prefs.getInt("grammar_errors",0);vocabErrors=prefs.getInt("vocab_errors",0);
         fluencyErrors=prefs.getInt("fluency_errors",0);clarityErrors=prefs.getInt("clarity_errors",0);
     }
     private void save(){
         prefs.edit().putInt("level",level).putInt("xp",xp).putInt("streak",streak)
-            .putInt("correct",totalCorrect).putInt("asked",totalAsked)
+            .putInt("correct",totalCorrect).putInt("asked",totalAsked).putString("last_day",lastStudyDay)
             .putInt("grammar_errors",grammarErrors).putInt("vocab_errors",vocabErrors)
             .putInt("fluency_errors",fluencyErrors).putInt("clarity_errors",clarityErrors).apply();
     }
@@ -188,9 +190,23 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         return p.get((int)(Math.random()*p.size()));
     }
 
+    private String dayKey(){return new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new java.util.Date());}
+    private void touchStudyDay(){
+        String today=dayKey();
+        if(today.equals(lastStudyDay)) return;
+        if(lastStudyDay.isEmpty()) streak=1;
+        else{
+            try{
+                java.util.Date prev=new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US).parse(lastStudyDay);
+                long delta=(System.currentTimeMillis()-prev.getTime())/86400000L;
+                streak=delta==1 ? streak+1 : 1;
+            }catch(Exception ignored){streak=1;}
+        }
+        lastStudyDay=today;
+    }
     private void recordAnswer(Item q,boolean ok){
-        totalAsked++;sessionAsked++;
-        if(ok){totalCorrect++;sessionCorrect++;xp+=10+level*3;streak++;event("answer","ok|"+q.level+"|"+q.skill);}
+        totalAsked++;sessionAsked++;touchStudyDay();
+        if(ok){totalCorrect++;sessionCorrect++;xp+=10+level*3;event("answer","ok|"+q.level+"|"+q.skill);
         else{
             streak=0;event("answer","miss|"+q.level+"|"+q.skill);
             if("grammar".equals(q.skill))grammarErrors++;
@@ -311,23 +327,35 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     }
 
     private String refineQuery(String raw){
-        if(raw.isEmpty())return "Please enter a question or request.";
-        String x=raw.trim();
+        if(raw==null||raw.trim().isEmpty())return "Please enter a question or request.";
+        String x=raw.trim().replaceAll("\\s+"," ");
         x=x.replaceAll("(?i)^how make ","How can I make ");
+        x=x.replaceAll("(?i)^how do make ","How can I make ");
         x=x.replaceAll("(?i)^how use ","How can I use ");
+        x=x.replaceAll("(?i)^how i ","How can I ");
         x=x.replaceAll("(?i)^what is best ","What is the best ");
+        x=x.replaceAll("(?i)^which is best ","Which is the best ");
         x=x.replaceAll("(?i)^give me ","Could you give me ");
         x=x.replaceAll("(?i)^i want know ","I want to know ");
-        x=x.replaceAll("(?i)\benglish learning app\b","English-learning app");
-        if(!x.matches(".*[.!?]$"))x+="?";
+        x=x.replaceAll("(?i)^tell me how ","Could you explain how ");
+        x=x.replaceAll("(?i)\\benglish learning app\\b","English-learning app");
+        x=x.replaceAll("(?i)\\bmake website\\b","build a website");
+        x=x.replaceAll("(?i)\\bmake app\\b","build an app");
+        x=x.replaceAll("(?i)\\bmore better\\b","better");
+        if(x.matches(".*\\?$")) x=x.substring(0,x.length()-1);
+        if(!x.matches(".*[.!?]$")) x+="?";
         if(x.endsWith("??"))x=x.substring(0,x.length()-1);
         if(Character.isLowerCase(x.charAt(0)))x=Character.toUpperCase(x.charAt(0))+x.substring(1);
         return x;
     }
     private void showRefined(String raw,String refined){
         addCard("ORIGINAL",raw,"Intent preserved.");
-        addCard("NATURAL ENGLISH",refined,"Clearer syntax and more native phrasing.");
-        addCard("PRECISION BOOST","How can I make this request specific enough to get a useful, testable answer?","Use context + goal + constraints + desired output.");
+        addCard("NATURAL ENGLISH",refined,"Grammar + word choice + sentence structure normalized.");
+        addCard("PRECISION FRAME","Context → Goal → Constraints → Output","Add these four blocks when you want a stronger answer.");
+        String boosted=refined.endsWith("?")
+            ? refined.substring(0,refined.length()-1)+" Include the relevant context, constraints, and desired output format?"
+            : refined+" Include the relevant context, constraints, and desired output format?";
+        addCard("PRECISION BOOST",boosted,"Turns a vague request into a testable instruction.");
         event("query_refine","len="+raw.length());
     }
 
