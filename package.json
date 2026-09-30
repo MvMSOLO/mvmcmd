@@ -125,6 +125,7 @@
         }
       ],
       "artifactName": "MVMCMD-${version}-Windows-${arch}.${ext}"
-    }
+    },
+    "electronVersion": "44.3.0"
   }
 }
