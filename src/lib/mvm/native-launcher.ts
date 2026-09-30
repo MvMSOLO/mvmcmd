@@ -38,6 +38,10 @@ export async function nativeOpenWallpaper(): Promise<{ opened: boolean }> {
   return NativeLauncher.openWallpaper();
 }
 
+export async function nativeOpenNotifications(): Promise<{ opened: boolean }> {
+  return NativeLauncher.openNotifications();
+}
+
 export async function nativeOpenPackage(
   packageName: string,
   action?: string,
