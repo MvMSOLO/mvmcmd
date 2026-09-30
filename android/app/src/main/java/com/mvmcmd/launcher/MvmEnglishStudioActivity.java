@@ -215,6 +215,21 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
             .putInt("grammar_errors",grammarErrors).putInt("vocab_errors",vocabErrors)
             .putInt("fluency_errors",fluencyErrors).putInt("clarity_errors",clarityErrors).apply();
     }
+    private String dayKey(){return new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new java.util.Date());}
+    private void touchStudyDay(){
+        String today=dayKey();
+        if(today.equals(lastStudyDay))return;
+        if(lastStudyDay.isEmpty()){streak=1;}
+        else{
+            try{
+                java.util.Date prev=new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US).parse(lastStudyDay);
+                long delta=(System.currentTimeMillis()-prev.getTime())/86400000L;
+                streak=delta==1?streak+1:1;
+            }catch(Exception ignored){streak=1;}
+        }
+        lastStudyDay=today;
+    }
+
     private void event(String type,String detail){
         String old=prefs.getString("events","");
         String line=System.currentTimeMillis()+"|"+type+"|"+detail.replace("|","/").replace("\n"," ");
