@@ -7,9 +7,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <application
         android:allowBackup="true"
@@ -19,71 +17,29 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <service
-            android:name=".MvmQrTileService"
-            android:exported="true"
-            android:icon="@drawable/mvmcmd_logo"
-            android:label="QR Scanner"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
+        <service android:name=".MvmQrTileService" android:exported="true" android:icon="@drawable/mvmcmd_logo" android:label="QR Scanner" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
 
-        <activity
-            android:name=".MvmWallpaperActivity"
-            android:screenOrientation="portrait"
-            android:exported="false"
-            android:theme="@style/AppTheme.Camera" />
+        <activity android:name=".MvmWallpaperActivity" android:screenOrientation="portrait" android:exported="false" android:theme="@style/AppTheme.Camera" />
 
-        <service
-            android:name=".MvmHomeWallpaperService"
-            android:exported="true"
-            android:label="MVMCMD 3D Home Wallpaper"
-            android:permission="android.permission.BIND_WALLPAPER">
-            <intent-filter>
-                <action android:name="android.service.wallpaper.WallpaperService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.wallpaper"
-                android:resource="@xml/mvm_home_wallpaper" />
+        <service android:name=".MvmHomeWallpaperService" android:exported="true" android:label="MVMCMD 3D Home Wallpaper" android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter><action android:name="android.service.wallpaper.WallpaperService" /></intent-filter>
+            <meta-data android:name="android.service.wallpaper" android:resource="@xml/mvm_home_wallpaper" />
         </service>
 
-        <activity
-            android:name=".MvmQrActivity"
-            android:screenOrientation="portrait"
-            android:exported="false"
-            android:theme="@style/AppTheme.Camera" />
-        <activity
-            android:name=".MvmCameraActivity"
-            android:screenOrientation="portrait"
-            android:exported="false"
-            android:theme="@style/AppTheme.Camera" />
+        <activity android:name=".MvmQrActivity" android:screenOrientation="portrait" android:exported="false" android:theme="@style/AppTheme.Camera" />
+        <activity android:name=".MvmCameraActivity" android:screenOrientation="portrait" android:exported="false" android:theme="@style/AppTheme.Camera" />
 
-        <activity
-            android:name=".MvmEnglishActivity"
-            android:screenOrientation="portrait"
-            android:exported="false"
-            android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:name=".MvmEnglishActivity" android:screenOrientation="portrait" android:exported="false" android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:name=".MvmEnglishStudioActivity" android:screenOrientation="portrait" android:exported="false" android:theme="@style/AppTheme.NoActionBar" />
 
-        <activity
-            android:name=".MvmNotificationCenterActivity"
-            android:screenOrientation="portrait"
-            android:exported="false"
-            android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:name=".MvmNotificationCenterActivity" android:screenOrientation="portrait" android:exported="false" android:theme="@style/AppTheme.NoActionBar" />
 
-        <receiver
-            android:name=".MvmNotificationCopyReceiver"
-            android:exported="false" />
+        <receiver android:name=".MvmNotificationCopyReceiver" android:exported="false" />
 
-        <service
-            android:name=".MvmNotificationListenerService"
-            android:label="MVMCMD Notification Engine"
-            android:exported="true"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
+        <service android:name=".MvmNotificationListenerService" android:label="MVMCMD Notification Engine" android:exported="true" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
         </service>
 
         <activity
@@ -99,14 +55,8 @@
             </intent-filter>
         </activity>
 
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"></meta-data>
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"></meta-data>
         </provider>
     </application>
 
