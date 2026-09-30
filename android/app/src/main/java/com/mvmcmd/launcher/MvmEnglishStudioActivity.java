@@ -58,7 +58,87 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         Item(String l,String s,String p,String a,String...o){level=l;skill=s;prompt=p;answer=a;options=o;}
     }
 
+    private static class OQ {
+        String prompt,audio; String[] options; int correct;
+        OQ(String p,String a,String...o){prompt=p;audio=a;options=o;correct=0;}
+    }
     private final ArrayList<Item> items=new ArrayList<>();
+    private boolean fullMock=false;
+
+    private String[] four(String a,String b,String c,String d){return new String[]{a,b,c,d};}
+
+    private ArrayList<OQ> objectiveBank(String name){
+        ArrayList<OQ> out=new ArrayList<>();
+        if("LISTENING".equals(name)){
+            String[] places={"city museum","language centre","sports hall","science library","train station","community theatre","student office","technology fair","public clinic","art gallery"};
+            String[] times={"9:15","10:40","11:25","12:50","14:10","15:35","16:20","17:45","18:05","19:30"};
+            String[] prices={"£6","£8","£12","£15","£18","£20","£22","£25","£30","£35"};
+            String[] days={"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday","Tuesday","Thursday","Saturday"};
+            String[] nums={"214","326","418","507","612","735","804","921","104","118"};
+            String[] actions={"book online","bring photo ID","arrive fifteen minutes early","email the office","use the north entrance","collect a visitor badge","bring a notebook","check the mobile app","call before noon","show the confirmation code"};
+            for(int i=0;i<10;i++){
+                String place=places[i],time=times[i],price=prices[i],day=days[i],num=nums[i],action=actions[i];
+                out.add(new OQ("What time does the "+place+" open?","The "+place+" opens at "+time+".",time,times[(i+1)%10],times[(i+3)%10],times[(i+6)%10]));
+                out.add(new OQ("How much does the service cost?","The speaker says the fee is "+price+".",price,prices[(i+2)%10],prices[(i+5)%10],prices[(i+7)%10]));
+                out.add(new OQ("On which day is the appointment scheduled?","The appointment is scheduled for "+day+".",day,days[(i+1)%10],days[(i+4)%10],days[(i+6)%10]));
+                out.add(new OQ("Which instruction does the speaker give?","The caller is told to "+action+".",action,actions[(i+1)%10],actions[(i+4)%10],actions[(i+7)%10]));
+            }
+        }else{
+            String[] topics={"urban gardens","remote work","public transport","digital textbooks","sleep routines","recycling centres","school libraries","team projects","online shopping","city cycling"};
+            String[] mains={
+                "The passage argues that small green spaces can improve local wellbeing.",
+                "The passage explains that remote work changes how teams organise communication.",
+                "The passage examines why reliable buses can influence commuting choices.",
+                "The passage compares digital textbooks with printed study materials.",
+                "The passage explains how consistent sleep routines support concentration.",
+                "The passage describes how local recycling centres sort different materials.",
+                "The passage explains why school libraries still matter in a digital environment.",
+                "The passage discusses how clear roles improve team projects.",
+                "The passage examines why online shoppers value predictable delivery.",
+                "The passage describes how protected cycle lanes can change travel habits."
+            };
+            String[] details={
+                "Residents reported using the gardens mainly before dinner.",
+                "Teams found that written updates reduced repeated meetings.",
+                "Travellers valued predictable arrival times more than extra decoration.",
+                "Students liked search functions but still used printed notes for revision.",
+                "Participants who kept a fixed bedtime reported fewer late-night distractions.",
+                "Glass and paper were processed in different areas.",
+                "Students often visited the library for quiet study rather than book borrowing.",
+                "Projects were delayed most often when responsibilities were unclear.",
+                "Customers were more likely to return when delivery dates were visible.",
+                "Commuters mentioned safety as a major reason for changing routes."
+            };
+            String[] implications={
+                "The benefit depends partly on regular community use.",
+                "Good remote work still requires deliberate communication.",
+                "Reliability can matter as much as speed for everyday travel.",
+                "Digital access does not make every printed resource unnecessary.",
+                "A routine may matter more than occasional long sleep.",
+                "Sorting systems depend on careful separation at the start.",
+                "A digital collection does not remove the need for physical study space.",
+                "Team structure can affect project speed.",
+                "Clear delivery information can influence repeat purchases.",
+                "Infrastructure can shape behaviour as well as convenience."
+            };
+            for(int i=0;i<10;i++){
+                String t=topics[i];
+                String passage=mains[i]+" "+details[i]+" "+implications[i];
+                out.add(new OQ("What is the main idea of the passage about "+t+"?",passage,mains[i],
+                    mains[(i+1)%10],details[(i+3)%10],implications[(i+5)%10]));
+                out.add(new OQ("Which detail is stated in the passage? ",passage,details[i],
+                    details[(i+2)%10],mains[(i+4)%10],implications[(i+6)%10]));
+                out.add(new OQ("What can be inferred from the passage? ",passage,implications[i],
+                    implications[(i+2)%10],details[(i+5)%10],mains[(i+7)%10]));
+                String recommendation="The passage most strongly supports practical planning around "+t+".";
+                out.add(new OQ("What does the passage suggest about "+t+"? ",passage,recommendation,
+                    "It should be abandoned immediately.","It has no measurable effect.","It is useful only in winter."));
+            }
+        }
+        return out;
+    }
+
+
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
@@ -484,41 +564,70 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         Button r=button("READING PRACTICE");r.setOnClickListener(v->objective("READING",40,60));content.addView(r);
     }
 
+    private int bandFromPercent(int pct){
+        if(pct>=95)return 9;
+        if(pct>=90)return 8;
+        if(pct>=82)return 7;
+        if(pct>=74)return 6;
+        if(pct>=66)return 5;
+        if(pct>=58)return 4;
+        if(pct>=50)return 3;
+        if(pct>=40)return 2;
+        return 1;
+    }
+    private void saveIeltsBand(String skill,int band){
+        prefs.edit().putInt("band_"+skill.toLowerCase(Locale.ROOT),band).apply();
+    }
+
     private void objective(String name,int count,int minutes){
         base("IELTS / "+name,name+" simulation · "+count+" questions · "+minutes+" minute timer");
+        final ArrayList<OQ> bank=objectiveBank(name);
+        final int total=Math.min(count,bank.size());
         final int[] n={0},correct={0};
         final TextView qv=tv("",18,FG);qv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);content.addView(qv);gap(8);
         final TextView timerText=tv("",13,ACCENT);content.addView(timerText);gap(8);
-        final String[] prompts=name.equals("LISTENING")
-            ?new String[]{"What time does the train leave?","Which number is mentioned?","What does the speaker recommend?","What is the main reason?","Which option is correct?"}
-            :new String[]{"What is the main idea?","Which statement is supported?","What problem is mentioned?","What does the writer imply?","Which detail is given?"};
-        final String[][] opts={{"8:30","9:30","10:30","11:30"},{"14","24","40","44"},{"Book online","Call later","Visit Monday","Do nothing"},{"Cost","Weather","Distance","Age"},{"A","B","C","D"}};
-        final CountDownTimer[] ct={null};
         final LinearLayout answers=col();content.addView(answers);
+        final CountDownTimer[] ct={null};
         final Runnable[] render={null};
+
         render[0]=()->{
             answers.removeAllViews();
-            if(n[0]>=count){
+            if(n[0]>=total){
                 if(ct[0]!=null)ct[0].cancel();
-                int pct=correct[0]*100/Math.max(1,count);
-                event("ielts_"+name,"correct="+correct[0]+"/"+count);
+                int pct=correct[0]*100/Math.max(1,total);
+                int band=bandFromPercent(pct);
+                saveIeltsBand(name,band);
+                event("ielts_"+name,"correct="+correct[0]+"/"+total+"|band="+band);
+                if(fullMock && "LISTENING".equals(name)){new android.app.AlertDialog.Builder(this).setTitle("LISTENING COMPLETE").setMessage("Practice band signal: "+band+"\\nStarting Reading next.").setPositiveButton("CONTINUE",(d,w)->objective("READING",40,60)).show();return;}
+                if(fullMock && "READING".equals(name)){new android.app.AlertDialog.Builder(this).setTitle("READING COMPLETE").setMessage("Practice band signal: "+band+"\\nStarting Writing next.").setPositiveButton("CONTINUE",(d,w)->ieltsWriting(true)).show();return;}
                 new android.app.AlertDialog.Builder(this).setTitle(name+" COMPLETE")
-                    .setMessage("Practice result: "+correct[0]+"/"+count+" ("+pct+"%)\nThis is a local simulation, not an official IELTS score.")
+                    .setMessage("Practice result: "+correct[0]+"/"+total+" ("+pct+"%)\\nEstimated practice band: "+band+"\\nThis is a local simulation, not an official IELTS result.")
                     .setPositiveButton("DONE",(d,w)->ielts()).show();
                 return;
             }
-            qv.setText((n[0]+1)+"/"+count+"  ·  "+prompts[n[0]%prompts.length]);
+            OQ q=bank.get(n[0]);
+            qv.setText((n[0]+1)+"/"+total+"  ·  "+q.prompt);
+            if("LISTENING".equals(name)){
+                Button play=button("▶ PLAY AUDIO");
+                play.setTextColor(BG);play.setBackground(box(ACCENT,11));
+                play.setOnClickListener(v->speak(q.audio));
+                answers.addView(play,new LinearLayout.LayoutParams(-1,dp(48)));
+                gap(7);
+            }
+            int rotation=n[0]%4;
             for(int j=0;j<4;j++){
-                Button b=button(opts[j][n[0]%opts[j].length]);
-                final int pick=j;
-                b.setOnClickListener(v->{if(pick==n[0]%4)correct[0]++;n[0]++;render[0].run();});
+                final int original=(j+rotation)%4;
+                Button b=button(q.options[original]);
+                final boolean ok=(original==q.correct);
+                b.setOnClickListener(v->{if(ok)correct[0]++;n[0]++;render[0].run();});
                 answers.addView(b,new LinearLayout.LayoutParams(-1,dp(50)));
                 Space sp=new Space(this);answers.addView(sp,new LinearLayout.LayoutParams(1,dp(5)));
             }
         };
+
         ct[0]=new CountDownTimer(minutes*60L*1000L,1000L){
             public void onTick(long ms){timerText.setText("TIME "+(ms/60000)+":"+String.format(Locale.US,"%02d",(ms/1000)%60));}
-            public void onFinish(){timerText.setText("TIME 0:00");n[0]=count;render[0].run();}
+            public void onFinish(){timerText.setText("TIME 0:00");n[0]=total;render[0].run();}
         }.start();
         render[0].run();
     }
