@@ -9,6 +9,7 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -39,11 +40,11 @@ public class MvmNotificationCenterActivity extends Activity {
         root.setPadding(dp(18), dp(20), dp(18), dp(18));
         root.setBackgroundColor(Color.rgb(8, 9, 14));
 
-        TextView head = text("MVMCMD  /  NOTIFICATION", 22, Color.WHITE);
+        TextView head = text("MVMCMD  /  NOTIFICATION  2.0", 22, Color.WHITE);
         head.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         root.addView(head, new LinearLayout.LayoutParams(-1, dp(42)));
 
-        TextView sub = text("Native inbox · quick copy · safe edge · call actions", 13, 0xff9da4b6);
+        TextView sub = text("messages · codes · calls · game-safe edge · DEMO", 13, 0xff9da4b6);
         root.addView(sub, new LinearLayout.LayoutParams(-1, dp(30)));
 
         LinearLayout setup = new LinearLayout(this);
@@ -55,6 +56,11 @@ public class MvmNotificationCenterActivity extends Activity {
         access.setOnClickListener(v -> startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")));
         setup.addView(access, new LinearLayout.LayoutParams(0, dp(46), 1));
 
+        Button usage = new Button(this);
+        usage.setText("Usage access");
+        usage.setOnClickListener(v -> { try { startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)); } catch (Exception ignored) {} });
+        setup.addView(usage, new LinearLayout.LayoutParams(0, dp(46), 1));
+
         Button overlay = new Button(this);
         overlay.setText("Safe edge");
         overlay.setOnClickListener(v -> {
@@ -63,6 +69,11 @@ public class MvmNotificationCenterActivity extends Activity {
         });
         setup.addView(overlay, new LinearLayout.LayoutParams(0, dp(46), 1));
         root.addView(setup);
+
+        Button demo = new Button(this);
+        demo.setText("RUN VISUAL DEMO");
+        demo.setOnClickListener(v -> showDemo());
+        root.addView(demo, new LinearLayout.LayoutParams(-1, dp(48)));
 
         ScrollView scroll = new ScrollView(this);
         LinearLayout list = new LinearLayout(this);
@@ -109,5 +120,13 @@ public class MvmNotificationCenterActivity extends Activity {
         scroll.addView(list);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
+    private void showDemo() {
+        LinearLayout panel = new LinearLayout(this); panel.setOrientation(LinearLayout.VERTICAL); panel.setPadding(dp(18),dp(12),dp(18),dp(12));
+        TextView h=text("LIVE NOTIFICATION PREVIEW",18,Color.WHITE); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD); panel.addView(h);
+        panel.addView(text("Telegram · New message",14,0xffc7ccda)); panel.addView(text("Your verification code is 4821",15,Color.WHITE));
+        Button copy=new Button(this); copy.setText("COPY  4821"); copy.setOnClickListener(v->{ClipboardManager cm=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);cm.setPrimaryClip(ClipData.newPlainText("code","4821"));copy.setText("COPIED  ✓");}); panel.addView(copy);
+        panel.addView(text("INCOMING CALL  ·  Aziza Karimova",15,Color.WHITE));
+        panel.addView(text("GAME SAFE MODE  ·  only a thin rainbow edge signal",12,0xff9da4b6));
+        new android.app.AlertDialog.Builder(this).setView(panel).setPositiveButton("CLOSE",null).show();
     }
 }

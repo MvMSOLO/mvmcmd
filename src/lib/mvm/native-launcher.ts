@@ -11,6 +11,7 @@ interface MvmLauncherPlugin {
   openQr(): Promise<{ opened: boolean }>;
   openWallpaper(): Promise<{ opened: boolean }>;
   openNotifications(): Promise<{ opened: boolean }>;
+  openEnglish(): Promise<{ opened: boolean }>;
   openPackage(options: {
     packageName: string;
     action?: string;
@@ -40,6 +41,10 @@ export async function nativeOpenWallpaper(): Promise<{ opened: boolean }> {
 
 export async function nativeOpenNotifications(): Promise<{ opened: boolean }> {
   return NativeLauncher.openNotifications();
+}
+
+export async function nativeOpenEnglish(): Promise<{ opened: boolean }> {
+  return NativeLauncher.openEnglish();
 }
 
 export async function nativeOpenPackage(

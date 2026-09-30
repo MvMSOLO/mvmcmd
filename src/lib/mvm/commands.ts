@@ -1,6 +1,13 @@
 import type { CommandSpec } from "./types";
 
 export const COMMANDS: CommandSpec[] = [  {
+    name: "english",
+    aliases: ["en", "english-learning", "ielts"],
+    hidden: true,
+    usage: "ENGLISH",
+    summaryEn: "Open the MVMCMD English Learning + IELTS Lab.",
+    summaryUz: "MVMCMD English Learning va IELTS Labini ochadi.",
+  },  {
     name: "notification",
     aliases: ["notifications", "notify"],
     hidden: true,

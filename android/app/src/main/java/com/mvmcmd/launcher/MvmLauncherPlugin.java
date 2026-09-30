@@ -48,6 +48,19 @@ public class MvmLauncherPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openEnglish(PluginCall call) {
+        try {
+            Intent intent = new Intent(getActivity(), MvmEnglishActivity.class);
+            intent.setPackage(getContext().getPackageName());
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            getActivity().runOnUiThread(() -> {
+                try { getActivity().startActivity(intent); JSObject r=new JSObject(); r.put("opened",true); call.resolve(r); }
+                catch(Exception e){ call.reject("Unable to open English Lab: "+e.getMessage(),e); }
+            });
+        } catch(Exception e){ call.reject("Unable to open English Lab: "+e.getMessage(),e); }
+    }
+
+    @PluginMethod
     public void openNotifications(PluginCall call) {
         try {
             Intent intent = new Intent(getActivity(), MvmNotificationCenterActivity.class);

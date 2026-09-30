@@ -7,7 +7,7 @@ import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import { EMPTY, loadState, saveState } from "@/lib/mvm/persist";
 import { detectRuntime } from "@/lib/mvm/platform";
-import { canUseNativeAndroidLauncher, nativeOpenNotifications } from "@/lib/mvm/native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenEnglish, nativeOpenNotifications } from "@/lib/mvm/native-launcher";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
@@ -175,6 +175,11 @@ export function MvmShell() {
     }
 
     const parsedCommand = parseLine(text);
+    if (parsedCommand.cmd?.name === "english" && canUseNativeAndroidLauncher()) {
+      append([makeLine("in", text)]);
+      void nativeOpenEnglish().then((result) => append([makeLine(result.opened ? "ok" : "warn", result.opened ? "ENGLISH LAB  OPENED" : "ENGLISH LAB  FAILED", { meta: result.opened ? "A1 → C2 · IELTS" : "ANDROID ACTIVITY LAUNCH FAILED" })])).catch((error: unknown) => append([makeLine("warn", "ENGLISH LAB  FAILED", { meta: error instanceof Error ? error.message : String(error) })]));
+      setInput(""); setHistIdx(-1); return;
+    }
     if (parsedCommand.cmd?.name === "notification" && canUseNativeAndroidLauncher()) {
       append([makeLine("in", text)]);
       void nativeOpenNotifications()
