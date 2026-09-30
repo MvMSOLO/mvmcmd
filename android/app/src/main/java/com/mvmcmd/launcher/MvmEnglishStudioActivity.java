@@ -575,22 +575,42 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     }
 
     private void placement(){
-        base("PLACEMENT / CEFR","Language Coach-inspired diagnostic: short, adaptive, local.");
+        base("PLACEMENT / CEFR","12-question Language Coach-inspired diagnostic · 2 checkpoints per CEFR band.");
         final int[] score={0};final int[] i={0};
         final ArrayList<Item> test=new ArrayList<>(Arrays.asList(
             new Item("A1","grammar","She ___ from Uzbekistan.","is","is","are","am","be"),
+            new Item("A1","vocabulary","Opposite of “cheap”?","expensive","expensive","small","quiet","early"),
             new Item("A2","grammar","I have lived here ___ 2022.","since","for","since","during","from"),
+            new Item("A2","reading","Tom missed the bus because he left late. Why?","He left late.","He was ill.","He left late.","The bus broke.","He forgot the route."),
             new Item("B1","grammar","If I had time, I ___ more.","would read","will read","would read","read","am reading"),
-            new Item("B2","vocabulary","“Ambiguous” means:","open to more than one interpretation","very clear","open to more than one interpretation","temporary","irrelevant"),
-            new Item("C1","grammar","Not only ___ costly, but it was difficult to implement.","was it","it was","was it","is it","being"),
-            new Item("C2","vocabulary","“Equivocal” most nearly means:","open to multiple interpretations","certain","open to multiple interpretations","mechanical","official")
+            new Item("B1","vocabulary","“Purchase” is closest to:","buy","sell","borrow","repair","hide"),
+            new Item("B2","grammar","He suggested that the meeting ___ until Friday.","be moved","is moved","be moved","was moved","moves"),
+            new Item("B2","vocabulary","“Ambiguous” means:","open to more than one interpretation","very clear","temporary","irrelevant","mechanical"),
+            new Item("C1","grammar","Not only ___ the proposal costly, but implementation was difficult.","was","did","was","has","being"),
+            new Item("C1","reading","The study identifies association but not causation. What is justified?","The variables are associated, not proven causal.","One causes the other.","Nothing was observed.","Causation was proved.","The result is irrelevant."),
+            new Item("C2","grammar","Had the committee known earlier, it ___ the timetable.","would have revised","will revise","would have revised","revises","would revised"),
+            new Item("C2","vocabulary","“Equivocal” most nearly means:","open to multiple interpretations","certain","mechanical","irrelevant","official")
         ));
-        TextView prompt=tv(test.get(0).prompt,19,FG);prompt.setTypeface(Typeface.DEFAULT,Typeface.BOLD);content.addView(prompt);gap(8);
+        TextView progress=tv("0 / 12",12,ACCENT);content.addView(progress);gap(7);
+        TextView prompt=tv("",19,FG);prompt.setTypeface(Typeface.DEFAULT,Typeface.BOLD);content.addView(prompt);gap(8);
         LinearLayout answers=col();content.addView(answers);
         final Runnable[] render={null};
         render[0]=()->{
-            answers.removeAllViews();Item q=test.get(i[0]);prompt.setText(q.prompt);
-            for(String o:q.options){Button b=button(o);b.setOnClickListener(v->{if(o.equals(q.answer))score[0]++;i[0]++;if(i[0]>=test.size()){int inferred=score[0];level=Math.min(5,Math.max(0,inferred));xp+=30;save();event("placement","score="+score[0]);new android.app.AlertDialog.Builder(this).setTitle("PLACEMENT COMPLETE").setMessage("Diagnostic signal: "+LEVELS[level]+"\nCorrect: "+score[0]+"/"+test.size()+"\nThis is a practice estimate, not an official CEFR certificate.").setPositiveButton("OPEN LAB", (d,w)->home()).show();        }else render[0].run();});answers.addView(b);gap(5);}
+            answers.removeAllViews();
+            if(i[0]>=test.size()){
+                int inferred=score[0]<=1?0:score[0]<=3?1:score[0]<=5?2:score[0]<=7?3:score[0]<=9?4:5;
+                level=inferred;xp+=30;touchStudyDay();save();event("placement","score="+score[0]+"/"+test.size()+"|level="+LEVELS[level]);
+                new android.app.AlertDialog.Builder(this).setTitle("PLACEMENT COMPLETE")
+                    .setMessage("Diagnostic signal: "+LEVELS[level]+"\\nCorrect: "+score[0]+"/"+test.size()+"\\nThe result is a practice estimate, not an official CEFR certificate.")
+                    .setPositiveButton("OPEN LAB",(d,w)->home()).show();
+                return;
+            }
+            Item q=test.get(i[0]);progress.setText(i[0]+" / 12 · checkpoint "+q.level);prompt.setText(q.prompt);
+            for(String o:q.options){
+                Button b=button(o);
+                b.setOnClickListener(v->{if(o.equals(q.answer))score[0]++;i[0]++;render[0].run();});
+                answers.addView(b,new LinearLayout.LayoutParams(-1,dp(52)));gap(5);
+            }
         };
         render[0].run();
     }
@@ -758,6 +778,12 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
 
     private void ieltsWriting(boolean fromMock){
         base("IELTS / WRITING","Task 1 + Task 2 · 20 + 40 minute targets · four-criteria practice signal.");
+        final TextView writingTimer=tv("TIME 60:00",14,ACCENT);content.addView(writingTimer);gap(6);
+        CountDownTimer writingClock=new CountDownTimer(60*60*1000L,1000L){
+            public void onTick(long ms){writingTimer.setText("TIME "+(ms/60000)+":"+String.format(Locale.US,"%02d",(ms/1000)%60));}
+            public void onFinish(){writingTimer.setText("TIME 0:00");}
+        }.start();
+        timer=writingClock;
         addCard("TASK 1","Describe a chart, table, process or map in at least 150 words.","Target: 20 minutes.");
         EditText t1=editor("Task 1 response…");content.addView(t1,new LinearLayout.LayoutParams(-1,dp(175)));gap(8);
         addCard("TASK 2","Write an essay response in at least 250 words.","Target: 40 minutes.");
@@ -771,7 +797,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
             String msg="Task 1 practice band: "+s1+"/9\\nTask 2 practice band: "+s2+"/9\\nCombined writing signal: "+band+"/9\\n\\nSignals approximate Task Response, Coherence/Cohesion, Lexical Resource and Grammar.\\nThis is NOT an official IELTS band score.";
             event("ielts_writing","t1="+s1+"|t2="+s2+"|band="+band);
             new android.app.AlertDialog.Builder(this).setTitle("WRITING PRACTICE SIGNAL").setMessage(msg)
-                .setPositiveButton(fromMock?"START SPEAKING":"OK",(d,w)->{if(fromMock){fullMock=false;ieltsSpeaking();}})
+                .setPositiveButton(fromMock?"START SPEAKING":"OK",(d,w)->{if(fromMock){startSpeakingPart(1);}})
                 .setNegativeButton("BACK",null).show();
         });
         content.addView(check);
@@ -852,7 +878,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         new android.app.AlertDialog.Builder(this)
             .setTitle("PART "+part+" FEEDBACK")
             .setMessage("Practice band signal: "+band+"\\nTranscript:\\n"+text+"\\n\\nFocus: fluency, connected ideas, lexical range and grammar signals.\\nPronunciation/accent are not scored from text alone.")
-            .setPositiveButton(part<3?"NEXT PART":"DONE",(d,w)->{if(part<3)startSpeakingPart(part+1);else ielts();})
+            .setPositiveButton(part<3?"NEXT PART":"DONE",(d,w)->{if(part<3)startSpeakingPart(part+1);else{fullMock=false;ielts();}})
             .show();
     }
 
