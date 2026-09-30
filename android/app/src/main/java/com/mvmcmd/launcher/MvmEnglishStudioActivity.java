@@ -430,20 +430,40 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
 
     private void objective(String name,int count,int minutes){
         base("IELTS / "+name,name+" simulation · "+count+" questions · "+minutes+" minute timer");
-        final int[] n={0},correct={0};final TextView qv=tv("",18,FG);qv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);content.addView(qv);gap(8);
+        final int[] n={0},correct={0};
+        final TextView qv=tv("",18,FG);qv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);content.addView(qv);gap(8);
         final TextView timerText=tv("",13,ACCENT);content.addView(timerText);gap(8);
-        final String[] prompts=name.equals("LISTENING")?new String[]{"What time does the train leave?","Which number is mentioned?","What does the speaker recommend?","What is the main reason?","Which option is correct?"}:new String[]{"What is the main idea?","Which statement is supported?","What problem is mentioned?","What does the writer imply?","Which detail is given?"};
+        final String[] prompts=name.equals("LISTENING")
+            ?new String[]{"What time does the train leave?","Which number is mentioned?","What does the speaker recommend?","What is the main reason?","Which option is correct?"}
+            :new String[]{"What is the main idea?","Which statement is supported?","What problem is mentioned?","What does the writer imply?","Which detail is given?"};
         final String[][] opts={{"8:30","9:30","10:30","11:30"},{"14","24","40","44"},{"Book online","Call later","Visit Monday","Do nothing"},{"Cost","Weather","Distance","Age"},{"A","B","C","D"}};
         final CountDownTimer[] ct={null};
-        final LinearLayout answers=col(); content.addView(answers);
+        final LinearLayout answers=col();content.addView(answers);
         final Runnable[] render={null};
         render[0]=()->{
             answers.removeAllViews();
-            if(n[0]>=count){if(ct[0]!=null)ct[0].cancel();int pct=correct[0]*100/Math.max(1,count);event("ielts_"+name,"correct="+correct[0]+"/"+count);new android.app.AlertDialog.Builder(this).setTitle(name+" COMPLETE").setMessage("Practice result: "+correct[0]+"/"+count+" ("+pct+"%)\nThis is a local simulation, not an official IELTS score.").setPositiveButton("DONE",(d,w)->ielts()).show();return;}
+            if(n[0]>=count){
+                if(ct[0]!=null)ct[0].cancel();
+                int pct=correct[0]*100/Math.max(1,count);
+                event("ielts_"+name,"correct="+correct[0]+"/"+count);
+                new android.app.AlertDialog.Builder(this).setTitle(name+" COMPLETE")
+                    .setMessage("Practice result: "+correct[0]+"/"+count+" ("+pct+"%)\nThis is a local simulation, not an official IELTS score.")
+                    .setPositiveButton("DONE",(d,w)->ielts()).show();
+                return;
+            }
             qv.setText((n[0]+1)+"/"+count+"  ·  "+prompts[n[0]%prompts.length]);
-            for(int j=0;j<4;j++){Button b=button(opts[j][n[0]%opts[j].length]);final int pick=j;b.setOnClickListener(v->{if(pick==n[0]%4)correct[0]++;n[0]++;render[0].run();});answers.addView(b,new LinearLayout.LayoutParams(-1,dp(50)));
+            for(int j=0;j<4;j++){
+                Button b=button(opts[j][n[0]%opts[j].length]);
+                final int pick=j;
+                b.setOnClickListener(v->{if(pick==n[0]%4)correct[0]++;n[0]++;render[0].run();});
+                answers.addView(b,new LinearLayout.LayoutParams(-1,dp(50)));
+                Space sp=new Space(this);answers.addView(sp,new LinearLayout.LayoutParams(1,dp(5)));
+            }
         };
-        ct[0]=new CountDownTimer(minutes*60L*1000L,1000L){public void onTick(long ms){timerText.setText("TIME "+(ms/60000)+":"+String.format(Locale.US,"%02d",(ms/1000)%60));}public void onFinish(){timerText.setText("TIME 0:00");n[0]=count;render.run();}}.start();
+        ct[0]=new CountDownTimer(minutes*60L*1000L,1000L){
+            public void onTick(long ms){timerText.setText("TIME "+(ms/60000)+":"+String.format(Locale.US,"%02d",(ms/1000)%60));}
+            public void onFinish(){timerText.setText("TIME 0:00");n[0]=count;render[0].run();}
+        }.start();
         render[0].run();
     }
 
