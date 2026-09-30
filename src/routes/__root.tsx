@@ -11,10 +11,10 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
-      { name: "theme-color", content: "#09090b" },
+      { name: "theme-color", content: "#07080b" },
       {
         name: "description",
-        content: "MVMCMD — type a name, open the app. Prefix matching. No AI.",
+        content: "MVMCMD — a unified command center for camera, QR, English, media and system tools.",
       },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -27,7 +27,7 @@ export const Route = createRootRoute({
     ],
   }),
   component: () => (
-    <html lang="uz" className="antialiased" suppressHydrationWarning>
+    <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
