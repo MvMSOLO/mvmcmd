@@ -51,8 +51,23 @@ public class MvmLauncherPlugin extends Plugin {
     public void openNotifications(PluginCall call) {
         try {
             Intent intent = new Intent(getActivity(), MvmNotificationCenterActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            getActivity().startActivity(intent);
+            intent.setPackage(getContext().getPackageName());
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            getActivity().runOnUiThread(() -> {
+                try {
+                    getActivity().startActivity(intent);
+                } catch (Exception e) {
+                    call.reject("Unable to open notification center: " + e.getMessage(), e);
+                    return;
+                }
+                JSObject result = new JSObject();
+                result.put("opened", true);
+                call.resolve(result);
+            });
+            return;
             JSObject result = new JSObject();
             result.put("opened", true);
             call.resolve(result);
