@@ -356,7 +356,7 @@ export function MvmShell() {
             className="min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
           >
             {phase === "boot" && (
-              <div className="mb-4 flex items-center gap-3 border border-line bg-surface px-3 py-2">
+              <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mb-4 flex items-center gap-3 border border-line bg-surface px-3 py-2">
                 <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
                 <div><p className="font-display text-xs font-bold">MVM CORE INITIALIZING</p><p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p></div>
               </div>
