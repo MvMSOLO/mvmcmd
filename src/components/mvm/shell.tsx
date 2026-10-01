@@ -375,7 +375,7 @@ export function MvmShell() {
           </div>
         </section>
 
-        <aside className="enter-right d4 mvm-trend-glass hidden border-l border-line p-4 lg:block">
+        <aside data-motion="20-beam-trace" className="enter-right d4 mvm-hand-beam mvm-trend-glass hidden border-l border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "catalog")}</p>
           <ul className="mt-3 space-y-0.5">
             {CATEGORIES.map((cat) => (
