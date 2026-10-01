@@ -11,6 +11,8 @@ import { canUseNativeAndroidLauncher, nativeOpenEnglish, nativeOpenNotifications
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
+import { Mvm3D } from "./mvm-3d";
+import { MVM_3D, MVM_3D_ASSETS } from "@/lib/mvm/3d-assets";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -283,7 +285,8 @@ export function MvmShell() {
           <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
         </div>
-        <div className="text-right font-mono text-label leading-relaxed text-muted">
+        <div className="flex items-end gap-3 text-right font-mono text-label leading-relaxed text-muted">
+          <Mvm3D asset={MVM_3D["command-core"]} size="xs" />
           <p className="tabular-nums text-fg">{formatClock(clock)}</p>
           <p className="uppercase tracking-mark">
             {platform}
@@ -298,6 +301,12 @@ export function MvmShell() {
           </button>
         </div>
       </header>
+
+      <div className="hidden border-b border-line px-4 py-2 lg:flex lg:items-center lg:justify-center lg:gap-5">
+        {MVM_3D_ASSETS.map((asset) => (
+          <Mvm3D key={asset.id} asset={asset} size="xs" label />
+        ))}
+      </div>
 
       <div className="mvm-cols mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
         <aside className="enter-left d2 hidden border-r border-line p-4 lg:block">
@@ -344,6 +353,12 @@ export function MvmShell() {
             ref={logRef}
             className="min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
           >
+            {phase === "boot" && (
+              <div className="mb-4 flex items-center gap-3 border border-line bg-surface px-3 py-2">
+                <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
+                <div><p className="font-display text-xs font-bold">MVM CORE INITIALIZING</p><p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p></div>
+              </div>
+            )}
             {lines.map((row) => (
               <LogRow key={row.id} row={row} onOpen={(id) => {
                 const app = CATALOG_BY_ID[id];
@@ -394,7 +409,7 @@ export function MvmShell() {
                 onClick={() => commit(`open ${app.name}`)}
                 className="flex shrink-0 items-center gap-2 rounded-sm bg-surface px-3 py-2 mvm-frame"
               >
-                <Mark name={app.name} />
+                <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} />
                 <span className="font-mono text-xs">{app.name}</span>
               </button>
             ))}
@@ -416,7 +431,7 @@ export function MvmShell() {
                   <span className="w-6 font-mono text-micro tabular-nums text-faint">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <Mark name={hit.app.name} />
+                  <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} />
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{hit.app.name}</span>
                   <span className="hidden font-mono text-micro uppercase tracking-wider text-faint sm:block">
                     {hit.reason}
@@ -438,9 +453,8 @@ export function MvmShell() {
             }
           }}
         >
-          <span className="font-display text-lg text-accent" aria-hidden>
-            ▸
-          </span>
+          <Mvm3D asset={MVM_3D["command-core"]} size="xs" />
+          <span className="font-display text-lg text-accent" aria-hidden>▸</span>
           <label className="sr-only" htmlFor="mvm-prompt">
             {t(lang, "prompt")}
           </label>
