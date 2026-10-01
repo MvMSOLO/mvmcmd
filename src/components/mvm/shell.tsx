@@ -212,11 +212,21 @@ export function MvmShell() {
       return;
     }
 
-    const result = execute(text, { state, lang });
-    setState(result.state);
-    append([makeLine("in", text), ...result.lines], result.clearLog);
-    setInput("");
-    setHistIdx(-1);
+    const applyResult = () => {
+      const result = execute(text, { state, lang });
+      setState(result.state);
+      append([makeLine("in", text), ...result.lines], result.clearLog);
+      setInput("");
+      setHistIdx(-1);
+    };
+    const transitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => unknown;
+    };
+    if (transitionDocument.startViewTransition) {
+      transitionDocument.startViewTransition(applyResult);
+    } else {
+      applyResult();
+    }
   }
 
   function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -288,7 +298,7 @@ export function MvmShell() {
     .slice(0, 8);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
+    <div data-motion="30-view-transition" className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg">
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
