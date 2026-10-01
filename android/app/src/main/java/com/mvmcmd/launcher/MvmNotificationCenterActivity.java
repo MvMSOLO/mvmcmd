@@ -22,6 +22,8 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import java.text.DateFormat;
@@ -34,6 +36,8 @@ public class MvmNotificationCenterActivity extends Activity {
     private static final String PREFS="mvm_notification_settings";
     private static final int REQ_CONTACTS=71,REQ_POST=72;
     private LinearLayout list;private String filter="ALL";private Switch safeSwitch;
+    private Button notificationAccessButton;
+    private TextView notificationAccessStatus;
 
     private int dp(int v){return(int)(v*getResources().getDisplayMetrics().density+.5f);}
     private TextView text(String s,float z,int c){TextView t=new TextView(this);t.setText(s);t.setTextColor(c);t.setTextSize(z);t.setFontFeatureSettings("kern");return t;}
@@ -61,11 +65,19 @@ public class MvmNotificationCenterActivity extends Activity {
         root.addView(text("2.1  ·  inbox / original-open / codes / live calls / safe edge",12,MUTED),new LinearLayout.LayoutParams(-1,dp(32)));
 
         LinearLayout setup=row();
-        Button access=btn("NOTIFICATION ACCESS");access.setOnClickListener(v->openNotificationAccess());setup.addView(access,new LinearLayout.LayoutParams(0,dp(46),1));
+        notificationAccessButton=btn("NOTIFICATION ACCESS");
+        notificationAccessButton.setOnClickListener(v->openNotificationAccess());
+        setup.addView(notificationAccessButton,new LinearLayout.LayoutParams(0,dp(46),1));
         Button usage=btn("USAGE ACCESS");usage.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)));setup.addView(usage,new LinearLayout.LayoutParams(0,dp(46),1));
         root.addView(setup);
+        notificationAccessStatus=text("",11,MUTED);
+        notificationAccessStatus.setPadding(dp(4),dp(5),dp(4),dp(7));
+        root.addView(notificationAccessStatus,new LinearLayout.LayoutParams(-1,dp(34)));
 
         LinearLayout setup2=row();
+        Button repair=btn("REPAIR / APP INFO");
+        repair.setOnClickListener(v->openAppInfo());
+        setup2.addView(repair,new LinearLayout.LayoutParams(0,dp(46),1));
         Button edge=btn("SAFE EDGE");edge.setOnClickListener(v->{try{startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())));}catch(Exception ignored){}});setup2.addView(edge,new LinearLayout.LayoutParams(0,dp(46),1));
         Button contacts=btn("CONTACTS");contacts.setOnClickListener(v->{if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_CONTACTS)!=PackageManager.PERMISSION_GRANTED)ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.READ_CONTACTS},REQ_CONTACTS);});setup2.addView(contacts,new LinearLayout.LayoutParams(0,dp(46),1));
         root.addView(setup2);
@@ -106,12 +118,31 @@ public class MvmNotificationCenterActivity extends Activity {
             try{startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));}
             catch(Exception e){Toast.makeText(this,"Android notification access settings are unavailable.",Toast.LENGTH_LONG).show();}
         }
-        if(Build.VERSION.SDK_INT>=33){
-            Toast.makeText(this,"If Android says \"For your security, this setting is currently unavailable\": Settings → Apps → MVMCMD → ⋮ → Allow restricted settings, then return here.",Toast.LENGTH_LONG).show();
+        if(Build.VERSION.SDK_INT>=33 && !hasNotificationAccess()){
+            Toast.makeText(this,"If Android says \"For your security, this setting is currently unavailable\": open APP INFO → ⋮ → Allow restricted settings, then return here.",Toast.LENGTH_LONG).show();
         }
     }
 
-    private void updateState(){if(safeSwitch!=null)safeSwitch.setChecked(getSharedPreferences(PREFS,MODE_PRIVATE).getBoolean("safe_mode",true));}
+    private boolean hasNotificationAccess(){
+        try{return NotificationManagerCompat.getEnabledListenerPackages(this).contains(getPackageName());}
+        catch(Exception ignored){return false;}
+    }
+
+    private void updateState(){
+        if(safeSwitch!=null)safeSwitch.setChecked(getSharedPreferences(PREFS,MODE_PRIVATE).getBoolean("safe_mode",true));
+        boolean enabled=hasNotificationAccess();
+        if(notificationAccessButton!=null) notificationAccessButton.setText(enabled?"NOTIFICATION ACCESS  ·  ON":"NOTIFICATION ACCESS  ·  OFF");
+        if(notificationAccessStatus!=null) notificationAccessStatus.setText(enabled
+                ?"ACCESS READY  ·  notification listener is enabled"
+                :"ACCESS BLOCKED / OFF  ·  use NOTIFICATION ACCESS; if Android restricts it, open APP INFO → ⋮ → Allow restricted settings");
+    }
+
+    private void openAppInfo(){
+        try{
+            Intent intent=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName()));
+            startActivity(intent);
+        }catch(Exception e){Toast.makeText(this,"App info settings are unavailable.",Toast.LENGTH_LONG).show();}
+    }
 
     private void renderList(){
         if(list==null)return;

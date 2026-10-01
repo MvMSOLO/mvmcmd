@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Camera, Command, Image as ImageIcon, Languages, ScanLine, Search, Settings2, Sparkles } from "lucide-react";
 import { CATALOG, CATALOG_BY_ID, CATEGORIES } from "@/lib/mvm/catalog";
 import { lookupCommand, parseLine } from "@/lib/mvm/commands";
 import { t } from "@/lib/mvm/copy";
@@ -7,7 +8,14 @@ import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import { EMPTY, loadState, saveState } from "@/lib/mvm/persist";
 import { detectRuntime } from "@/lib/mvm/platform";
-import { canUseNativeAndroidLauncher, nativeOpenEnglish, nativeOpenNotifications } from "@/lib/mvm/native-launcher";
+import {
+  canUseNativeAndroidLauncher,
+  nativeOpenCamera,
+  nativeOpenEnglish,
+  nativeOpenNotifications,
+  nativeOpenQr,
+  nativeOpenWallpaper,
+} from "@/lib/mvm/native-launcher";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
@@ -24,7 +32,7 @@ function useClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
+return () => window.clearInterval(id);
   }, []);
   return now;
 }
@@ -72,6 +80,57 @@ function Mark({ name }: { name: string }) {
   );
 }
 
+type QuickTool = {
+  id: string;
+  label: string;
+  description: string;
+  command: string;
+  icon: typeof Camera;
+  tone: string;
+  native?: () => Promise<{ opened: boolean }>;
+};
+
+const QUICK_TOOLS: QuickTool[] = [
+  { id: "camera", label: "Camera", description: "Capture · enhance · 4:3", command: "open camera", icon: Camera, tone: "from-sky-400/20 to-cyan-300/5", native: nativeOpenCamera },
+  { id: "qr", label: "QR Studio", description: "Scan · history · actions", command: "open qr", icon: ScanLine, tone: "from-violet-400/20 to-fuchsia-300/5", native: nativeOpenQr },
+  { id: "english", label: "English Lab", description: "A1 → C2 · practice", command: "english", icon: Languages, tone: "from-emerald-400/20 to-lime-300/5", native: nativeOpenEnglish },
+  { id: "wallpaper", label: "Wallpaper", description: "Dynamic · live · 3D", command: "wallpaper", icon: ImageIcon, tone: "from-amber-400/20 to-orange-300/5", native: nativeOpenWallpaper },
+  { id: "notifications", label: "Notifications", description: "Center · access · history", command: "notification", icon: Bell, tone: "from-rose-400/20 to-pink-300/5", native: nativeOpenNotifications },
+];
+
+function QuickToolCard({
+  tool,
+  onOpen,
+}: {
+  tool: QuickTool;
+  onOpen: (tool: QuickTool) => void;
+}) {
+  const Icon = tool.icon;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(tool)}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-white/8 bg-white/[0.035] p-3.5 text-left",
+        "transition duration-300 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[0.06]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+      )}
+    >
+      <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br opacity-80", tool.tone)} />
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/90">
+          <Icon size={19} strokeWidth={1.8} />
+        </span>
+        <Sparkles size={14} className="text-white/30 transition group-hover:text-white/65" />
+      </div>
+      <div className="relative mt-4">
+        <div className="font-display text-sm font-bold tracking-tight text-white">{tool.label}</div>
+        <div className="mt-1 text-[10px] leading-relaxed text-white/42">{tool.description}</div>
+      </div>
+    </button>
+  );
+}
+
 export function MvmShell() {
   const [state, setState] = useState<PersistedState>(EMPTY);
   const [phase, setPhase] = useState<"gate" | "boot" | "live">("gate");
@@ -85,6 +144,41 @@ export function MvmShell() {
   const inputRef = useRef<HTMLInputElement>(null);
   const clock = useClock();
   useKeyboardInset();
+
+  async function openQuickTool(tool: QuickTool) {
+    if (canUseNativeAndroidLauncher() && tool.native) {
+      try {
+        const result = await tool.native();
+        append([
+          makeLine(
+            result.opened ? "ok" : "warn",
+            result.opened ? `${tool.label.toUpperCase()}  OPENED` : `${tool.label.toUpperCase()}  FAILED`,
+            { meta: result.opened ? "NATIVE ACTIVITY" : "ANDROID ACTIVITY LAUNCH FAILED" },
+          ),
+        ]);
+      } catch (error: unknown) {
+        append([
+          makeLine("warn", `${tool.label.toUpperCase()}  FAILED`, {
+            meta: error instanceof Error ? error.message : String(error),
+          }),
+        ]);
+      }
+      return;
+    }
+    commit(tool.command);
+  }
+
+  useEffect(() => {
+    const onGlobalKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onGlobalKey);
+    return () => window.removeEventListener("keydown", onGlobalKey);
+  }, []);
 
   useEffect(() => {
     const runtime = detectRuntime();
@@ -279,9 +373,12 @@ export function MvmShell() {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <header className="enter-down d1 flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
-        <div>
-          <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
-          <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
+        <div className="flex items-center gap-3">
+          <img src="/brand/mvmcmd-logo.webp" alt="MVMCMD" className="size-11 rounded-xl border border-white/10 object-cover shadow-lg shadow-cyan-950/30" width="44" height="44" />
+          <div>
+            <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
+            <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
+          </div>
         </div>
         <div className="text-right font-mono text-label leading-relaxed text-muted">
           <p className="tabular-nums text-fg">{formatClock(clock)}</p>
@@ -298,6 +395,78 @@ export function MvmShell() {
           </button>
         </div>
       </header>
+
+      <main className="mx-auto w-full max-w-6xl px-4 pb-3 sm:px-6">
+        <section className="enter-fade d2 mvm-hero mt-4 overflow-hidden rounded-[28px] border border-white/8">
+          <div className="pointer-events-none absolute inset-0 opacity-90">
+            <div className="mvm-orb mvm-orb-a" />
+            <div className="mvm-orb mvm-orb-b" />
+          </div>
+          <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[1.15fr_.85fr]">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mvm-pill"><span className="mvm-pulse" /> SYSTEM ONLINE</span>
+                <span className="mvm-pill">BUILD 2.0 / CORE</span>
+                <span className="mvm-pill">{CATALOG.length} INDEXED</span>
+              </div>
+              <h2 className="mt-5 max-w-2xl font-display text-3xl font-extrabold tracking-[-0.045em] text-white sm:text-5xl">
+                One command layer.
+                <span className="block text-white/45">Every useful tool.</span>
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-white/48">
+                Camera, QR, English, media and system actions now live inside one cohesive control surface.
+                Type a command or launch a tool directly.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.focus()}
+                  className="mvm-glass-button"
+                >
+                  <Search size={15} />
+                  Focus command
+                  <kbd>⌘K</kbd>
+                </button>
+                <button type="button" onClick={() => commit("help")} className="mvm-glass-button">
+                  <Command size={15} />
+                  Explore commands
+                </button>
+              </div>
+            </div>
+            <div className="relative flex items-end justify-end">
+              <div className="pointer-events-none absolute -inset-8 rounded-[32px] bg-cyan-400/10 blur-3xl" />
+              <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-2xl backdrop-blur-xl lg:max-w-sm">
+                <picture>
+                  <source media="(min-width: 1024px)" srcSet="/brand/mvmcmd-desktop-preview.webp" />
+                  <img src="/brand/mvmcmd-mobile-preview.webp" alt="MVMCMD product preview" className="block w-full opacity-90" width="768" height="323" loading="eager" />
+                </picture>
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-white/60">MVMCMD / mobile</div>
+              </div>
+              <div className="sr-only">
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-white/35">
+                  <span>Runtime</span>
+                  <span>{platform}{standalone ? " · PWA" : ""}</span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <RuntimeMetric label="Native bridge" value={canUseNativeAndroidLauncher() ? "READY" : "WEB MODE"} />
+                  <RuntimeMetric label="Session" value={state.gateSeen ? "PERSISTED" : "NEW"} />
+                  <RuntimeMetric label="Command index" value={String(CATALOG.length)} />
+                  <RuntimeMetric label="Language" value={lang.toUpperCase()} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {QUICK_TOOLS.map((tool, i) => (
+            <div key={tool.id} className={cn("enter-up", `d${Math.min(i + 3, 6)}`)}>
+              <QuickToolCard tool={tool} onOpen={openQuickTool} />
+            </div>
+          ))}
+        </section>
+      </main>
 
       <div className="mvm-cols mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
         <aside className="enter-left d2 hidden border-r border-line p-4 lg:block">
@@ -465,6 +634,15 @@ export function MvmShell() {
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+function RuntimeMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/7 bg-white/[0.03] px-3 py-2.5">
+      <div className="text-[9px] uppercase tracking-[0.16em] text-white/30">{label}</div>
+      <div className="mt-1 font-mono text-[11px] font-semibold text-white/80">{value}</div>
     </div>
   );
 }

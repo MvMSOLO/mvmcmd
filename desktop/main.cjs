@@ -101,6 +101,7 @@ async function createWindow() {
     minHeight: 700,
     show: false,
     backgroundColor: "#08090c",
+    icon: path.join(getWebRoot(), "brand", "mvmcmd-logo.webp"),
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
