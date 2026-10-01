@@ -13,12 +13,14 @@ import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
 import { Mvm3D } from "./mvm-3d";
 import { MVM_3D, MVM_3D_ASSETS } from "@/lib/mvm/3d-assets";
+import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
 
 const BOOT_LINES = [
   "kernel     vector ready",
   `index      ${CATALOG.length} surfaces`,
   "matcher    prefix · alias · token · subseq",
   "launch     intent / scheme / web",
+  `motion     ${MOTION_COUNTS.total} recipes · ${MOTION_COUNTS.custom} custom · ${MOTION_COUNTS.handcrafted} hand · ${MOTION_COUNTS.trending} trend`,
   "hint       ef → eFootball",
 ];
 
@@ -280,7 +282,7 @@ export function MvmShell() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="enter-down d1 flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
+      <header className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
@@ -302,14 +304,14 @@ export function MvmShell() {
         </div>
       </header>
 
-      <div className="hidden border-b border-line px-4 py-2 lg:flex lg:items-center lg:justify-center lg:gap-5">
+      <div className="hidden mvm-motion-scanline border-b border-line px-4 py-2 lg:flex lg:items-center lg:justify-center lg:gap-5">
         {MVM_3D_ASSETS.map((asset) => (
           <Mvm3D key={asset.id} asset={asset} size="xs" label />
         ))}
       </div>
 
       <div className="mvm-cols mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
-        <aside className="enter-left d2 hidden border-r border-line p-4 lg:block">
+        <aside className="enter-left d2 mvm-trend-bento hidden border-r border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "pinned")}</p>
           <ul className="mt-3 space-y-1">
             {pins.length === 0 ? (
@@ -348,7 +350,7 @@ export function MvmShell() {
           </ul>
         </aside>
 
-        <section className="enter-fade d3 flex min-h-0 flex-col">
+        <section className="enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
           <div
             ref={logRef}
             className="min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
@@ -373,7 +375,7 @@ export function MvmShell() {
           </div>
         </section>
 
-        <aside className="enter-right d4 hidden border-l border-line p-4 lg:block">
+        <aside className="enter-right d4 mvm-trend-glass hidden border-l border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "catalog")}</p>
           <ul className="mt-3 space-y-0.5">
             {CATEGORIES.map((cat) => (
@@ -469,11 +471,11 @@ export function MvmShell() {
             autoCorrect="off"
             spellCheck={false}
             placeholder={t(lang, "prompt")}
-            className="mvm-caret min-h-11 min-w-0 flex-1 bg-transparent font-mono text-base text-fg outline-none placeholder:text-faint"
+            className="mvm-caret mvm-hand-shimmer min-h-11 min-w-0 flex-1 bg-transparent font-mono text-base text-fg outline-none placeholder:text-faint"
           />
           <button
             type="submit"
-            className="hidden rounded-sm bg-accent px-4 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:inline-flex"
+            className="mvm-hand-magnetic mvm-hand-spring-snap hidden rounded-sm bg-accent px-4 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:inline-flex"
           >
             {t(lang, "launch")}
           </button>
