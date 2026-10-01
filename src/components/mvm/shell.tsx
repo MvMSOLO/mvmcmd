@@ -383,7 +383,7 @@ export function MvmShell() {
                 <button
                   type="button"
                   onClick={() => commit(`ls ${cat}`)}
-                  className="w-full rounded-sm px-1 py-2 text-left font-mono text-xs capitalize text-muted hover:bg-raised hover:text-fg"
+                  className="mvm-hand-magnetic w-full rounded-sm px-1 py-2 text-left font-mono text-xs capitalize text-muted hover:bg-raised hover:text-fg"
                 >
                   {cat}
                 </button>
