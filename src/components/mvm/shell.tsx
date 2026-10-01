@@ -434,7 +434,7 @@ export function MvmShell() {
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} />
-                  <span className="min-w-0 flex-1 truncate font-mono text-sm">{hit.app.name}</span>
+                  <span data-motion="21-kinetic-type" className="mvm-trend-kinetic min-w-0 flex-1 truncate font-mono text-sm">{hit.app.name}</span>
                   <span className="hidden font-mono text-micro uppercase tracking-wider text-faint sm:block">
                     {hit.reason}
                   </span>
