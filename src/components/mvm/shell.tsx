@@ -304,7 +304,7 @@ export function MvmShell() {
         </div>
       </header>
 
-      <div className="hidden mvm-motion-scanline border-b border-line px-4 py-2 lg:flex lg:items-center lg:justify-center lg:gap-5">
+      <div data-motion="07-mvm-scanline" className="hidden mvm-motion-scanline border-b border-line px-4 py-2 lg:flex lg:items-center lg:justify-center lg:gap-5">
         {MVM_3D_ASSETS.map((asset) => (
           <Mvm3D key={asset.id} asset={asset} size="xs" label />
         ))}
