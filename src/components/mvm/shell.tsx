@@ -427,7 +427,7 @@ export function MvmShell() {
                   onClick={() => commit(input, hit.app)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left",
-                    i === sel ? "bg-raised mvm-hand-focus" : "hover:bg-surface",
+                    i === sel ? "bg-raised mvm-hand-focus mvm-trend-cursor" : "mvm-trend-cursor hover:bg-surface",
                   )}
                 >
                   <span className="w-6 font-mono text-micro tabular-nums text-faint">
