@@ -373,9 +373,12 @@ export function MvmShell() {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <header className="enter-down d1 flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
-        <div>
-          <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
-          <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
+        <div className="flex items-center gap-3">
+          <img src="/brand/mvmcmd-logo.webp" alt="MVMCMD" className="size-11 rounded-xl border border-white/10 object-cover shadow-lg shadow-cyan-950/30" width="44" height="44" />
+          <div>
+            <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
+            <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
+          </div>
         </div>
         <div className="text-right font-mono text-label leading-relaxed text-muted">
           <p className="tabular-nums text-fg">{formatClock(clock)}</p>
