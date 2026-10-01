@@ -25,7 +25,7 @@ function Cube({ variant }: { variant: Mvm3DAsset["variant"] }) {
     return <div className="mvm3d-pulse"><i /><i /><i /><i /></div>;
   }
   if (variant === "card") {
-    return <div className="mvm3d-card"><span /></div>;
+    return <div data-motion="10-card-orbit" className="mvm3d-card mvm-motion-card-orbit"><span /></div>;
   }
   if (variant === "core") {
     return <div data-motion="03-core-breathe" className="mvm3d-core mvm-motion-core-breathe"><span /><i /></div>;
