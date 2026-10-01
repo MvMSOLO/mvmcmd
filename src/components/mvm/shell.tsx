@@ -430,8 +430,14 @@ export function MvmShell() {
                 </button>
               </div>
             </div>
-            <div className="flex items-end justify-end">
-              <div className="w-full rounded-2xl border border-white/8 bg-black/20 p-4 backdrop-blur-xl lg:max-w-sm">
+            <div className="relative flex items-end justify-end">
+              <div className="pointer-events-none absolute -inset-8 rounded-[32px] bg-cyan-400/10 blur-3xl" />
+              <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-2xl backdrop-blur-xl lg:max-w-sm">
+                <img src="/brand/mvmcmd-mobile-preview.webp" alt="MVMCMD mobile preview" className="block w-full opacity-90" loading="eager" />
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-white/60">MVMCMD / mobile</div>
+              </div>
+              <div className="sr-only">
                 <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-white/35">
                   <span>Runtime</span>
                   <span>{platform}{standalone ? " · PWA" : ""}</span>
