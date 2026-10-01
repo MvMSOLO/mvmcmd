@@ -284,7 +284,7 @@ export function MvmShell() {
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
-          <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
+          <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <h1 data-motion="16-text-shimmer" className="mvm-hand-shimmer font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
         <div data-motion="27-svg-draw" className="mvm-svg-draw hidden h-8 w-20 items-center justify-center md:flex" aria-hidden="true">
           <svg viewBox="0 0 160 32" className="h-full w-full" fill="none">
