@@ -36,7 +36,7 @@ function Cube({ variant }: { variant: Mvm3DAsset["variant"] }) {
 export function Mvm3D({ asset, size = "sm", interactive = true, label = false }: Props) {
   const content = (
     <div className={`mvm3d-wrap mvm3d-${size}`} aria-label={asset.name}>
-      <div className="mvm3d-stage"><Cube variant={asset.variant} /></div>
+      <div data-motion="25-3d-depth" className="mvm3d-stage mvm-trend-depth"><Cube variant={asset.variant} /></div>
       {label && <span className="mvm3d-label"><b>{asset.name}</b><small>{asset.purpose}</small></span>}
     </div>
   );
