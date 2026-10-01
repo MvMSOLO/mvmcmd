@@ -122,7 +122,7 @@ export function PermissionGate({ lang, onDone }: GateProps) {
               className={cn(
                 card.enter,
                 card.delay,
-                "mvm-frame flex min-h-44 flex-col items-start rounded-lg bg-surface p-5 text-left",
+                "mvm-hand-spring-snap mvm-frame flex min-h-44 flex-col items-start rounded-lg bg-surface p-5 text-left",
                 "transition-[box-shadow,transform] duration-150 ease-out active:scale-[0.96]",
                 "hover:shadow-[var(--shadow-border-hover)]",
                 granted && "mvm-ok-ring",
