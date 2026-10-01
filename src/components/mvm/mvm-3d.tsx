@@ -42,7 +42,7 @@ export function Mvm3D({ asset, size = "sm", interactive = true, label = false }:
   );
   if (!interactive) return content;
   return (
-    <button type="button" className="mvm3d-button" title={`Open ${asset.name} in KernelCAD Studio`} onClick={() => window.open(asset.kernelCadUrl, "_blank", "noopener,noreferrer")}>
+    <button data-motion="18-3d-hover" type="button" className="mvm3d-button mvm-hand-3d" title={`Open ${asset.name} in KernelCAD Studio`} onClick={() => window.open(asset.kernelCadUrl, "_blank", "noopener,noreferrer")}>
       {content}
     </button>
   );
