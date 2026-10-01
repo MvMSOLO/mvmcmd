@@ -403,7 +403,7 @@ export function MvmShell() {
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))", marginBottom: "var(--kb, 0px)" }}
       >
         {recents.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto px-4 pt-3 lg:hidden">
+          <div className="mvm-trend-scroll flex gap-2 overflow-x-auto px-4 pt-3 lg:hidden">
             {recents.slice(0, 6).map((app) => (
               <button
                 key={app.id}
