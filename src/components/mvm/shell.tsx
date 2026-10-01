@@ -374,6 +374,7 @@ export function MvmShell() {
                 onClick={() => commit(`open ${app.name}`)}
                 className="flex shrink-0 items-center gap-2 rounded-sm bg-surface px-3 py-2 mvm-frame"
               >
+                <Mvm3D variant="object" className="size-5" />
                 <Mark name={app.name} />
                 <span className="font-mono text-xs">{app.name}</span>
               </button>
