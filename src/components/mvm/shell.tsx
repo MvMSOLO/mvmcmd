@@ -361,8 +361,8 @@ export function MvmShell() {
                 <div><p className="font-display text-xs font-bold">MVM CORE INITIALIZING</p><p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p></div>
               </div>
             )}
-            {lines.map((row) => (
-              <LogRow key={row.id} row={row} onOpen={(id) => {
+            {lines.map((row, i) => (
+              <LogRow key={row.id} index={i} row={row} onOpen={(id) => {
                 const app = CATALOG_BY_ID[id];
                 if (app) commit(`open ${app.name}`);
               }} />
