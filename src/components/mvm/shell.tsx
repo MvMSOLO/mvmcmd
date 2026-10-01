@@ -358,7 +358,7 @@ export function MvmShell() {
             {phase === "boot" && (
               <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mb-4 flex items-center gap-3 border border-line bg-surface px-3 py-2">
                 <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
-                <div><p className="font-display text-xs font-bold">MVM CORE INITIALIZING</p><p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p></div>
+                <div><p data-motion="19-ink-reveal" className="mvm-hand-ink font-display text-xs font-bold">MVM CORE INITIALIZING</p><p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p></div>
               </div>
             )}
             {lines.map((row, i) => (
