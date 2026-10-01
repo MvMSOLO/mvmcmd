@@ -10,6 +10,7 @@ import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
+import { Mvm3D } from "./mvm-3d";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -250,7 +251,8 @@ export function MvmShell() {
     .slice(0, 8);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
+    <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-bg text-fg">
+      {platform === "desktop" && <Mvm3D variant="backdrop" className="mvm-3d-desktop-bg" />}
       <header className="enter-down d1 flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
@@ -287,7 +289,8 @@ export function MvmShell() {
                     className="flex w-full items-center gap-2 rounded-sm px-1 py-2 text-left hover:bg-raised"
                   >
                     <Mark name={app.name} />
-                    <span className="truncate font-mono text-xs">{app.name}</span>
+                    <Mvm3D variant="object" className="size-6" />
+                  <span className="truncate font-mono text-xs">{app.name}</span>
                   </button>
                 </li>
               ))
@@ -324,9 +327,13 @@ export function MvmShell() {
               }} />
             ))}
             {phase === "boot" && (
-              <p className="text-muted">
-                <span className="mvm-block inline-block h-4 w-2 bg-fg align-middle" />
-              </p>
+              <div className="mt-4 flex items-center gap-3 text-muted">
+                <Mvm3D variant="cube" label="MVMCMD boot cube" decorative={false} />
+                <p>
+                  <span className="mvm-block inline-block h-4 w-2 bg-fg align-middle" />
+                  <span className="ml-2 font-mono text-micro uppercase tracking-mark text-faint">3D CORE ONLINE</span>
+                </p>
+              </div>
             )}
           </div>
         </section>
@@ -367,6 +374,7 @@ export function MvmShell() {
                 onClick={() => commit(`open ${app.name}`)}
                 className="flex shrink-0 items-center gap-2 rounded-sm bg-surface px-3 py-2 mvm-frame"
               >
+                <Mvm3D variant="object" className="size-5" />
                 <Mark name={app.name} />
                 <span className="font-mono text-xs">{app.name}</span>
               </button>
@@ -390,6 +398,7 @@ export function MvmShell() {
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <Mark name={hit.app.name} />
+                  <Mvm3D variant="object" className="size-6" />
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{hit.app.name}</span>
                   <span className="hidden font-mono text-micro uppercase tracking-wider text-faint sm:block">
                     {hit.reason}
@@ -411,6 +420,7 @@ export function MvmShell() {
             }
           }}
         >
+          <Mvm3D variant="core" className="size-7 sm:size-8" />
           <span className="font-display text-lg text-accent" aria-hidden>
             ▸
           </span>
@@ -454,9 +464,23 @@ function LogRow({ row, onOpen }: { row: LogLine; onOpen: (id: string) => void })
             ? "text-accent"
             : "text-muted";
 
+  const specialVariant =
+    row.text.startsWith("ENGLISH LAB") ? "letters" :
+    row.text.startsWith("WALLPAPER") ? "preview" :
+    row.kind === "ok" ? "symbol" :
+    row.kind === "warn" ? "symbol" :
+    null;
+
   const body = (
     <>
       {row.kind === "in" && <span className="mr-2 text-accent">▸</span>}
+      {specialVariant && (
+        <Mvm3D
+          variant={specialVariant}
+          status={row.kind === "ok" ? "success" : row.kind === "warn" ? "error" : "idle"}
+          className="mr-2 size-5 align-middle"
+        />
+      )}
       <span>{row.text}</span>
       {row.meta ? <span className="ml-3 text-faint">{row.meta}</span> : null}
     </>

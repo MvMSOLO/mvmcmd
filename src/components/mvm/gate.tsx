@@ -10,6 +10,7 @@ import {
 import { detectRuntime } from "@/lib/mvm/platform";
 import type { Lang } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
+import { Mvm3D } from "./mvm-3d";
 
 interface GateProps {
   lang: Lang;
@@ -100,9 +101,12 @@ export function PermissionGate({ lang, onDone }: GateProps) {
     <div className="flex min-h-dvh flex-col bg-bg px-4 py-8 text-fg sm:px-8">
       <header className="enter-down d1 mx-auto w-full max-w-5xl">
         <p className="font-mono text-micro tracking-mark text-muted">{t(lang, "grantTitle")}</p>
-        <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-fg sm:text-5xl">
-          MVMCMD
-        </h1>
+        <div className="flex items-end gap-3">
+          <Mvm3D variant="core" className="size-10" />
+          <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-fg sm:text-5xl">
+            MVMCMD
+          </h1>
+        </div>
         <p className="mt-3 max-w-xl text-pretty font-mono text-sm leading-relaxed text-muted">
           {t(lang, "grantLead")}
         </p>
@@ -128,7 +132,14 @@ export function PermissionGate({ lang, onDone }: GateProps) {
                 granted && "mvm-ok-ring",
               )}
             >
-              <Icon className="size-5 text-accent" strokeWidth={1.75} />
+              <div className="flex w-full items-center justify-between gap-3">
+                <Icon className="size-5 text-accent" strokeWidth={1.75} />
+                <Mvm3D
+                  variant="status"
+                  status={granted ? "success" : denied ? "error" : "loading"}
+                  className="size-8"
+                />
+              </div>
               <span className="mt-6 font-display text-lg font-semibold tracking-tight">
                 {card.title}
               </span>
