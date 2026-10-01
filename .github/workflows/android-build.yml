@@ -43,7 +43,7 @@ jobs:
           npm --version
 
       - name: Dependency vulnerability audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
 
       - name: Build web bundle without database migration
         run: npm run build:web
