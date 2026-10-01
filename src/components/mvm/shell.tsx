@@ -311,7 +311,7 @@ export function MvmShell() {
       </div>
 
       <div className="mvm-cols mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
-        <aside className="enter-left d2 mvm-trend-bento hidden border-r border-line p-4 lg:block">
+        <aside data-motion="06-rail-drift" className="enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "pinned")}</p>
           <ul className="mt-3 space-y-1">
             {pins.length === 0 ? (
