@@ -286,6 +286,11 @@ export function MvmShell() {
         <div>
           <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <h1 data-motion="16-text-shimmer" className="mvm-hand-shimmer font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
+        <div data-motion="27-svg-draw" className="mvm-svg-draw hidden h-8 w-20 items-center justify-center md:flex" aria-hidden="true">
+          <svg viewBox="0 0 160 32" className="h-full w-full" fill="none">
+            <path d="M4 24 C28 4, 48 28, 72 12 S116 4, 156 16" />
+          </svg>
+        </div>
         </div>
         <div className="flex items-end gap-3 text-right font-mono text-label leading-relaxed text-muted">
           <Mvm3D asset={MVM_3D["command-core"]} size="xs" />
