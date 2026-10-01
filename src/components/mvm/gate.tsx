@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Bell, HardDrive, PlusSquare } from "lucide-react";
 import { t } from "@/lib/mvm/copy";
 import {
@@ -109,7 +109,7 @@ export function PermissionGate({ lang, onDone }: GateProps) {
       </header>
 
       <div className="mx-auto mt-10 grid w-full max-w-5xl gap-3 sm:grid-cols-3">
-        {cards.map((card) => {
+        {cards.map((card, index) => {
           const Icon = card.icon;
           const granted = card.state === "ok";
           const denied = card.state === "no";
@@ -127,6 +127,7 @@ export function PermissionGate({ lang, onDone }: GateProps) {
                 "hover:shadow-[var(--shadow-border-hover)]",
                 granted && "mvm-ok-ring",
               )}
+              style={{ "--mvm-stagger": `${index * 90}ms` } as CSSProperties}
             >
               <Icon className="size-5 text-accent" strokeWidth={1.75} />
               <span className="mt-6 font-display text-lg font-semibold tracking-tight">
