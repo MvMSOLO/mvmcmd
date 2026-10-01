@@ -485,7 +485,7 @@ export function MvmShell() {
   );
 }
 
-function LogRow({ row, onOpen }: { row: LogLine; onOpen: (id: string) => void }) {
+function LogRow({ row, index, onOpen }: { row: LogLine; index: number; onOpen: (id: string) => void }) {
   const color =
     row.kind === "ok"
       ? "text-ok"
@@ -507,11 +507,11 @@ function LogRow({ row, onOpen }: { row: LogLine; onOpen: (id: string) => void })
 
   if (row.appId && (row.kind === "match" || row.kind === "out")) {
     return (
-      <button type="button" onClick={() => onOpen(row.appId!)} className={cn("block w-full text-left", color)}>
+      <button type="button" onClick={() => onOpen(row.appId!)} className={cn("mvm-motion-log-cascade block w-full text-left", color)} style={{ animationDelay: `${Math.min(index, 20) * 35}ms` }}>
         {body}
       </button>
     );
   }
 
-  return <p className={color}>{body}</p>;
+  return <p className={cn("mvm-motion-log-cascade", color)} style={{ animationDelay: `${Math.min(index, 20) * 35}ms` }}>{body}</p>;
 }
