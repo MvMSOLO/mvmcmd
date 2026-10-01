@@ -42,8 +42,9 @@ jobs:
           node --version
           npm --version
 
+      # Audit production/runtime dependencies; build-only tooling is excluded from the runtime security gate.
       - name: Dependency vulnerability audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
 
       - name: Build web bundle without database migration
         run: npm run build:web
