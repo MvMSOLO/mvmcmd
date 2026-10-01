@@ -282,7 +282,7 @@ export function MvmShell() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
+      <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p className="font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
