@@ -16,3 +16,5 @@ export const MVM_3D_ASSETS: Mvm3DAsset[] = [
   { id: "shared-engine", name: "3D Engine Core", purpose: "Shared renderer", kernelCadUrl: "https://app.kernelcad.com/p/BV2ZwFBG?version=1", variant: "engine" },
   { id: "performance-pulse", name: "Performance Pulse", purpose: "Lifecycle/performance", kernelCadUrl: "https://app.kernelcad.com/p/lEmdsEKt?version=1", variant: "pulse" },
 ];
+
+export const MVM_3D = Object.fromEntries(MVM_3D_ASSETS.map((asset) => [asset.id, asset])) as Record<string, Mvm3DAsset>;
