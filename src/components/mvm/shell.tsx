@@ -444,8 +444,8 @@ export function MvmShell() {
           </ul>
         )}
 
-        <form
-          className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
+        <form data-motion="09-input-ignite"
+          className="mvm-motion-input-ignite mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
           onSubmit={(e) => {
             e.preventDefault();
             if (selected && q && !lookupCommand(input.trim().split(/\s+/)[0] ?? "")) {
