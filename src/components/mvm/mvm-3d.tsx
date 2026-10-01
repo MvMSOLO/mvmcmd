@@ -16,7 +16,7 @@ function Cube({ variant }: { variant: Mvm3DAsset["variant"] }) {
     return <div className="mvm3d-orb" style={{ borderColor: accent }}><span /></div>;
   }
   if (variant === "status") {
-    return <div className="mvm3d-status" style={{ borderColor: accent }}><span /></div>;
+    return <div data-motion="08-status-bloom" className="mvm3d-status mvm-motion-status-bloom" style={{ borderColor: accent }}><span /></div>;
   }
   if (variant === "engine") {
     return <div className="mvm3d-engine"><span /><span /><span /></div>;
