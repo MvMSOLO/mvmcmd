@@ -90,6 +90,13 @@ export function MvmShell() {
   const clock = useClock();
   useKeyboardInset();
 
+  function syncLogParallax() {
+    const node = logRef.current;
+    if (!node) return;
+    const shift = Math.min(48, node.scrollTop * 0.08);
+    node.style.setProperty("--mvm-parallax-y", `${-shift}px`);
+  }
+
   useEffect(() => {
     const runtime = detectRuntime();
     setPlatform(runtime.platform);
@@ -358,8 +365,10 @@ export function MvmShell() {
         <section className="enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
           <div data-motion="04-terminal-flicker"
             ref={logRef}
-            className="min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
+            onScroll={syncLogParallax}
+            className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
           >
+            <div data-motion="29-scroll-parallax" aria-hidden className="mvm-trend-parallax pointer-events-none absolute inset-x-8 top-8 h-24 rounded-full opacity-20" style={{ background: "radial-gradient(ellipse at center, color-mix(in oklab, var(--color-ok) 28%, transparent), transparent 68%)" }} />
             {phase === "boot" && (
               <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mb-4 flex items-center gap-3 border border-line bg-surface px-3 py-2">
                 <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
