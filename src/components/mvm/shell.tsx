@@ -351,7 +351,7 @@ export function MvmShell() {
         </aside>
 
         <section className="enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
-          <div
+          <div data-motion="04-terminal-flicker"
             ref={logRef}
             className="min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
           >
