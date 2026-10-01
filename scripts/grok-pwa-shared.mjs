@@ -173,7 +173,7 @@ export function renderWebManifest(hostHeader) {
         {
           src: "/brand/mvmcmd-logo.webp",
           sizes: "180x180",
-          type: "image/png",
+          type: "image/webp",
         },
       ],
     },
