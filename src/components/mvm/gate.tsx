@@ -98,7 +98,7 @@ export function PermissionGate({ lang, onDone }: GateProps) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg px-4 py-8 text-fg sm:px-8">
-      <header className="enter-down d1 mx-auto w-full max-w-5xl">
+      <header data-motion="15-glass-sweep" className="enter-down d1 mvm-hand-glass-sweep mx-auto w-full max-w-5xl">
         <p className="font-mono text-micro tracking-mark text-muted">{t(lang, "grantTitle")}</p>
         <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-fg sm:text-5xl">
           MVMCMD
