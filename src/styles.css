@@ -280,3 +280,6 @@
 @keyframes mvm-svg-draw{to{stroke-dashoffset:0}}
 
 @layer components{.mvm-trend-parallax{animation:none!important;transform:translate3d(0,var(--mvm-parallax-y,0px),0);transition:transform 80ms linear}}
+
+@layer components{::view-transition-old(mvm-view){animation:mvm-view-out .18s var(--ease-out) both}::view-transition-new(mvm-view){animation:mvm-view-in .34s var(--ease-out) both}}
+@keyframes mvm-view-out{to{opacity:0;transform:translateY(-4px) scale(.995);filter:blur(2px)}}@keyframes mvm-view-in{from{opacity:0;transform:translateY(6px) scale(.998);filter:blur(2px)}to{opacity:1;transform:none;filter:none}}
