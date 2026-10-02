@@ -1279,3 +1279,253 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 03 — no-nonsense UX cleanup
+   Dominant reference principle: one focal action, fewer signals,
+   more whitespace, less ornament. Functionality stays untouched.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  body::before { opacity: .1; }
+
+  .mvm-trend-view::after { opacity: .3; }
+
+  .mvm-svg-draw { display: none !important; }
+
+  .mvm-trend-view > header {
+    min-height: 68px;
+    box-shadow: 0 8px 26px color-mix(in oklab, #000 18%, transparent);
+  }
+
+  .mvm-header-status {
+    gap: .55rem;
+    color: color-mix(in oklab, var(--color-muted) 74%, transparent);
+  }
+
+  .mvm-secondary-action {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    opacity: .56;
+    transition: opacity .18s ease, color .18s ease;
+  }
+
+  .mvm-secondary-action:hover {
+    opacity: 1;
+    transform: none !important;
+  }
+
+  .mvm-secondary-strip {
+    min-height: 46px;
+    background: color-mix(in oklab, var(--color-bg) 96%, transparent);
+    border-color: color-mix(in oklab, var(--color-fg) 5%, transparent);
+  }
+
+  .mvm-secondary-strip .mvm3d-wrap {
+    opacity: .64;
+    transform: scale(.94);
+    transition: opacity .2s ease, transform .2s var(--ease-out);
+  }
+
+  .mvm-secondary-strip .mvm3d-wrap:hover {
+    opacity: .9;
+    transform: scale(.98);
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .mvm-secondary-strip .mvm3d-label {
+    transform: scale(.92);
+    transform-origin: left center;
+  }
+
+  .mvm-secondary-rail {
+    background: transparent !important;
+    border-color: color-mix(in oklab, var(--color-fg) 5%, transparent) !important;
+  }
+
+  .mvm-secondary-rail > p:first-child {
+    opacity: .72;
+    margin-top: .15rem;
+  }
+
+  .mvm-secondary-rail > p.mt-8 {
+    margin-top: 1.35rem;
+  }
+
+  .mvm-secondary-rail ul { opacity: .82; }
+
+  .mvm-secondary-rail button {
+    min-height: 30px;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    background: transparent !important;
+  }
+
+  .mvm-secondary-rail button:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklab, var(--color-fg) 3%, transparent) !important;
+    transform: translateX(1px) !important;
+  }
+
+  .mvm-cols > section > div:first-child::before { display: none; }
+
+  .mvm-cols > section .mvm-motion-vector-scan::after { display: none; }
+
+  .mvm-command-stream {
+    padding-top: 1.15rem;
+    padding-bottom: 2rem;
+  }
+
+  .mvm-command-stream > .mvm-trend-parallax {
+    opacity: .09 !important;
+  }
+
+  .mvm-command-stream .mvm-motion-log-cascade { margin-block: .12rem; }
+
+  .mvm-command-stream .mvm-motion-log-cascade + .mvm-motion-log-cascade {
+    margin-top: .18rem;
+  }
+
+  .mvm-boot-identity {
+    border-color: color-mix(in oklab, var(--color-fg) 5%, transparent) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-inline: 0 !important;
+    border-top: 0 !important;
+    border-radius: 0 !important;
+    padding-inline: .25rem !important;
+  }
+
+  .mvm-boot-identity__meta { padding-left: 0; }
+
+  .mvm-query-results {
+    gap: .15rem;
+    padding-top: .45rem;
+  }
+
+  .mvm-query-results::before {
+    opacity: 0 !important;
+    transform: none !important;
+  }
+
+  .mvm-query-item {
+    min-height: 38px;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    transform: none !important;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item {
+    min-height: 44px;
+    padding-top: .46rem;
+    padding-bottom: .46rem;
+  }
+
+  .mvm-query-item:hover {
+    transform: none !important;
+    background: color-mix(in oklab, var(--color-fg) 3%, transparent) !important;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+    min-height: 50px;
+    transform: none !important;
+    border-color: color-mix(in oklab, var(--color-ok) 12%, transparent) !important;
+    background: color-mix(in oklab, var(--color-ok) 4%, transparent) !important;
+    box-shadow: inset 2px 0 color-mix(in oklab, var(--color-ok) 56%, transparent) !important;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus .mvm3d-wrap {
+    transform: scale(1.02);
+    filter: brightness(1.06);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus .mvm-trend-kinetic {
+    transform: none;
+    letter-spacing: normal;
+  }
+
+  .mvm-primary-command {
+    min-height: 70px;
+    border-top: 1px solid color-mix(in oklab, var(--color-fg) 6%, transparent);
+    background: color-mix(in oklab, var(--color-bg) 93%, transparent);
+    box-shadow: none;
+    backdrop-filter: blur(14px);
+  }
+
+  .mvm-primary-command input {
+    border: 0 !important;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-fg) 10%, transparent) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .mvm-primary-command:focus-within input {
+    border-bottom-color: color-mix(in oklab, var(--color-ok) 46%, transparent) !important;
+    box-shadow: 0 4px 18px color-mix(in oklab, var(--color-ok) 4%, transparent) !important;
+  }
+
+  .mvm-primary-command button[type="submit"] {
+    min-width: 74px;
+    min-height: 42px;
+    border-radius: 8px;
+    box-shadow: none;
+    background: var(--color-fg);
+    color: var(--color-bg);
+  }
+
+  .mvm-primary-command button[type="submit"]:hover {
+    box-shadow: none;
+    transform: none;
+    background: color-mix(in oklab, var(--color-fg) 92%, var(--color-ok));
+  }
+
+  .mvm-trend-scroll button {
+    background: transparent !important;
+    border-color: color-mix(in oklab, var(--color-fg) 6%, transparent) !important;
+    box-shadow: none !important;
+  }
+
+  .mvm-primary-command input:focus-visible,
+  .mvm-query-item:focus-visible,
+  .mvm-secondary-rail button:focus-visible {
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 63.999rem) {
+    body::before { opacity: .05; }
+
+    .mvm-trend-view::after { opacity: .18; }
+
+    .mvm-trend-view > header { min-height: 62px; }
+
+    .mvm-header-status {
+      gap: .4rem;
+      font-size: .56rem;
+    }
+
+    .mvm-secondary-strip { display: none !important; }
+
+    .mvm-command-stream {
+      padding-top: .9rem;
+      padding-bottom: 1.25rem;
+    }
+
+    .mvm-primary-command { min-height: 68px; }
+
+    .mvm-primary-command input { min-height: 52px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-secondary-strip .mvm3d-wrap,
+    .mvm-query-item,
+    .mvm-secondary-action {
+      transition: none !important;
+    }
+  }
+}
