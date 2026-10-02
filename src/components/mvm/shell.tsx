@@ -299,7 +299,7 @@ export function MvmShell() {
     .slice(0, 8);
 
   return (
-    <div data-motion="30-view-transition" className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg">
+    <div data-motion="30-view-transition" data-command-state={q ? "active" : "idle"} data-hit-count={hits.length} className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg">
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
@@ -333,7 +333,7 @@ export function MvmShell() {
         ))}
       </div>
 
-      <div className="mvm-cols mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
+      <div className="mvm-cols mvm-dynamic-layout mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
         <aside data-motion="06-rail-drift" className="enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "pinned")}</p>
           <ul className="mt-3 space-y-1">
@@ -450,14 +450,14 @@ export function MvmShell() {
         )}
 
         {hits.length > 0 && (
-          <ul className="mx-auto flex max-w-6xl flex-col gap-0 px-4 pt-3 sm:px-6">
+          <ul data-motion="31-dynamic-query" className="mvm-query-results mx-auto flex max-w-6xl flex-col gap-1 px-4 pt-3 sm:px-6" aria-live="polite">
             {hits.map((hit, i) => (
               <li key={hit.app.id}>
                 <button
                   type="button"
                   onClick={() => commit(input, hit.app)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left",
+                    "mvm-query-item flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left",
                     i === sel ? "bg-raised mvm-hand-focus mvm-trend-cursor" : "mvm-trend-cursor hover:bg-surface",
                   )}
                 >

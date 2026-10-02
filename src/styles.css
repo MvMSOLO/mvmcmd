@@ -1049,3 +1049,233 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 02 — dynamic composition
+   Dominant reference principle: Miranda-style spatial choreography.
+   The app never changes its information architecture; the existing
+   command/search state simply gets a more intentional visual stage.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-dynamic-layout {
+    transition:
+      grid-template-columns .48s var(--ease-out),
+      max-width .48s var(--ease-out),
+      border-color .3s ease;
+  }
+
+  .mvm-dynamic-layout > aside {
+    transition:
+      opacity .35s ease,
+      transform .48s var(--ease-out),
+      padding-inline .48s var(--ease-out),
+      filter .35s ease;
+    will-change: transform, opacity;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout {
+    grid-template-columns: 12rem minmax(0, 1fr) 18rem;
+    max-width: min(100%, 1480px);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout > aside:first-child {
+    opacity: .72;
+    transform: translateX(-5px);
+    filter: saturate(.82);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout > aside:last-child {
+    opacity: .9;
+    transform: translateX(4px);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout > section {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout > section::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(55% 34% at 50% 8%, color-mix(in oklab, var(--color-ok) 7%, transparent), transparent 72%),
+      linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--color-ok) 2.5%, transparent) 50%, transparent 100%);
+    opacity: .95;
+    animation: mvm-query-stage-in .5s var(--ease-out) both;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-motion-scanline {
+    opacity: .5;
+    transform: translateY(-2px);
+    transition: opacity .3s ease, transform .45s var(--ease-out);
+  }
+
+  .mvm-query-results {
+    position: relative;
+    overflow: hidden;
+    padding-top: .65rem;
+    padding-bottom: .15rem;
+  }
+
+  .mvm-query-results::before {
+    content: "";
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    top: .1rem;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-ok) 24%, transparent), transparent);
+    opacity: 0;
+    transform: scaleX(.62);
+    transform-origin: center;
+    transition: opacity .35s ease, transform .48s var(--ease-out);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-results::before {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .mvm-query-item {
+    position: relative;
+    min-height: 42px;
+    border: 1px solid transparent;
+    overflow: hidden;
+    transition:
+      background .2s ease,
+      border-color .22s ease,
+      transform .28s var(--ease-out),
+      min-height .28s var(--ease-out),
+      padding .28s var(--ease-out),
+      box-shadow .25s ease;
+  }
+
+  .mvm-query-item::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: var(--color-ok);
+    transform: scaleY(0);
+    transform-origin: center;
+    transition: transform .28s var(--ease-out);
+  }
+
+  .mvm-query-item:hover {
+    transform: translateX(3px);
+    background: color-mix(in oklab, var(--color-ok) 4%, transparent) !important;
+    border-color: color-mix(in oklab, var(--color-fg) 7%, transparent);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item {
+    padding-top: .64rem;
+    padding-bottom: .64rem;
+    min-height: 50px;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+    min-height: 60px;
+    transform: translateX(7px);
+    border-color: color-mix(in oklab, var(--color-ok) 18%, transparent);
+    background:
+      linear-gradient(90deg, color-mix(in oklab, var(--color-ok) 8%, transparent), transparent 45%),
+      color-mix(in oklab, var(--color-surface) 68%, transparent);
+    box-shadow:
+      inset 3px 0 var(--mvm-glow-strong),
+      0 14px 30px color-mix(in oklab, #000 18%, transparent);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus::after {
+    transform: scaleY(1);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus .mvm3d-wrap {
+    transform: scale(1.08);
+    filter: brightness(1.13) saturate(1.05);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item .mvm-trend-kinetic {
+    transition:
+      transform .26s var(--ease-out),
+      letter-spacing .26s ease,
+      color .2s ease;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus .mvm-trend-kinetic {
+    transform: translateX(4px);
+    letter-spacing: .015em;
+    color: var(--color-fg);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item > span:last-child {
+    opacity: .58;
+    transition: opacity .2s ease;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus > span:last-child {
+    opacity: .86;
+  }
+
+  @keyframes mvm-query-stage-in {
+    from {
+      opacity: 0;
+      transform: scale(.985);
+    }
+    to {
+      opacity: .95;
+      transform: scale(1);
+    }
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-dynamic-layout {
+      transition: none;
+    }
+
+    .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout {
+      grid-template-columns: 1fr;
+      max-width: 100%;
+    }
+
+    .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout > aside {
+      transform: none;
+      opacity: 1;
+      filter: none;
+    }
+
+    .mvm-query-results {
+      padding-inline: .85rem;
+    }
+
+    .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+      transform: translateX(2px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-dynamic-layout,
+    .mvm-dynamic-layout > aside,
+    .mvm-trend-view[data-command-state="active"] .mvm-motion-scanline,
+    .mvm-query-item,
+    .mvm-query-results::before {
+      transition: none !important;
+    }
+
+    .mvm-trend-view[data-command-state="active"] .mvm-dynamic-layout > section::before,
+    .mvm-query-stage-in {
+      animation: none !important;
+    }
+
+    .mvm-trend-view[data-command-state="active"] .mvm-query-item,
+    .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+      transform: none;
+    }
+  }
+}
