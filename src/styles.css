@@ -1754,3 +1754,285 @@
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 06 — premium dark 3D polish
+   Dominant reference principle: refined depth, material hierarchy,
+   restrained lighting and performance-aware surfaces.
+   Inspired by the dark/premium interaction language of bleibtgleich.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  :root {
+    --mvm-surface-1: color-mix(in oklab, var(--color-bg) 96%, white);
+    --mvm-surface-2: color-mix(in oklab, var(--color-surface) 94%, white);
+    --mvm-edge: color-mix(in oklab, var(--color-fg) 8%, transparent);
+    --mvm-edge-bright: color-mix(in oklab, var(--color-fg) 14%, transparent);
+    --mvm-emissive: color-mix(in oklab, var(--color-ok) 12%, transparent);
+  }
+
+  .mvm-trend-view {
+    background:
+      radial-gradient(900px 500px at 50% -16%, color-mix(in oklab, var(--color-ok) 5%, transparent), transparent 72%),
+      radial-gradient(760px 520px at 0% 78%, color-mix(in oklab, var(--color-accent) 2.5%, transparent), transparent 74%),
+      linear-gradient(180deg, var(--color-bg), color-mix(in oklab, var(--color-bg) 96%, #000));
+  }
+
+  .mvm-trend-view::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse at center, transparent 46%, rgba(0,0,0,.24) 100%),
+      linear-gradient(180deg, rgba(255,255,255,.012), transparent 18%, transparent 82%, rgba(0,0,0,.16));
+  }
+
+  .mvm-trend-view > header {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--color-surface) 34%, transparent), transparent),
+      color-mix(in oklab, var(--color-bg) 91%, transparent);
+    backdrop-filter: blur(18px) saturate(1.08);
+    box-shadow:
+      inset 0 -1px color-mix(in oklab, white 3%, transparent),
+      0 12px 36px rgba(0,0,0,.16);
+  }
+
+  .mvm-trend-view > header .mvm-wordmark__face {
+    text-shadow:
+      1px 1px 0 color-mix(in oklab, var(--color-ok) 16%, var(--color-surface)),
+      2px 2px 0 color-mix(in oklab, var(--color-ok) 9%, var(--color-surface)),
+      0 0 20px color-mix(in oklab, var(--color-ok) 6%, transparent);
+  }
+
+  .mvm-dynamic-layout {
+    background:
+      linear-gradient(90deg, color-mix(in oklab, var(--color-surface) 24%, transparent), transparent 16%, transparent 84%, color-mix(in oklab, var(--color-surface) 20%, transparent));
+    box-shadow:
+      0 32px 100px rgba(0,0,0,.18),
+      inset 0 1px color-mix(in oklab, white 2.5%, transparent);
+  }
+
+  .mvm-secondary-rail {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--color-surface) 24%, transparent), transparent 42%) !important;
+  }
+
+  .mvm-command-stream {
+    position: relative;
+  }
+
+  .mvm-command-stream::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent 72%, color-mix(in oklab, var(--color-ok) 1.5%, transparent));
+    opacity: .8;
+  }
+
+  .mvm-generative-field {
+    opacity: calc(.075 + var(--mvm-field-energy) * .105) !important;
+    filter: drop-shadow(0 0 14px color-mix(in oklab, var(--color-ok) 4%, transparent));
+    mask-image: linear-gradient(to bottom, black 0%, black 58%, transparent 100%);
+  }
+
+  .mvm-generative-field__links line {
+    stroke: color-mix(in oklab, var(--color-ok) 42%, var(--color-fg));
+    stroke-dasharray: 2 9;
+  }
+
+  .mvm-generative-field__nodes circle {
+    fill: color-mix(in oklab, var(--color-fg) 82%, var(--color-ok));
+  }
+
+  .mvm-generative-field__accent circle {
+    fill: var(--color-ok);
+  }
+
+  .mvm3d-wrap {
+    isolation: isolate;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,.12));
+    transition:
+      filter .3s ease,
+      transform .35s var(--ease-out);
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:hover {
+    filter:
+      drop-shadow(0 14px 28px rgba(0,0,0,.18))
+      drop-shadow(0 0 16px color-mix(in oklab, var(--color-ok) 4%, transparent));
+  }
+
+  .mvm3d-stage {
+    border: 1px solid color-mix(in oklab, var(--color-fg) 6%, transparent);
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 32% 22%, color-mix(in oklab, white 4%, transparent), transparent 40%),
+      linear-gradient(145deg, color-mix(in oklab, var(--color-surface) 98%, white), var(--color-bg));
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 5%, transparent),
+      inset 0 -10px 24px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+
+  .mvm3d-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.045), transparent 28%, transparent 72%, rgba(0,0,0,.08)),
+      radial-gradient(circle at var(--mvm-glare-x, 50%) var(--mvm-glare-y, 50%), rgba(255,255,255,.06), transparent 34%);
+    opacity: .72;
+  }
+
+  .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage,
+  .mvm3d-wrap[data-mvm-variant="engine"] .mvm3d-stage {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 6%, transparent),
+      inset 0 0 28px color-mix(in oklab, var(--color-ok) 3%, transparent),
+      0 0 30px color-mix(in oklab, var(--color-ok) 4%, transparent);
+  }
+
+  .mvm3d-wrap[data-mvm-variant="wallpaper"] .mvm3d-stage,
+  .mvm3d-wrap[data-mvm-variant="status"] .mvm3d-stage {
+    background:
+      radial-gradient(circle at center, color-mix(in oklab, var(--color-surface) 86%, white), var(--color-bg));
+  }
+
+  .mvm3d-wrap[data-mvm-variant="card"] .mvm3d-stage {
+    background:
+      linear-gradient(140deg, color-mix(in oklab, var(--color-raised) 98%, white), var(--color-bg));
+  }
+
+  .mvm3d-wrap[data-mvm-variant="pulse"] .mvm3d-stage {
+    background:
+      linear-gradient(160deg, color-mix(in oklab, var(--color-surface) 98%, white), var(--color-bg));
+  }
+
+  .mvm3d-core,
+  .mvm3d-cube,
+  .mvm3d-card,
+  .mvm3d-letters,
+  .mvm3d-orb,
+  .mvm3d-status,
+  .mvm3d-engine,
+  .mvm3d-pulse {
+    filter:
+      drop-shadow(0 3px 5px rgba(0,0,0,.2))
+      drop-shadow(0 0 8px color-mix(in oklab, var(--color-ok) 4%, transparent));
+  }
+
+  .mvm3d-core {
+    background:
+      radial-gradient(circle at 34% 26%, color-mix(in oklab, white 12%, transparent), transparent 26%),
+      linear-gradient(145deg, color-mix(in oklab, var(--color-raised) 88%, white), var(--color-bg));
+  }
+
+  .mvm3d-cube {
+    background:
+      linear-gradient(145deg, color-mix(in oklab, var(--color-raised) 92%, white), var(--color-bg));
+  }
+
+  .mvm3d-card {
+    background:
+      linear-gradient(145deg, color-mix(in oklab, var(--color-raised) 94%, white), var(--color-bg));
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 6%, transparent),
+      5px 7px 0 color-mix(in oklab, var(--color-ok) 28%, transparent) !important;
+  }
+
+  .mvm3d-orb {
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.06),
+      0 0 18px color-mix(in oklab, var(--color-ok) 12%, transparent);
+  }
+
+  .mvm3d-label {
+    opacity: .72;
+    transition: opacity .2s ease;
+  }
+
+  .mvm3d-wrap:hover .mvm3d-label {
+    opacity: .92;
+  }
+
+  .mvm-query-item {
+    background:
+      linear-gradient(90deg, color-mix(in oklab, var(--color-surface) 14%, transparent), transparent 35%);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+    background:
+      linear-gradient(90deg, color-mix(in oklab, var(--color-ok) 5%, transparent), transparent 55%) !important;
+    box-shadow:
+      inset 2px 0 color-mix(in oklab, var(--color-ok) 64%, transparent) !important,
+      0 10px 30px rgba(0,0,0,.1);
+  }
+
+  .mvm-primary-command {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--color-surface) 28%, transparent), transparent),
+      color-mix(in oklab, var(--color-bg) 92%, transparent);
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 3%, transparent),
+      0 -18px 40px rgba(0,0,0,.10);
+  }
+
+  .mvm-primary-command input {
+    background:
+      linear-gradient(180deg, transparent 0%, transparent 70%, color-mix(in oklab, var(--color-ok) 2%, transparent) 100%) !important;
+  }
+
+  .mvm-primary-command:focus-within input {
+    border-bottom-color: color-mix(in oklab, var(--color-ok) 34%, transparent) !important;
+    box-shadow: 0 8px 20px color-mix(in oklab, var(--color-ok) 3%, transparent) !important;
+  }
+
+  .mvm-primary-command button[type="submit"] {
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.08),
+      0 8px 22px rgba(0,0,0,.14);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-generative-field {
+    opacity: calc(.10 + var(--mvm-field-energy) * .14) !important;
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-trend-view::before {
+      background:
+        radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.18) 100%);
+    }
+
+    .mvm3d-wrap {
+      filter: none;
+    }
+
+    .mvm3d-wrap::before {
+      display: none;
+    }
+
+    .mvm3d-stage {
+      box-shadow:
+        inset 0 1px color-mix(in oklab, white 4%, transparent),
+        inset 0 -8px 18px rgba(0,0,0,.08);
+    }
+
+    .mvm-primary-command {
+      backdrop-filter: blur(12px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm3d-wrap,
+    .mvm3d-wrap[data-mvm-interactive="true"]:hover,
+    .mvm3d-wrap:hover .mvm3d-label {
+      filter: none;
+      transition: none;
+    }
+  }
+}
