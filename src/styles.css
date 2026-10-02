@@ -284,3 +284,473 @@
 
 @layer components{::view-transition-old(mvm-view){animation:mvm-view-out .18s var(--ease-out) both}::view-transition-new(mvm-view){animation:mvm-view-in .34s var(--ease-out) both}}
 @keyframes mvm-view-out{to{opacity:0;transform:translateY(-4px) scale(.995);filter:blur(2px)}}@keyframes mvm-view-in{from{opacity:0;transform:translateY(6px) scale(.998);filter:blur(2px)}to{opacity:1;transform:none;filter:none}}
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD SYSTEM UI — premium product pass
+   Visual direction: technical luxury / liquid terminal / MVM core
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  :root {
+    --mvm-glow: color-mix(in oklab, var(--color-ok) 24%, transparent);
+    --mvm-glow-strong: color-mix(in oklab, var(--color-ok) 42%, transparent);
+    --mvm-glass: color-mix(in oklab, var(--color-surface) 78%, transparent);
+    --mvm-panel: color-mix(in oklab, var(--color-surface) 92%, transparent);
+  }
+
+  body {
+    background:
+      radial-gradient(900px 500px at 50% -12%, color-mix(in oklab, var(--color-ok) 7%, transparent), transparent 65%),
+      radial-gradient(700px 420px at 100% 45%, color-mix(in oklab, var(--color-accent) 4%, transparent), transparent 68%),
+      var(--color-bg);
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    opacity: .22;
+    background-image:
+      linear-gradient(color-mix(in oklab, var(--color-fg) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in oklab, var(--color-fg) 4%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(to bottom, black, transparent 88%);
+  }
+
+  .mvm-trend-view {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(600px 280px at 50% 0%, color-mix(in oklab, var(--color-ok) 5%, transparent), transparent 72%),
+      var(--color-bg);
+  }
+
+  .mvm-trend-view::after {
+    content: "";
+    position: fixed;
+    left: 50%;
+    top: 0;
+    width: min(70vw, 900px);
+    height: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, transparent, var(--color-ok), transparent);
+    box-shadow: 0 0 28px var(--mvm-glow-strong);
+    opacity: .65;
+    pointer-events: none;
+  }
+
+  .mvm-trend-view > header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    min-height: 74px;
+    background: color-mix(in oklab, var(--color-bg) 84%, transparent);
+    backdrop-filter: blur(18px) saturate(1.25);
+    border-color: color-mix(in oklab, var(--color-fg) 9%, transparent);
+    box-shadow: 0 12px 42px color-mix(in oklab, #000 28%, transparent);
+  }
+
+  .mvm-trend-view > header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--mvm-glow-strong) 50%, transparent 100%);
+    opacity: .7;
+  }
+
+  .mvm-trend-view > header h1 {
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
+    line-height: .95;
+    letter-spacing: -.055em;
+    text-shadow: 0 0 26px color-mix(in oklab, var(--color-ok) 10%, transparent);
+  }
+
+  .mvm-trend-view > header p {
+    transition: color .2s ease, opacity .2s ease;
+  }
+
+  .mvm-motion-scanline {
+    min-height: 64px;
+    background:
+      linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-ok) 3%, transparent), transparent),
+      color-mix(in oklab, var(--color-bg) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-color: color-mix(in oklab, var(--color-fg) 7%, transparent);
+  }
+
+  .mvm-motion-scanline > * {
+    opacity: .76;
+    transition: opacity .22s ease, transform .22s var(--ease-out);
+  }
+
+  .mvm-motion-scanline > *:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+
+  .mvm-cols {
+    position: relative;
+    width: min(100%, 1440px);
+    margin-inline: auto;
+    border-inline: 1px solid color-mix(in oklab, var(--color-fg) 5%, transparent);
+    background: color-mix(in oklab, var(--color-bg) 92%, transparent);
+  }
+
+  @media (min-width: 64rem) {
+    .mvm-cols {
+      grid-template-columns: 15rem minmax(0, 1fr) 15rem;
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--color-fg) 3%, transparent),
+        0 40px 100px color-mix(in oklab, #000 30%, transparent);
+    }
+  }
+
+  .mvm-cols > aside {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--color-surface) 52%, transparent), transparent 65%);
+    border-color: color-mix(in oklab, var(--color-fg) 7%, transparent);
+  }
+
+  .mvm-cols > aside > p:first-child {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+  }
+
+  .mvm-cols > aside > p:first-child::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--color-ok);
+    box-shadow: 0 0 12px var(--mvm-glow-strong);
+  }
+
+  .mvm-cols > aside button {
+    position: relative;
+    min-height: 34px;
+    border: 1px solid transparent;
+    transition:
+      background .18s ease,
+      border-color .18s ease,
+      color .18s ease,
+      transform .18s var(--ease-out);
+  }
+
+  .mvm-cols > aside button:hover {
+    border-color: color-mix(in oklab, var(--color-ok) 18%, transparent);
+    background: color-mix(in oklab, var(--color-ok) 5%, transparent);
+    transform: translateX(2px);
+  }
+
+  .mvm-cols > section {
+    background:
+      radial-gradient(500px 300px at 50% 0%, color-mix(in oklab, var(--color-ok) 3%, transparent), transparent 72%);
+  }
+
+  .mvm-cols > section > div:first-child {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-fg) 16%, transparent) transparent;
+  }
+
+  .mvm-cols > section > div:first-child::before {
+    content: "LIVE TERMINAL";
+    position: sticky;
+    top: 0;
+    display: block;
+    width: fit-content;
+    margin-left: auto;
+    margin-bottom: 1rem;
+    padding: .28rem .48rem;
+    border: 1px solid color-mix(in oklab, var(--color-ok) 14%, transparent);
+    border-radius: 999px;
+    color: color-mix(in oklab, var(--color-ok) 76%, white);
+    background: color-mix(in oklab, var(--color-ok) 4%, transparent);
+    font-size: .52rem;
+    letter-spacing: .18em;
+    opacity: .75;
+    z-index: 2;
+  }
+
+  .mvm-cols > section p,
+  .mvm-cols > section button {
+    text-wrap: pretty;
+  }
+
+  .mvm-cols > section button {
+    border-radius: 8px;
+    transition: background .16s ease, transform .16s var(--ease-out), box-shadow .16s ease;
+  }
+
+  .mvm-cols > section button:hover {
+    background: color-mix(in oklab, var(--color-ok) 5%, transparent);
+    box-shadow: inset 2px 0 var(--mvm-glow-strong);
+  }
+
+  .mvm-cols > section .mvm-motion-vector-scan {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, var(--color-ok) 18%, transparent);
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 12% 50%, color-mix(in oklab, var(--color-ok) 8%, transparent), transparent 28%),
+      linear-gradient(135deg, color-mix(in oklab, var(--color-surface) 94%, transparent), color-mix(in oklab, var(--color-ok) 3%, transparent));
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 5%, transparent),
+      0 18px 60px color-mix(in oklab, #000 25%, transparent);
+  }
+
+  .mvm-cols > section .mvm-motion-vector-scan::after {
+    content: "SYSTEM READY";
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    padding: .25rem .45rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--color-ok) 20%, transparent);
+    color: var(--color-ok);
+    font-size: .5rem;
+    letter-spacing: .16em;
+  }
+
+  .mvm-motion-input-ignite {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    min-height: 78px;
+    margin-top: auto;
+    border-top: 1px solid color-mix(in oklab, var(--color-fg) 8%, transparent);
+    background: color-mix(in oklab, var(--color-bg) 84%, transparent);
+    backdrop-filter: blur(20px) saturate(1.25);
+  }
+
+  .mvm-motion-input-ignite input {
+    min-height: 50px;
+    border: 1px solid color-mix(in oklab, var(--color-fg) 12%, transparent);
+    border-radius: 12px;
+    background:
+      linear-gradient(135deg, color-mix(in oklab, var(--color-surface) 96%, transparent), color-mix(in oklab, var(--color-ok) 2%, transparent));
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 4%, transparent),
+      0 0 0 0 transparent;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+
+  .mvm-motion-input-ignite input::placeholder {
+    color: color-mix(in oklab, var(--color-muted) 68%, transparent);
+  }
+
+  .mvm-motion-input-ignite:focus-within input {
+    border-color: color-mix(in oklab, var(--color-ok) 35%, transparent);
+    background: color-mix(in oklab, var(--color-surface) 98%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--color-ok) 6%, transparent),
+      0 0 40px color-mix(in oklab, var(--color-ok) 5%, transparent);
+  }
+
+  .mvm-motion-input-ignite form,
+  .mvm-motion-input-ignite input {
+    font-size: .86rem;
+  }
+
+  .mvm-motion-input-ignite button[type="submit"] {
+    min-width: 86px;
+    min-height: 46px;
+    border: 1px solid color-mix(in oklab, var(--color-ok) 24%, transparent);
+    border-radius: 10px;
+    background: linear-gradient(135deg, color-mix(in oklab, var(--color-ok) 13%, var(--color-surface)), color-mix(in oklab, var(--color-ok) 4%, var(--color-surface)));
+    color: var(--color-fg);
+    box-shadow: 0 8px 24px color-mix(in oklab, var(--color-ok) 7%, transparent);
+    transition: transform .16s var(--ease-out), border-color .16s ease, box-shadow .16s ease;
+  }
+
+  .mvm-motion-input-ignite button[type="submit"]:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in oklab, var(--color-ok) 45%, transparent);
+    box-shadow: 0 12px 30px color-mix(in oklab, var(--color-ok) 11%, transparent);
+  }
+
+  .mvm-motion-input-ignite button[type="submit"]:active {
+    transform: translateY(1px) scale(.985);
+  }
+
+  .mvm3d-wrap {
+    border-radius: 10px;
+    transition: filter .2s ease, transform .2s var(--ease-out);
+  }
+
+  .mvm3d-wrap:hover {
+    filter: brightness(1.1);
+  }
+
+  .mvm3d-stage {
+    border-radius: 10px;
+  }
+
+  .mvm3d-label {
+    gap: 2px;
+  }
+
+  .mvm3d-label b {
+    letter-spacing: .02em;
+  }
+
+  .mvm3d-label small {
+    opacity: .72;
+  }
+
+  .mvm3d-button {
+    cursor: default;
+  }
+
+  /* Make the desktop 3D strip feel like a system index, not a toolbar. */
+  .mvm-motion-scanline .mvm3d-wrap {
+    padding: 6px 8px;
+    border: 1px solid transparent;
+  }
+
+  .mvm-motion-scanline .mvm3d-wrap:hover {
+    border-color: color-mix(in oklab, var(--color-ok) 13%, transparent);
+    background: color-mix(in oklab, var(--color-ok) 3%, transparent);
+  }
+
+  /* Search / suggestion stack */
+  .mvm-motion-input-ignite + * {
+    backdrop-filter: blur(10px);
+  }
+
+  /* Touch targets and focus visibility */
+  button,
+  input,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-ok) 70%, white);
+    outline-offset: 3px;
+  }
+
+  /* Mobile composition */
+  @media (max-width: 63.999rem) {
+    .mvm-trend-view > header {
+      min-height: 66px;
+      padding-top: max(.75rem, env(safe-area-inset-top));
+    }
+
+    .mvm-trend-view > header .mvm3d-wrap {
+      display: none;
+    }
+
+    .mvm-trend-view > header .font-display {
+      font-size: 1.5rem;
+    }
+
+    .mvm-trend-view > header > div:last-child {
+      gap: .5rem;
+      font-size: .58rem;
+    }
+
+    .mvm-trend-view > header button {
+      display: none;
+    }
+
+    .mvm-cols {
+      border-inline: 0;
+    }
+
+    .mvm-cols > section > div:first-child {
+      padding-bottom: 1.5rem;
+    }
+
+    .mvm-motion-input-ignite {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+      padding-bottom: max(.75rem, env(safe-area-inset-bottom));
+    }
+
+    .mvm-motion-input-ignite input {
+      min-height: 54px;
+      border-radius: 14px;
+      font-size: .9rem;
+    }
+
+    .mvm-motion-input-ignite button[type="submit"] {
+      min-width: 54px;
+      width: 54px;
+      overflow: hidden;
+      font-size: 0;
+    }
+
+    .mvm-motion-input-ignite button[type="submit"]::after {
+      content: "↵";
+      font-size: 1rem;
+      font-family: var(--font-mono);
+    }
+
+    .mvm-motion-input-ignite + * {
+      margin-bottom: .25rem;
+    }
+
+    .mvm-trend-scroll {
+      padding-bottom: .25rem;
+      scrollbar-width: none;
+    }
+
+    .mvm-trend-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .mvm-trend-scroll button {
+      border: 1px solid color-mix(in oklab, var(--color-fg) 8%, transparent);
+      border-radius: 12px;
+      background: color-mix(in oklab, var(--color-surface) 86%, transparent);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px color-mix(in oklab, #000 18%, transparent);
+    }
+  }
+
+  @media (max-width: 420px) {
+    .mvm-trend-view > header {
+      padding-inline: .8rem;
+    }
+
+    .mvm-trend-view > header > div:last-child p:nth-of-type(2) {
+      display: none;
+    }
+
+    .mvm-cols > section > div:first-child {
+      padding-inline: .85rem;
+    }
+
+    .mvm-motion-input-ignite {
+      gap: .55rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .mvm-motion-input-ignite {
+      border-radius: 0 0 14px 14px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-trend-view::after,
+    body::before {
+      opacity: .1;
+    }
+
+    .mvm-cols > aside button:hover,
+    .mvm-trend-scroll button:hover,
+    .mvm-motion-input-ignite button[type="submit"]:hover {
+      transform: none;
+    }
+  }
+}
