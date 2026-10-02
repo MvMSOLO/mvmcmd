@@ -7,14 +7,13 @@ import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import { EMPTY, loadState, saveState } from "@/lib/mvm/persist";
 import { detectRuntime } from "@/lib/mvm/platform";
-import { canUseNativeAndroidLauncher, nativeOpenEnglish, nativeOpenNotifications } from "@/lib/mvm/native-launcher";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
 import { MvmWordmark } from "./wordmark";
 import { MvmGenerativeField } from "./generative-field";
 import { Mvm3D } from "./mvm-3d";
-import { MVM_3D, MVM_3D_ASSETS } from "@/lib/mvm/3d-assets";
+import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
 
 const BOOT_LINES = [
@@ -26,13 +25,15 @@ const BOOT_LINES = [
   "hint       ef → eFootball",
 ];
 
-function useClock() {
+function LiveClock() {
   const [now, setNow] = useState(() => new Date());
+
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(id);
   }, []);
-  return now;
+
+  return <span className="mvm-live-clock tabular-nums text-fg">{formatClock(now)}</span>;
 }
 
 function useKeyboardInset() {
@@ -78,6 +79,32 @@ function Mark({ name }: { name: string }) {
   );
 }
 
+type QuickAction = {
+  command: string;
+  uz: string;
+  en: string;
+};
+
+const QUICK_ACTIONS: Record<PlatformKind, QuickAction[]> = {
+  android: [
+    { command: "camera", uz: "Kamera", en: "Camera" },
+    { command: "qr", uz: "QR", en: "Scan QR" },
+    { command: "wallpaper", uz: "Devor qog‘ozi", en: "Wallpaper" },
+    { command: "english", uz: "English", en: "English" },
+    { command: "notification", uz: "Xabarlar", en: "Notifications" },
+  ],
+  ios: [
+    { command: "help", uz: "Yordam", en: "Help" },
+    { command: "recents", uz: "Yaqinda", en: "Recents" },
+    { command: "sys", uz: "Tizim", en: "System" },
+  ],
+  desktop: [
+    { command: "help", uz: "Yordam", en: "Help" },
+    { command: "recents", uz: "Yaqinda", en: "Recents" },
+    { command: "sys", uz: "Tizim", en: "System" },
+  ],
+};
+
 export function MvmShell() {
   const [state, setState] = useState<PersistedState>(EMPTY);
   const [phase, setPhase] = useState<"gate" | "boot" | "live">("gate");
@@ -90,8 +117,32 @@ export function MvmShell() {
   const [inputFocused, setInputFocused] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const clock = useClock();
   useKeyboardInset();
+
+  useEffect(() => {
+    const onGlobalKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        return;
+      }
+
+      if (event.key === "/" && !editing) {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onGlobalKey);
+    return () => window.removeEventListener("keydown", onGlobalKey);
+  }, []);
 
   function syncLogParallax() {
     const node = logRef.current;
@@ -140,7 +191,19 @@ export function MvmShell() {
   }, [phase]);
 
   useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
+    const node = logRef.current;
+    if (!node) return;
+
+    const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 96;
+    if (!nearBottom) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => {
+      node.scrollTo({
+        top: node.scrollHeight,
+        behavior: reduced ? "auto" : "smooth",
+      });
+    });
   }, [lines]);
 
   useEffect(() => {
@@ -216,32 +279,6 @@ export function MvmShell() {
     }
 
     const parsedCommand = parseLine(text);
-    if (parsedCommand.cmd?.name === "english" && canUseNativeAndroidLauncher()) {
-      append([makeLine("in", text)]);
-      void nativeOpenEnglish().then((result) => append([makeLine(result.opened ? "ok" : "warn", result.opened ? "ENGLISH LAB  OPENED" : "ENGLISH LAB  FAILED", { meta: result.opened ? "A1 → C2 · IELTS" : "ANDROID ACTIVITY LAUNCH FAILED" })])).catch((error: unknown) => append([makeLine("warn", "ENGLISH LAB  FAILED", { meta: error instanceof Error ? error.message : String(error) })]));
-      setInput(""); setHistIdx(-1); return;
-    }
-    if (parsedCommand.cmd?.name === "notification" && canUseNativeAndroidLauncher()) {
-      append([makeLine("in", text)]);
-      void nativeOpenNotifications()
-        .then((result) => {
-          append([
-            makeLine(
-              result.opened ? "ok" : "warn",
-              result.opened ? "NOTIFICATION  OPENED" : "NOTIFICATION  FAILED TO OPEN",
-              { meta: result.opened ? "NATIVE ACTIVITY" : "ANDROID ACTIVITY LAUNCH FAILED" },
-            ),
-          ]);
-        })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error);
-          append([makeLine("warn", "NOTIFICATION  FAILED TO OPEN", { meta: message || "NATIVE BRIDGE ERROR" })]);
-        });
-      setInput("");
-      setHistIdx(-1);
-      return;
-    }
-
     const applyResult = () => {
       const result = execute(text, { state, lang });
       setState(result.state);
@@ -339,34 +376,15 @@ export function MvmShell() {
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <MvmWordmark mode="live" />
-        <div data-motion="27-svg-draw" className="mvm-svg-draw hidden h-8 w-20 items-center justify-center md:flex" aria-hidden="true">
-          <svg viewBox="0 0 160 32" className="h-full w-full" fill="none">
-            <path d="M4 24 C28 4, 48 28, 72 12 S116 4, 156 16" />
-          </svg>
-        </div>
         </div>
         <div className="mvm-header-status flex items-end gap-3 text-right font-mono text-label leading-relaxed text-muted">
-          <Mvm3D asset={MVM_3D["command-core"]} size="xs" signal={interfaceSignal} />
-          <p className="tabular-nums text-fg">{formatClock(clock)}</p>
-          <p className="uppercase tracking-mark">
+          <LiveClock />
+          <p className="mvm-runtime-chip uppercase tracking-mark">
             {platform}
             {standalone ? " · PWA" : ""}
           </p>
-          <button
-            type="button"
-            onClick={() => commit("birthday")}
-            className="mvm-secondary-action mt-1 rounded px-1.5 py-0.5 text-micro font-bold text-muted hover:text-fg"
-          >
-            🎂 Birthday Mode
-          </button>
         </div>
       </header>
-
-      <div data-motion="07-mvm-scanline" className="mvm-secondary-strip hidden mvm-motion-scanline border-b border-line px-4 py-1.5 lg:flex lg:items-center lg:justify-center lg:gap-4">
-        {MVM_3D_ASSETS.map((asset) => (
-          <Mvm3D key={asset.id} asset={asset} size="xs" label />
-        ))}
-      </div>
 
       <div className="mvm-cols mvm-dynamic-layout mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
         <aside data-motion="06-rail-drift" className="mvm-secondary-rail enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
@@ -428,7 +446,7 @@ export function MvmShell() {
                 </div>
                 <div className="mvm-boot-identity__meta">
                   <p data-motion="19-ink-reveal" className="mvm-hand-ink font-display text-xs font-bold">MVM CORE INITIALIZING</p>
-                  <p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p>
+                  
                 </div>
               </div>
             )}
@@ -489,6 +507,33 @@ export function MvmShell() {
           </div>
         )}
 
+        {!input.trim() && (
+          <div className="mvm-quick-actions mx-auto flex max-w-6xl items-center gap-2 overflow-x-auto px-4 pt-3 sm:px-6">
+            {QUICK_ACTIONS[platform].map((action) => (
+              <button
+                key={action.command}
+                type="button"
+                onClick={() => commit(action.command)}
+                className="mvm-quick-action shrink-0 rounded-full border border-line bg-surface/70 px-3 py-1.5 font-mono text-micro text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
+              >
+                {lang === "uz" ? action.uz : action.en}
+              </button>
+            ))}
+            <span className="mvm-shortcut-hint ml-auto hidden shrink-0 font-mono text-micro text-faint lg:inline">
+              Ctrl/⌘ K
+            </span>
+          </div>
+        )}
+
+        {q && hits.length === 0 && input.trim() && (
+          <div className="mvm-no-match mx-auto max-w-6xl px-4 pt-3 sm:px-6" aria-live="polite">
+            <span>{lang === "uz" ? "Mos ilova topilmadi." : "No matching app."}</span>
+            <span className="text-faint">
+              {lang === "uz" ? " find, store yoki to‘liq nomni sinab ko‘ring." : " Try find, store, or the full name."}
+            </span>
+          </div>
+        )}
+
         {hits.length > 0 && (
           <ul data-motion="31-dynamic-query" className="mvm-query-results mx-auto flex max-w-6xl flex-col gap-1 px-4 pt-3 sm:px-6" aria-live="polite">
             {hits.map((hit, i) => (
@@ -531,8 +576,23 @@ export function MvmShell() {
           <label className="sr-only" htmlFor="mvm-prompt">
             {t(lang, "prompt")}
           </label>
+          {input && (
+            <button
+              type="button"
+              aria-label={lang === "uz" ? "Tozalash" : "Clear"}
+              className="mvm-command-clear order-3 rounded-full px-2 py-1 font-mono text-sm text-faint"
+              onClick={() => {
+                setInput("");
+                setSel(0);
+                inputRef.current?.focus();
+              }}
+            >
+              ×
+            </button>
+          )}
           <input
             id="mvm-prompt"
+            aria-keyshortcuts="Control+K Meta+K"
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}

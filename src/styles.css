@@ -2564,3 +2564,122 @@
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD — full quality pass
+   Cleaner chrome, better discoverability, fewer always-on GPU
+   hints, and stronger command ergonomics.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-live-clock {
+    min-width: 4.8rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mvm-runtime-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 .5rem;
+    border: 1px solid color-mix(in oklab, var(--color-fg) 7%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-surface) 72%, transparent);
+    color: var(--color-faint);
+  }
+
+  .mvm-header-status {
+    align-items: center;
+  }
+
+  .mvm-quick-actions {
+    scrollbar-width: none;
+    mask-image: linear-gradient(90deg, transparent, black 14px, black calc(100% - 14px), transparent);
+  }
+
+  .mvm-quick-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mvm-quick-action {
+    min-height: 34px;
+    border-color: color-mix(in oklab, var(--color-fg) 7%, transparent);
+    background: color-mix(in oklab, var(--color-surface) 70%, transparent);
+  }
+
+  .mvm-quick-action:hover {
+    transform: translateY(-1px);
+  }
+
+  .mvm-quick-action:active {
+    transform: translateY(0) scale(.98);
+  }
+
+  .mvm-shortcut-hint {
+    white-space: nowrap;
+  }
+
+  .mvm-no-match {
+    font-family: var(--font-mono);
+    font-size: var(--text-micro);
+    color: var(--color-muted);
+  }
+
+  .mvm-command-clear {
+    flex: 0 0 auto;
+    line-height: 1;
+    transition: color .18s ease, background-color .18s ease;
+  }
+
+  .mvm-command-clear:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklab, var(--color-fg) 5%, transparent);
+  }
+
+  .mvm3d-wrap {
+    will-change: auto;
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:hover {
+    will-change: transform;
+  }
+
+  .mvm-generative-field {
+    contain: layout paint;
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-quick-actions {
+      padding-bottom: .05rem;
+      mask-image: none;
+    }
+
+    .mvm-command-clear {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+    }
+
+    .mvm-runtime-chip {
+      padding-inline: .4rem;
+    }
+
+    .mvm-generative-field {
+      filter: none !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-quick-action {
+      transition: none !important;
+    }
+
+    .mvm-quick-action:hover,
+    .mvm-quick-action:active {
+      transform: none;
+    }
+  }
+}
