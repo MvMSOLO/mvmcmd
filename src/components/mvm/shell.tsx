@@ -464,7 +464,7 @@ export function MvmShell() {
                 onClick={() => commit(`open ${app.name}`)}
                 className="flex shrink-0 items-center gap-2 rounded-sm bg-surface px-3 py-2 mvm-frame"
               >
-                <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} signal={i === sel ? "active" : "idle"} />
+                <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} />
                 <span className="font-mono text-xs">{app.name}</span>
               </button>
             ))}
@@ -486,7 +486,7 @@ export function MvmShell() {
                   <span className="w-6 font-mono text-micro tabular-nums text-faint">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} />
+                  <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} signal={i === sel ? "active" : "idle"} />
                   <span data-motion="21-kinetic-type" className="mvm-trend-kinetic min-w-0 flex-1 truncate font-mono text-sm">{hit.app.name}</span>
                   <span className="hidden font-mono text-micro uppercase tracking-wider text-faint sm:block">
                     {hit.reason}
