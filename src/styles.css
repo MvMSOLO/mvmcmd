@@ -1529,3 +1529,133 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 04 — tactile 3D motion
+   Dominant principle: the existing 3D surfaces physically respond
+   to the pointer, then settle back into place. No new 3D engine.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm3d-wrap {
+    --mvm-rotate-x: 0deg;
+    --mvm-rotate-y: 0deg;
+    --mvm-shift-x: 0px;
+    --mvm-shift-y: 0px;
+    --mvm-glare-x: 50%;
+    --mvm-glare-y: 50%;
+    position: relative;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  .mvm3d-wrap::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    pointer-events: none;
+    border-radius: 50%;
+    background:
+      radial-gradient(
+        26% 32% at var(--mvm-glare-x) var(--mvm-glare-y),
+        color-mix(in oklab, white 9%, transparent),
+        transparent 75%
+      );
+    opacity: 0;
+    transform: translate3d(
+      calc(var(--mvm-shift-x) * .65),
+      calc(var(--mvm-shift-y) * .65),
+      0
+    );
+    transition: opacity .24s ease;
+    mix-blend-mode: screen;
+    z-index: 4;
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:hover::before {
+    opacity: .9;
+  }
+
+  .mvm3d-stage {
+    position: relative;
+    transform:
+      perspective(560px)
+      rotateX(var(--mvm-rotate-x))
+      rotateY(var(--mvm-rotate-y))
+      translate3d(var(--mvm-shift-x), var(--mvm-shift-y), 0);
+    transform-style: preserve-3d;
+    transition:
+      transform .16s cubic-bezier(.2,.8,.2,1),
+      filter .2s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:hover .mvm3d-stage {
+    filter: saturate(1.04) brightness(1.03);
+  }
+
+  .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage {
+    transition-duration: .12s;
+  }
+
+  .mvm3d-wrap[data-mvm-variant="core"][data-mvm-interactive="true"]:hover .mvm3d-stage {
+    filter: saturate(1.08) brightness(1.05);
+  }
+
+  .mvm3d-wrap[data-mvm-variant="pulse"] .mvm3d-stage,
+  .mvm3d-wrap[data-mvm-variant="engine"] .mvm3d-stage {
+    transition-duration: .18s;
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="false"] {
+    --mvm-rotate-x: 0deg;
+    --mvm-rotate-y: 0deg;
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="false"] .mvm3d-stage {
+    transition: transform .2s var(--ease-out);
+  }
+
+  /* A little more depth for the hero/core object; still CSS-only. */
+  .mvm-trend-view > header .mvm3d-wrap[data-mvm-variant="core"] {
+    filter: drop-shadow(0 7px 18px color-mix(in oklab, var(--color-ok) 8%, transparent));
+  }
+
+  .mvm-trend-view > header .mvm3d-wrap[data-mvm-variant="core"]:hover {
+    filter: drop-shadow(0 11px 26px color-mix(in oklab, var(--color-ok) 12%, transparent));
+  }
+
+  .mvm-secondary-strip .mvm3d-wrap[data-mvm-interactive="true"]:hover {
+    opacity: 1;
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm3d-wrap::before {
+      display: none;
+    }
+
+    .mvm3d-stage {
+      transform:
+        perspective(560px)
+        rotateX(0deg)
+        rotateY(0deg)
+        translate3d(0, 0, 0);
+      transition: filter .2s ease;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm3d-wrap::before {
+      display: none;
+    }
+
+    .mvm3d-stage,
+    .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage {
+      transform: none !important;
+      transition: none !important;
+      filter: none !important;
+    }
+  }
+}

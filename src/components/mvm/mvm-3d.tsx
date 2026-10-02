@@ -1,3 +1,4 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { MVM_3D_ASSETS, type Mvm3DAsset } from "@/lib/mvm/3d-assets";
 
 type Props = {
@@ -33,10 +34,50 @@ function Cube({ variant }: { variant: Mvm3DAsset["variant"] }) {
   return <div className="mvm3d-cube"><span /><i /><b /></div>;
 }
 
+function clamp(value: number, min = -1, max = 1): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function updatePointerMotion(event: ReactPointerEvent<HTMLDivElement>) {
+  if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+  const target = event.currentTarget;
+  const rect = target.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const x = clamp((event.clientX - rect.left) / rect.width * 2 - 1);
+  const y = clamp((event.clientY - rect.top) / rect.height * 2 - 1);
+
+  target.style.setProperty("--mvm-rotate-x", \`${(-y * 6).toFixed(2)}deg\`);
+  target.style.setProperty("--mvm-rotate-y", \`${(x * 8).toFixed(2)}deg\`);
+  target.style.setProperty("--mvm-shift-x", \`${(x * 2).toFixed(2)}px\`);
+  target.style.setProperty("--mvm-shift-y", \`${(y * 2).toFixed(2)}px\`);
+  target.style.setProperty("--mvm-glare-x", \`${(50 + x * 28).toFixed(1)}%\`);
+  target.style.setProperty("--mvm-glare-y", \`${(50 + y * 24).toFixed(1)}%\`);
+}
+
+function resetPointerMotion(event: ReactPointerEvent<HTMLDivElement>) {
+  const target = event.currentTarget;
+  target.style.setProperty("--mvm-rotate-x", "0deg");
+  target.style.setProperty("--mvm-rotate-y", "0deg");
+  target.style.setProperty("--mvm-shift-x", "0px");
+  target.style.setProperty("--mvm-shift-y", "0px");
+  target.style.setProperty("--mvm-glare-x", "50%");
+  target.style.setProperty("--mvm-glare-y", "50%");
+}
+
 export function Mvm3D({ asset, size = "sm", interactive = true, label = false }: Props) {
   const content = (
-    <div className={`mvm3d-wrap mvm3d-${size}`} aria-label={asset.name}>
-      <div data-motion="25-3d-depth" className="mvm3d-stage mvm-trend-depth"><Cube variant={asset.variant} /></div>
+    <div
+      className={`mvm3d-wrap mvm3d-${size}`}
+      data-mvm-variant={asset.variant}
+      data-mvm-interactive={interactive ? "true" : "false"}
+      aria-label={asset.name}
+      onPointerMove={interactive ? updatePointerMotion : undefined}
+      onPointerLeave={interactive ? resetPointerMotion : undefined}
+    >
+      <div data-motion="25-3d-depth" className="mvm3d-stage mvm-trend-depth">
+        <Cube variant={asset.variant} />
+      </div>
       {label && <span className="mvm3d-label"><b>{asset.name}</b><small>{asset.purpose}</small></span>}
     </div>
   );
