@@ -1,11 +1,14 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { MVM_3D_ASSETS, type Mvm3DAsset } from "@/lib/mvm/3d-assets";
 
+type Mvm3DSignal = "idle" | "wake" | "active" | "success" | "warn";
+
 type Props = {
   asset: Mvm3DAsset;
   size?: "xs" | "sm" | "md" | "lg";
   interactive?: boolean;
   label?: boolean;
+  signal?: Mvm3DSignal;
 };
 
 function Cube({ variant }: { variant: Mvm3DAsset["variant"] }) {
@@ -65,12 +68,13 @@ function resetPointerMotion(event: ReactPointerEvent<HTMLDivElement>) {
   target.style.setProperty("--mvm-glare-y", "50%");
 }
 
-export function Mvm3D({ asset, size = "sm", interactive = true, label = false }: Props) {
+export function Mvm3D({ asset, size = "sm", interactive = true, label = false, signal = "idle" }: Props) {
   const content = (
     <div
       className={`mvm3d-wrap mvm3d-${size}`}
       data-mvm-variant={asset.variant}
       data-mvm-interactive={interactive ? "true" : "false"}
+      data-mvm-signal={signal}
       aria-label={asset.name}
       onPointerMove={interactive ? updatePointerMotion : undefined}
       onPointerLeave={interactive ? resetPointerMotion : undefined}

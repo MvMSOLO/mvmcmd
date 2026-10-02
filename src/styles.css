@@ -2287,3 +2287,114 @@
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 08 — living interface
+   Dominant principle: the 3D surface is part of the interface
+   state, not a detached decoration. Lightweight CSS 3D keeps
+   the behavior native to the current app without a new WebGL
+   runtime or navigation layer.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm3d-wrap[data-mvm-signal="idle"] {
+    --mvm-signal-alpha: .28;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="wake"] {
+    --mvm-signal-alpha: .58;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="active"] {
+    --mvm-signal-alpha: .82;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="success"] {
+    --mvm-signal-alpha: .72;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="warn"] {
+    --mvm-signal-alpha: .76;
+  }
+
+  .mvm3d-wrap[data-mvm-signal]::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    pointer-events: none;
+    border-radius: 18px;
+    border: 1px solid color-mix(in oklab, var(--color-ok) calc(var(--mvm-signal-alpha) * 10%), transparent);
+    opacity: 0;
+    transform: scale(.96);
+  }
+
+  .mvm3d-wrap[data-mvm-signal="wake"]::after {
+    animation: mvm-interface-wake 1.25s var(--ease-out) infinite;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="active"]::after {
+    animation: mvm-interface-active 1.5s ease-in-out infinite;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="success"]::after {
+    border-color: color-mix(in oklab, var(--color-ok) 34%, transparent);
+    animation: mvm-interface-confirm 820ms var(--ease-out) 1;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="warn"]::after {
+    border-color: color-mix(in oklab, var(--color-warn) 30%, transparent);
+    animation: mvm-interface-warn 520ms ease-out 1;
+  }
+
+  .mvm3d-wrap[data-mvm-signal="active"] .mvm3d-stage {
+    border-color: color-mix(in oklab, var(--color-ok) 14%, var(--color-fg));
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 7%, transparent),
+      inset 0 0 30px color-mix(in oklab, var(--color-ok) 4%, transparent),
+      0 0 26px color-mix(in oklab, var(--color-ok) 7%, transparent);
+  }
+
+  .mvm3d-wrap[data-mvm-signal="success"] .mvm3d-stage {
+    border-color: color-mix(in oklab, var(--color-ok) 22%, var(--color-fg));
+  }
+
+  .mvm3d-wrap[data-mvm-signal="warn"] .mvm3d-stage {
+    border-color: color-mix(in oklab, var(--color-warn) 20%, var(--color-fg));
+  }
+
+  .mvm3d-wrap[data-mvm-signal="active"] .mvm3d-core,
+  .mvm3d-wrap[data-mvm-signal="active"] .mvm3d-engine {
+    filter:
+      drop-shadow(0 3px 6px rgba(0,0,0,.2))
+      drop-shadow(0 0 12px color-mix(in oklab, var(--color-ok) 12%, transparent));
+  }
+
+  @keyframes mvm-interface-wake {
+    0%, 100% { opacity: .12; transform: scale(.96); }
+    50% { opacity: .68; transform: scale(1); }
+  }
+
+  @keyframes mvm-interface-active {
+    0%, 100% { opacity: .14; transform: scale(.97); }
+    50% { opacity: .7; transform: scale(1); }
+  }
+
+  @keyframes mvm-interface-confirm {
+    0% { opacity: .72; transform: scale(.94); }
+    100% { opacity: 0; transform: scale(1.03); }
+  }
+
+  @keyframes mvm-interface-warn {
+    0%, 100% { opacity: 0; }
+    30% { opacity: .72; }
+    100% { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm3d-wrap[data-mvm-signal]::after {
+      animation: none !important;
+      opacity: 0 !important;
+      transform: none !important;
+    }
+  }
+}

@@ -87,6 +87,7 @@ export function MvmShell() {
   const [histIdx, setHistIdx] = useState(-1);
   const [platform, setPlatform] = useState<PlatformKind>("desktop");
   const [standalone, setStandalone] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clock = useClock();
@@ -159,6 +160,21 @@ export function MvmShell() {
 
   const lang = state.lang;
   const selected = hits[sel] ?? hits[0];
+  const lastLine = lines.at(-1);
+  const interfaceSignal =
+    phase === "boot"
+      ? "wake"
+      : inputFocused || q
+        ? hits.length > 0
+          ? "active"
+          : q
+            ? "warn"
+            : "active"
+        : lastLine?.kind === "ok"
+          ? "success"
+          : lastLine?.kind === "warn"
+            ? "warn"
+            : "idle";
 
   function append(next: LogLine[], clear?: boolean) {
     setLines((prev) => (clear ? next : [...prev, ...next]).slice(-240));
@@ -312,7 +328,7 @@ export function MvmShell() {
         </div>
         </div>
         <div className="mvm-header-status flex items-end gap-3 text-right font-mono text-label leading-relaxed text-muted">
-          <Mvm3D asset={MVM_3D["command-core"]} size="xs" />
+          <Mvm3D asset={MVM_3D["command-core"]} size="xs" signal={interfaceSignal} />
           <p className="tabular-nums text-fg">{formatClock(clock)}</p>
           <p className="uppercase tracking-mark">
             {platform}
@@ -389,7 +405,7 @@ export function MvmShell() {
             {phase === "boot" && (
               <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mvm-boot-identity mb-4 border border-line bg-surface px-3 py-3">
                 <div className="mvm-boot-identity__wordmark">
-                  <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
+                  <Mvm3D asset={MVM_3D["boot-cube"]} size="md" signal="wake" />
                   <MvmWordmark mode="boot" />
                 </div>
                 <div className="mvm-boot-identity__meta">
@@ -448,7 +464,7 @@ export function MvmShell() {
                 onClick={() => commit(`open ${app.name}`)}
                 className="flex shrink-0 items-center gap-2 rounded-sm bg-surface px-3 py-2 mvm-frame"
               >
-                <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} />
+                <Mvm3D asset={MVM_3D["app-card"]} size="xs" interactive={false} signal={i === sel ? "active" : "idle"} />
                 <span className="font-mono text-xs">{app.name}</span>
               </button>
             ))}
@@ -502,6 +518,8 @@ export function MvmShell() {
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             onKeyDown={onKey}
             autoCapitalize="off"
             autoComplete="off"
