@@ -1659,3 +1659,98 @@
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 05 — state-driven generative field
+   Inspired by 2xA's systems-over-artifacts approach:
+   input/state changes the visual system deterministically.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-generative-field {
+    position: absolute;
+    inset: 3% 5% auto;
+    width: 90%;
+    height: 34%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 0;
+    opacity: calc(.1 + var(--mvm-field-energy) * .16);
+    filter: drop-shadow(0 0 calc(8px + var(--mvm-field-energy) * 12px) color-mix(in oklab, var(--color-ok) 5%, transparent));
+    transition: opacity .35s ease, filter .35s ease;
+  }
+
+  .mvm-generative-field__links line {
+    stroke: color-mix(in oklab, var(--color-ok) 55%, var(--color-fg));
+    stroke-width: .22;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 3 7;
+    animation: mvm-field-link-flow calc(7s - var(--mvm-field-energy) * 3s) linear infinite;
+  }
+
+  .mvm-generative-field__nodes circle {
+    fill: var(--color-fg);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: mvm-field-node-pulse calc(5.8s - var(--mvm-field-energy) * 1.8s) ease-in-out infinite;
+    animation-delay: var(--mvm-field-delay);
+  }
+
+  .mvm-generative-field__accent circle {
+    fill: var(--color-ok);
+    opacity: calc(.12 + var(--mvm-field-energy) * .18);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: mvm-field-accent-pulse calc(4.2s - var(--mvm-field-energy) * 1.2s) ease-in-out infinite;
+    animation-delay: var(--mvm-field-delay);
+  }
+
+  .mvm-command-stream > .mvm-generative-field + * {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes mvm-field-link-flow {
+    to { stroke-dashoffset: -28; }
+  }
+
+  @keyframes mvm-field-node-pulse {
+    0%, 100% { opacity: .45; transform: scale(.82); }
+    50% { opacity: .95; transform: scale(1.28); }
+  }
+
+  @keyframes mvm-field-accent-pulse {
+    0%, 100% { opacity: .2; transform: scale(.76); }
+    50% { opacity: .85; transform: scale(1.22); }
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-generative-field {
+    opacity: calc(.14 + var(--mvm-field-energy) * .22);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-generative-field__links line {
+    stroke-width: .28;
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-generative-field {
+      inset: 2% 2% auto;
+      width: 96%;
+      height: 28%;
+      opacity: calc(.07 + var(--mvm-field-energy) * .1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-generative-field {
+      opacity: .07;
+      filter: none;
+    }
+
+    .mvm-generative-field__links line,
+    .mvm-generative-field__nodes circle,
+    .mvm-generative-field__accent circle {
+      animation: none !important;
+    }
+  }
+}

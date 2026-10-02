@@ -12,6 +12,7 @@ import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
 import { MvmWordmark } from "./wordmark";
+import { MvmGenerativeField } from "./generative-field";
 import { Mvm3D } from "./mvm-3d";
 import { MVM_3D, MVM_3D_ASSETS } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
@@ -380,6 +381,11 @@ export function MvmShell() {
             className="mvm-command-stream relative min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-sm leading-relaxed sm:px-6"
           >
             <div data-motion="29-scroll-parallax" aria-hidden className="mvm-trend-parallax pointer-events-none absolute inset-x-8 top-8 h-24 rounded-full opacity-20" style={{ background: "radial-gradient(ellipse at center, color-mix(in oklab, var(--color-ok) 28%, transparent), transparent 68%)" }} />
+            <MvmGenerativeField
+              seed={`${phase}|${q}|${hits.map((hit) => hit.app.id).join(",")}|${lines.length}|${selected?.app.id ?? "none"}`}
+              energy={Math.min(1, 0.18 + q.length / 16 + hits.length / 10)}
+              density={Math.min(1, 0.28 + hits.length / 8 + (phase === "boot" ? 0.12 : 0))}
+            />
             {phase === "boot" && (
               <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mvm-boot-identity mb-4 border border-line bg-surface px-3 py-3">
                 <div className="mvm-boot-identity__wordmark">
