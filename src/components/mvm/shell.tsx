@@ -175,6 +175,18 @@ export function MvmShell() {
           : lastLine?.kind === "warn"
             ? "warn"
             : "idle";
+  const scene =
+    phase === "boot"
+      ? "boot"
+      : q && hits.length
+        ? "search-results"
+        : q
+          ? "search-empty"
+          : lastLine?.kind === "ok"
+            ? "feedback-success"
+            : lastLine?.kind === "warn"
+              ? "feedback-warn"
+              : "idle";
 
   function append(next: LogLine[], clear?: boolean) {
     setLines((prev) => (clear ? next : [...prev, ...next]).slice(-240));
@@ -316,7 +328,13 @@ export function MvmShell() {
     .slice(0, 8);
 
   return (
-    <div data-motion="30-view-transition" data-command-state={q ? "active" : "idle"} data-hit-count={hits.length} className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg">
+    <div
+      data-motion="30-view-transition"
+      data-command-state={q ? "active" : "idle"}
+      data-hit-count={hits.length}
+      data-mvm-scene={scene}
+      className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg"
+    >
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>

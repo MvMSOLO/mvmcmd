@@ -2398,3 +2398,169 @@
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 09 — scene-based experience
+   Dominant principle: application states behave like connected
+   scenes. The same native UI remains in place, while composition,
+   emphasis and atmosphere transition around the user's intent.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-trend-view[data-mvm-scene] {
+    --mvm-scene-shift: 0px;
+    --mvm-scene-alpha: .02;
+    transition:
+      background-color .42s var(--ease-out),
+      color .28s ease;
+  }
+
+  .mvm-trend-view[data-mvm-scene] .mvm-dynamic-layout {
+    transition:
+      transform .46s var(--ease-out),
+      filter .46s ease,
+      opacity .38s ease;
+  }
+
+  .mvm-trend-view[data-mvm-scene="boot"] {
+    --mvm-scene-alpha: .035;
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-empty"] {
+    --mvm-scene-alpha: .025;
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"] {
+    --mvm-scene-alpha: .055;
+    --mvm-scene-shift: -3px;
+  }
+
+  .mvm-trend-view[data-mvm-scene="feedback-success"] {
+    --mvm-scene-alpha: .045;
+  }
+
+  .mvm-trend-view[data-mvm-scene="feedback-warn"] {
+    --mvm-scene-alpha: .035;
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"]::before {
+    background:
+      radial-gradient(
+        620px 320px at 50% 30%,
+        color-mix(in oklab, var(--color-ok) 4%, transparent),
+        transparent 74%
+      ),
+      radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.24) 100%);
+  }
+
+  .mvm-trend-view[data-mvm-scene="feedback-success"]::before {
+    background:
+      radial-gradient(
+        520px 260px at 50% 18%,
+        color-mix(in oklab, var(--color-ok) 3%, transparent),
+        transparent 76%
+      ),
+      radial-gradient(ellipse at center, transparent 46%, rgba(0,0,0,.24) 100%);
+  }
+
+  .mvm-trend-view[data-mvm-scene="feedback-warn"]::before {
+    background:
+      radial-gradient(
+        520px 260px at 50% 18%,
+        color-mix(in oklab, var(--color-warn) 2.5%, transparent),
+        transparent 76%
+      ),
+      radial-gradient(ellipse at center, transparent 46%, rgba(0,0,0,.24) 100%);
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"] .mvm-secondary-rail {
+    opacity: .64;
+    transform: translate3d(var(--mvm-scene-shift), 0, 0);
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"] .mvm-command-stream {
+    transform: translate3d(0, -1px, 0);
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"] .mvm-generative-field {
+    opacity: calc(.12 + var(--mvm-field-energy) * .18) !important;
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-empty"] .mvm-secondary-rail {
+    opacity: .58;
+  }
+
+  .mvm-trend-view[data-mvm-scene="feedback-success"] .mvm-command-stream {
+    background:
+      radial-gradient(
+        520px 220px at 50% 10%,
+        color-mix(in oklab, var(--color-ok) 2.6%, transparent),
+        transparent 76%
+      );
+  }
+
+  .mvm-trend-view[data-mvm-scene="feedback-warn"] .mvm-command-stream {
+    background:
+      radial-gradient(
+        520px 220px at 50% 10%,
+        color-mix(in oklab, var(--color-warn) 2.3%, transparent),
+        transparent 76%
+      );
+  }
+
+  .mvm-trend-view[data-mvm-scene="boot"] .mvm-primary-command,
+  .mvm-trend-view[data-mvm-scene="search-results"] .mvm-primary-command {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, var(--color-ok) 12%, transparent),
+      0 -20px 46px rgba(0,0,0,.11);
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"] .mvm-primary-command {
+    transform: translateY(-1px);
+  }
+
+  .mvm-trend-view[data-mvm-scene="boot"] .mvm-boot-identity {
+    animation: mvm-scene-arrive .6s var(--ease-out) both;
+  }
+
+  .mvm-trend-view[data-mvm-scene="search-results"] .mvm-query-results {
+    animation: mvm-scene-results-in .4s var(--ease-out) both;
+  }
+
+  @keyframes mvm-scene-arrive {
+    from { opacity: .4; transform: translateY(8px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes mvm-scene-results-in {
+    from { opacity: .58; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-trend-view[data-mvm-scene="search-results"] .mvm-secondary-rail,
+    .mvm-trend-view[data-mvm-scene="search-empty"] .mvm-secondary-rail {
+      opacity: 1;
+    }
+
+    .mvm-trend-view[data-mvm-scene="search-results"] .mvm-primary-command {
+      transform: none;
+    }
+
+    .mvm-trend-view[data-mvm-scene="search-results"] .mvm-generative-field {
+      opacity: calc(.09 + var(--mvm-field-energy) * .12) !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-trend-view[data-mvm-scene],
+    .mvm-trend-view[data-mvm-scene] .mvm-dynamic-layout {
+      transition: none !important;
+    }
+
+    .mvm-trend-view[data-mvm-scene="boot"] .mvm-boot-identity,
+    .mvm-trend-view[data-mvm-scene="search-results"] .mvm-query-results {
+      animation: none !important;
+    }
+  }
+}
