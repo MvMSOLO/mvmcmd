@@ -47,12 +47,12 @@ function updatePointerMotion(event: ReactPointerEvent<HTMLDivElement>) {
   const x = clamp((event.clientX - rect.left) / rect.width * 2 - 1);
   const y = clamp((event.clientY - rect.top) / rect.height * 2 - 1);
 
-  target.style.setProperty("--mvm-rotate-x", \`${(-y * 6).toFixed(2)}deg\`);
-  target.style.setProperty("--mvm-rotate-y", \`${(x * 8).toFixed(2)}deg\`);
-  target.style.setProperty("--mvm-shift-x", \`${(x * 2).toFixed(2)}px\`);
-  target.style.setProperty("--mvm-shift-y", \`${(y * 2).toFixed(2)}px\`);
-  target.style.setProperty("--mvm-glare-x", \`${(50 + x * 28).toFixed(1)}%\`);
-  target.style.setProperty("--mvm-glare-y", \`${(50 + y * 24).toFixed(1)}%\`);
+  target.style.setProperty("--mvm-rotate-x", `${(-y * 6).toFixed(2)}deg`);
+  target.style.setProperty("--mvm-rotate-y", `${(x * 8).toFixed(2)}deg`);
+  target.style.setProperty("--mvm-shift-x", `${(x * 2).toFixed(2)}px`);
+  target.style.setProperty("--mvm-shift-y", `${(y * 2).toFixed(2)}px`);
+  target.style.setProperty("--mvm-glare-x", `${(50 + x * 28).toFixed(1)}%`);
+  target.style.setProperty("--mvm-glare-y", `${(50 + y * 24).toFixed(1)}%`);
 }
 
 function resetPointerMotion(event: ReactPointerEvent<HTMLDivElement>) {
