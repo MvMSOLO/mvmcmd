@@ -40,12 +40,9 @@ export function Mvm3D({ asset, size = "sm", interactive = true, label = false }:
       {label && <span className="mvm3d-label"><b>{asset.name}</b><small>{asset.purpose}</small></span>}
     </div>
   );
-  if (!interactive) return content;
-  return (
-    <button data-motion="18-3d-hover" type="button" className="mvm3d-button mvm-hand-3d" title={`Open ${asset.name} in KernelCAD Studio`} onClick={() => window.open(asset.kernelCadUrl, "_blank", "noopener,noreferrer")}>
-      {content}
-    </button>
-  );
+  // 3D assets are visual-only. Clicking/tapping them must not navigate anywhere.
+  // Keep the prop for API compatibility with existing call sites.
+  return <div data-motion={interactive ? "18-3d-hover" : undefined}>{content}</div>;
 }
 
 export const MVM_3D = Object.fromEntries(MVM_3D_ASSETS.map((asset) => [asset.id, asset])) as Record<string, Mvm3DAsset>;
