@@ -2036,3 +2036,254 @@
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 07 — system fusion / interaction consistency
+   One contract for identity, motion, 3D, generative state and
+   command interaction. No new surface or native capability.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-trend-view {
+    --mvm-fast: 140ms;
+    --mvm-normal: 220ms;
+    --mvm-slow: 420ms;
+    --mvm-command-focus: color-mix(in oklab, var(--color-ok) 4%, transparent);
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .mvm-trend-view button,
+  .mvm-trend-view input {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mvm-command-stream,
+  .mvm-trend-scroll {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color:
+      color-mix(in oklab, var(--color-fg) 14%, transparent)
+      transparent;
+  }
+
+  .mvm-command-stream::-webkit-scrollbar,
+  .mvm-trend-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .mvm-command-stream::-webkit-scrollbar-track,
+  .mvm-trend-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .mvm-command-stream::-webkit-scrollbar-thumb,
+  .mvm-trend-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-fg) 12%, transparent);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .mvm-command-stream::-webkit-scrollbar-thumb:hover,
+  .mvm-trend-scroll::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--color-fg) 20%, transparent);
+    background-clip: padding-box;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-command-stream {
+    background:
+      radial-gradient(
+        520px 260px at 50% 10%,
+        var(--mvm-command-focus),
+        transparent 76%
+      );
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-primary-command {
+    border-top-color: color-mix(in oklab, var(--color-ok) 10%, transparent);
+  }
+
+  .mvm-query-results {
+    position: relative;
+    z-index: 3;
+  }
+
+  .mvm-query-item,
+  .mvm-secondary-action,
+  .mvm-secondary-rail button,
+  .mvm-trend-scroll button {
+    transition:
+      background-color var(--mvm-normal) var(--ease-out),
+      color var(--mvm-normal) ease,
+      opacity var(--mvm-normal) ease,
+      box-shadow var(--mvm-normal) var(--ease-out);
+  }
+
+  .mvm-query-item:hover,
+  .mvm-secondary-rail button:hover,
+  .mvm-trend-scroll button:hover {
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-fg) 5%, transparent);
+  }
+
+  .mvm-query-item:focus-visible,
+  .mvm-secondary-action:focus-visible,
+  .mvm-secondary-rail button:focus-visible,
+  .mvm-trend-scroll button:focus-visible,
+  .mvm-primary-command button[type="submit"]:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 1px var(--color-bg),
+      0 0 0 2px color-mix(in oklab, var(--color-ok) 52%, transparent);
+  }
+
+  .mvm-primary-command {
+    position: relative;
+    z-index: 5;
+    transition:
+      background-color var(--mvm-normal) ease,
+      box-shadow var(--mvm-normal) var(--ease-out),
+      border-color var(--mvm-normal) ease;
+  }
+
+  .mvm-primary-command:focus-within {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, var(--color-ok) 14%, transparent),
+      0 -22px 52px rgba(0,0,0,.12),
+      0 0 34px color-mix(in oklab, var(--color-ok) 2%, transparent);
+  }
+
+  .mvm-primary-command > .mvm3d-wrap {
+    flex: 0 0 auto;
+  }
+
+  .mvm-primary-command input {
+    min-width: 0;
+  }
+
+  .mvm-primary-command input::placeholder {
+    transition: color var(--mvm-normal) ease;
+  }
+
+  .mvm-primary-command:focus-within input::placeholder {
+    color: color-mix(in oklab, var(--color-faint) 72%, var(--color-ok));
+  }
+
+  .mvm3d-wrap {
+    contain: layout style;
+  }
+
+  .mvm3d-wrap .mvm3d-stage {
+    transition:
+      transform var(--mvm-normal) var(--ease-out),
+      filter var(--mvm-normal) ease,
+      box-shadow var(--mvm-normal) var(--ease-out);
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:active .mvm3d-stage {
+    filter: brightness(.98) saturate(.98);
+  }
+
+  .mvm-wordmark {
+    position: relative;
+    z-index: 1;
+  }
+
+  .mvm-boot-identity {
+    position: relative;
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  .mvm-boot-identity::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in oklab, var(--color-ok) 3%, transparent) 48%,
+        transparent
+      );
+    opacity: .42;
+    transform: translateX(-100%);
+    animation: mvm-system-sheen 8s var(--ease-out) infinite;
+  }
+
+  .mvm-secondary-strip {
+    position: relative;
+    z-index: 4;
+  }
+
+  .mvm-secondary-strip::after {
+    content: "";
+    position: absolute;
+    inset-inline: 20%;
+    bottom: 0;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-ok) 16%, transparent), transparent);
+    opacity: .5;
+  }
+
+  .mvm-trend-view > header,
+  .mvm-secondary-strip,
+  .mvm-primary-command {
+    transform: translateZ(0);
+  }
+
+  @keyframes mvm-system-sheen {
+    0%, 22% { transform: translateX(-100%); opacity: 0; }
+    30% { opacity: .42; }
+    58%, 100% { transform: translateX(100%); opacity: 0; }
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-trend-view {
+      overflow: clip;
+    }
+
+    .mvm-command-stream {
+      scrollbar-width: none;
+      touch-action: pan-y;
+    }
+
+    .mvm-command-stream::-webkit-scrollbar {
+      display: none;
+    }
+
+    .mvm3d-wrap {
+      contain: layout;
+    }
+
+    .mvm-primary-command:focus-within {
+      box-shadow:
+        inset 0 1px color-mix(in oklab, var(--color-ok) 12%, transparent),
+        0 -16px 34px rgba(0,0,0,.10);
+    }
+
+    .mvm-boot-identity::after,
+    .mvm-secondary-strip::after {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-query-item,
+    .mvm-secondary-action,
+    .mvm-secondary-rail button,
+    .mvm-trend-scroll button,
+    .mvm-primary-command,
+    .mvm3d-wrap .mvm3d-stage {
+      transition: none !important;
+    }
+
+    .mvm-boot-identity::after {
+      animation: none !important;
+      opacity: 0 !important;
+    }
+  }
+}
