@@ -11,6 +11,7 @@ import { canUseNativeAndroidLauncher, nativeOpenEnglish, nativeOpenNotifications
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
+import { MvmWordmark } from "./wordmark";
 import { Mvm3D } from "./mvm-3d";
 import { MVM_3D, MVM_3D_ASSETS } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
@@ -302,7 +303,7 @@ export function MvmShell() {
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
-          <h1 data-motion="16-text-shimmer" className="mvm-hand-shimmer font-display text-2xl font-extrabold tracking-tight sm:text-3xl">MVMCMD</h1>
+          <MvmWordmark mode="live" />
         <div data-motion="27-svg-draw" className="mvm-svg-draw hidden h-8 w-20 items-center justify-center md:flex" aria-hidden="true">
           <svg viewBox="0 0 160 32" className="h-full w-full" fill="none">
             <path d="M4 24 C28 4, 48 28, 72 12 S116 4, 156 16" />
@@ -380,9 +381,15 @@ export function MvmShell() {
           >
             <div data-motion="29-scroll-parallax" aria-hidden className="mvm-trend-parallax pointer-events-none absolute inset-x-8 top-8 h-24 rounded-full opacity-20" style={{ background: "radial-gradient(ellipse at center, color-mix(in oklab, var(--color-ok) 28%, transparent), transparent 68%)" }} />
             {phase === "boot" && (
-              <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mb-4 flex items-center gap-3 border border-line bg-surface px-3 py-2">
-                <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
-                <div><p data-motion="19-ink-reveal" className="mvm-hand-ink font-display text-xs font-bold">MVM CORE INITIALIZING</p><p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p></div>
+              <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mvm-boot-identity mb-4 border border-line bg-surface px-3 py-3">
+                <div className="mvm-boot-identity__wordmark">
+                  <Mvm3D asset={MVM_3D["boot-cube"]} size="md" />
+                  <MvmWordmark mode="boot" />
+                </div>
+                <div className="mvm-boot-identity__meta">
+                  <p data-motion="19-ink-reveal" className="mvm-hand-ink font-display text-xs font-bold">MVM CORE INITIALIZING</p>
+                  <p className="font-mono text-micro text-faint">KernelCAD asset / shared 3D surface</p>
+                </div>
               </div>
             )}
             {lines.map((row, i) => (

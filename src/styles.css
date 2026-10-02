@@ -754,3 +754,298 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 01 — kinetic app identity
+   Reference synthesis: expressive type + direct hierarchy + restrained motion.
+   Typography is the interaction here; no extra page/section is introduced.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-wordmark {
+    position: relative;
+    display: inline-grid;
+    width: max-content;
+    min-width: 0;
+    isolation: isolate;
+    line-height: .78;
+    color: var(--color-fg);
+    user-select: none;
+    -webkit-user-select: none;
+    contain: layout paint;
+  }
+
+  .mvm-wordmark__depth,
+  .mvm-wordmark__face {
+    grid-area: 1 / 1;
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 900;
+    letter-spacing: -.09em;
+    white-space: nowrap;
+  }
+
+  .mvm-wordmark__depth {
+    position: relative;
+    z-index: 0;
+    color: color-mix(in oklab, var(--color-ok) 22%, var(--color-surface));
+    transform: perspective(640px) rotateX(58deg) rotateZ(-1.5deg) translate3d(-.045em, .28em, -18px);
+    transform-origin: 12% 70%;
+    filter: blur(.1px);
+    opacity: .82;
+  }
+
+  .mvm-wordmark__face {
+    position: relative;
+    z-index: 1;
+    color: var(--color-fg);
+    transform: perspective(640px) rotateX(58deg) rotateZ(-1.5deg) translate3d(0, 0, 0);
+    transform-origin: 12% 70%;
+    text-shadow:
+      1px 1px 0 color-mix(in oklab, var(--color-ok) 20%, var(--color-surface)),
+      2px 2px 0 color-mix(in oklab, var(--color-ok) 14%, var(--color-surface)),
+      3px 3px 0 color-mix(in oklab, var(--color-ok) 10%, var(--color-surface)),
+      0 0 22px color-mix(in oklab, var(--color-ok) 8%, transparent);
+    transition: transform .45s var(--ease-out), filter .35s ease, text-shadow .35s ease;
+  }
+
+  .mvm-wordmark__cmd {
+    position: absolute;
+    z-index: 3;
+    right: -.06em;
+    bottom: -.18em;
+    padding: .18em .28em .12em;
+    border: 1px solid color-mix(in oklab, var(--color-ok) 26%, transparent);
+    border-radius: .28em;
+    background: color-mix(in oklab, var(--color-bg) 76%, transparent);
+    color: var(--color-ok);
+    font-family: var(--font-mono);
+    font-size: .22em;
+    font-weight: 800;
+    letter-spacing: .24em;
+    line-height: 1;
+    backdrop-filter: blur(7px);
+    box-shadow: 0 8px 24px color-mix(in oklab, #000 22%, transparent);
+  }
+
+  .mvm-wordmark__rule {
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 10%;
+    bottom: -.31em;
+    height: 1px;
+    background: linear-gradient(90deg, var(--color-ok), transparent 76%);
+    opacity: .72;
+    transform-origin: left;
+    animation: mvm-wordmark-rule 1.25s .18s var(--ease-out) both;
+  }
+
+  .mvm-wordmark__meta {
+    position: absolute;
+    left: .03em;
+    bottom: -.8em;
+    font-family: var(--font-mono);
+    font-size: .105em;
+    font-weight: 700;
+    letter-spacing: .19em;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+
+  .mvm-wordmark--gate .mvm-wordmark__face,
+  .mvm-wordmark--gate .mvm-wordmark__depth {
+    font-size: clamp(3.3rem, 10vw, 6.5rem);
+  }
+
+  .mvm-wordmark--boot {
+    flex: 1;
+    transform: translateY(-.08rem);
+  }
+
+  .mvm-wordmark--boot .mvm-wordmark__face,
+  .mvm-wordmark--boot .mvm-wordmark__depth {
+    font-size: clamp(3.4rem, 11vw, 6.5rem);
+  }
+
+  .mvm-wordmark--live .mvm-wordmark__face,
+  .mvm-wordmark--live .mvm-wordmark__depth {
+    font-size: clamp(1.8rem, 3vw, 2.55rem);
+  }
+
+  .mvm-wordmark--live .mvm-wordmark__meta {
+    display: none;
+  }
+
+  .mvm-wordmark--live .mvm-wordmark__rule {
+    bottom: -.22em;
+  }
+
+  .mvm-wordmark:hover .mvm-wordmark__face {
+    transform: perspective(640px) rotateX(54deg) rotateZ(-1.5deg) translate3d(.035em, -.025em, 12px);
+    filter: brightness(1.08);
+    text-shadow:
+      1px 1px 0 color-mix(in oklab, var(--color-ok) 24%, var(--color-surface)),
+      3px 3px 0 color-mix(in oklab, var(--color-ok) 18%, var(--color-surface)),
+      5px 5px 0 color-mix(in oklab, var(--color-ok) 10%, var(--color-surface)),
+      0 0 28px color-mix(in oklab, var(--color-ok) 12%, transparent);
+  }
+
+  .mvm-wordmark--gate {
+    animation: mvm-wordmark-enter .8s var(--ease-out) both;
+  }
+
+  .mvm-wordmark--boot {
+    animation: mvm-wordmark-boot .9s var(--ease-out) both;
+  }
+
+  .mvm-wordmark--live {
+    animation: mvm-wordmark-live .6s var(--ease-out) both;
+  }
+
+  .mvm-wordmark--boot .mvm-wordmark__face {
+    animation: mvm-wordmark-breathe 3.8s 1s ease-in-out infinite;
+  }
+
+  @keyframes mvm-wordmark-enter {
+    from {
+      opacity: 0;
+      transform: translateY(15px) scale(.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes mvm-wordmark-boot {
+    from {
+      opacity: 0;
+      transform: perspective(900px) rotateX(28deg) translateY(18px) scale(.94);
+    }
+    65% {
+      opacity: 1;
+      transform: perspective(900px) rotateX(58deg) translateY(-2px) scale(1.01);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes mvm-wordmark-live {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+      letter-spacing: -.03em;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      letter-spacing: normal;
+    }
+  }
+
+  @keyframes mvm-wordmark-breathe {
+    0%, 100% {
+      transform: perspective(640px) rotateX(58deg) rotateZ(-1.5deg) translate3d(0, 0, 0);
+    }
+    50% {
+      transform: perspective(640px) rotateX(54deg) rotateZ(-1.5deg) translate3d(.018em, -.01em, 7px);
+    }
+  }
+
+  @keyframes mvm-wordmark-rule {
+    from {
+      transform: scaleX(0);
+      opacity: 0;
+    }
+    to {
+      transform: scaleX(1);
+      opacity: .72;
+    }
+  }
+
+  .mvm-boot-identity__wordmark {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+  }
+
+  .mvm-boot-identity__wordmark .mvm3d-wrap {
+    flex: 0 0 auto;
+  }
+
+  .mvm-boot-identity__meta {
+    margin-top: .8rem;
+    padding-left: .15rem;
+  }
+
+  .mvm-boot-identity__meta p + p {
+    margin-top: .25rem;
+  }
+
+  .mvm-boot-identity {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 4%, transparent),
+      0 18px 60px color-mix(in oklab, #000 22%, transparent);
+  }
+
+  @media (hover: hover) {
+    .mvm-wordmark {
+      cursor: default;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .mvm-wordmark--gate .mvm-wordmark__face,
+    .mvm-wordmark--gate .mvm-wordmark__depth {
+      font-size: clamp(3rem, 17vw, 4.75rem);
+    }
+
+    .mvm-wordmark--boot .mvm-wordmark__face,
+    .mvm-wordmark--boot .mvm-wordmark__depth {
+      font-size: clamp(2.6rem, 15vw, 4.7rem);
+    }
+
+    .mvm-wordmark--live .mvm-wordmark__face,
+    .mvm-wordmark--live .mvm-wordmark__depth {
+      font-size: clamp(1.55rem, 8vw, 2rem);
+    }
+
+    .mvm-wordmark__meta {
+      font-size: .12em;
+      letter-spacing: .14em;
+    }
+
+    .mvm-boot-identity__wordmark {
+      gap: .45rem;
+    }
+
+    .mvm-boot-identity__wordmark .mvm3d-wrap {
+      transform: scale(.86);
+      transform-origin: left center;
+    }
+
+    .mvm-boot-identity__meta {
+      margin-top: .55rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-wordmark,
+    .mvm-wordmark--gate,
+    .mvm-wordmark--boot,
+    .mvm-wordmark--live,
+    .mvm-wordmark--boot .mvm-wordmark__face,
+    .mvm-wordmark__rule {
+      animation: none;
+    }
+
+    .mvm-wordmark__face {
+      transition: none;
+    }
+  }
+}
