@@ -15,6 +15,9 @@ import { MvmGenerativeField } from "./generative-field";
 import { Mvm3D } from "./mvm-3d";
 import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
+import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
+import { emitMvmSignal } from "@/lib/mvm/signal-system";
+import { installMvmInteractionLayer } from "@/lib/mvm/interaction-system";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -107,6 +110,8 @@ const QUICK_ACTIONS: Record<PlatformKind, QuickAction[]> = {
 
 export function MvmShell() {
   const [state, setState] = useState<PersistedState>(EMPTY);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const performanceGovernor = useMvmPerformanceGovernor();
   const [phase, setPhase] = useState<"gate" | "boot" | "live">("gate");
   const [lines, setLines] = useState<LogLine[]>([]);
   const [input, setInput] = useState("");
@@ -118,6 +123,12 @@ export function MvmShell() {
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useKeyboardInset();
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || phase === "gate") return;
+    return installMvmInteractionLayer(root);
+  }, [phase]);
 
   useEffect(() => {
     const onGlobalKey = (event: KeyboardEvent) => {
@@ -250,6 +261,7 @@ export function MvmShell() {
             : lastLine?.kind === "warn"
               ? "feedback-warn"
               : "idle";
+  const spatialState = q && hits.length ? "catalog" : q ? "field" : inputFocused ? "core" : "idle";
 
   function append(next: LogLine[], clear?: boolean) {
     setLines((prev) => (clear ? next : [...prev, ...next]).slice(-240));
@@ -262,6 +274,7 @@ export function MvmShell() {
 
     if (parsed.cmd?.name === "perm") {
       append([makeLine("in", text)]);
+      emitMvmSignal("intent");
       void runPermRequest({ state, lang }).then((res) => {
         setState(res.state);
         append(res.lines);
@@ -272,19 +285,27 @@ export function MvmShell() {
     }
     if (parsed.cmd?.name === "install") {
       append([makeLine("in", text)]);
+      emitMvmSignal("intent");
       void runInstall({ state, lang }).then((ls) => append(ls));
       setInput("");
       setHistIdx(-1);
       return;
     }
 
-    const parsedCommand = parseLine(text);
     const applyResult = () => {
       const result = execute(text, { state, lang });
       setState(result.state);
       append([makeLine("in", text), ...result.lines], result.clearLog);
       setInput("");
       setHistIdx(-1);
+      const signal = result.lines.some((line) => line.kind === "warn")
+        ? "warn"
+        : result.lines.some((line) => line.kind === "ok")
+          ? "success"
+          : result.clearLog
+            ? "neutral"
+            : "intent";
+      emitMvmSignal(signal);
     };
     const transitionDocument = document as Document & {
       startViewTransition?: (callback: () => void) => unknown;
@@ -364,30 +385,77 @@ export function MvmShell() {
     .filter((a): a is CatalogApp => Boolean(a))
     .slice(0, 8);
 
+  const navigateSpace = (zone: "rail" | "core" | "catalog") => {
+    if (zone === "core") {
+      inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
+    document.getElementById(zone === "rail" ? "mvm-space-left" : "mvm-space-right")?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  };
+
   return (
     <div
+      ref={rootRef}
       data-motion="30-view-transition"
       data-command-state={q ? "active" : "idle"}
       data-hit-count={hits.length}
       data-mvm-scene={scene}
+      data-mvm-signal={interfaceSignal}
+      data-mvm-performance={performanceGovernor.tier}
+      data-mvm-performance-fps={performanceGovernor.fps}
+      data-mvm-space-state={spatialState}
       className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg"
+      style={{
+        "--mvm-perf-render-scale": performanceGovernor.renderScale,
+        "--mvm-perf-motion-scale": performanceGovernor.motionScale,
+      } as React.CSSProperties}
     >
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
           <MvmWordmark mode="live" />
         </div>
-        <div className="mvm-header-status flex items-end gap-3 text-right font-mono text-label leading-relaxed text-muted">
-          <LiveClock />
-          <p className="mvm-runtime-chip uppercase tracking-mark">
-            {platform}
-            {standalone ? " · PWA" : ""}
-          </p>
+        <div className="flex items-end gap-4">
+          <nav className="mvm-spatial-nav hidden items-center gap-1 sm:flex" aria-label="Spatial navigation">
+            {(["rail", "core", "catalog"] as const).map((zone) => (
+              <button
+                key={zone}
+                type="button"
+                data-mvm-action="spatial-navigate"
+                data-mvm-physical
+                aria-current={
+                  (zone === "core" && spatialState === "core") ||
+                  (zone === "catalog" && (spatialState === "catalog" || spatialState === "field"))
+                    ? "location"
+                    : undefined
+                }
+                className="mvm-spatial-node rounded-full px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-faint"
+                onClick={() => navigateSpace(zone)}
+              >
+                {zone}
+              </button>
+            ))}
+          </nav>
+          <div className="mvm-header-status flex items-end gap-3 text-right font-mono text-label leading-relaxed text-muted">
+            <LiveClock />
+            <p className="mvm-runtime-chip uppercase tracking-mark">
+              {platform}
+              {standalone ? " · PWA" : ""}
+            </p>
+            <p className="mvm-runtime-chip mvm-performance-chip tabular-nums uppercase tracking-mark" title={`Measured ${performanceGovernor.fps} FPS`}>
+              {performanceGovernor.tier} · {performanceGovernor.fps}
+            </p>
+          </div>
         </div>
       </header>
 
       <div className="mvm-cols mvm-dynamic-layout mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
-        <aside data-motion="06-rail-drift" className="mvm-secondary-rail enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
+        <aside id="mvm-space-left" data-motion="06-rail-drift" className="mvm-secondary-rail enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "pinned")}</p>
           <ul className="mt-3 space-y-1">
             {pins.length === 0 ? (
@@ -397,6 +465,8 @@ export function MvmShell() {
                 <li key={app.id}>
                   <button
                     type="button"
+                    data-mvm-action="rail-open"
+                    data-mvm-physical
                     onClick={() => commit(`open ${app.name}`)}
                     className="flex w-full items-center gap-2 rounded-sm px-1 py-2 text-left hover:bg-raised"
                   >
@@ -413,6 +483,8 @@ export function MvmShell() {
               <li key={app.id}>
                 <button
                   type="button"
+                  data-mvm-action="recent-open"
+                  data-mvm-physical
                   onClick={() => commit(`open ${app.name}`)}
                   className="flex w-full items-center gap-2 rounded-sm px-1 py-2 text-left hover:bg-raised"
                 >
@@ -426,7 +498,7 @@ export function MvmShell() {
           </ul>
         </aside>
 
-        <section className="enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
+        <section id="mvm-space-core" className="enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
           <div data-motion="04-terminal-flicker"
             ref={logRef}
             onScroll={syncLogParallax}
@@ -464,13 +536,15 @@ export function MvmShell() {
           </div>
         </section>
 
-        <aside data-motion="24-liquid-glass" className="mvm-secondary-rail enter-right d4 mvm-hand-beam mvm-trend-glass hidden border-l border-line p-4 lg:block">
+        <aside id="mvm-space-right" data-motion="24-liquid-glass" className="mvm-secondary-rail enter-right d4 mvm-hand-beam mvm-trend-glass hidden border-l border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "catalog")}</p>
           <ul className="mt-3 space-y-0.5">
             {CATEGORIES.map((cat) => (
               <li key={cat}>
                 <button
                   type="button"
+                  data-mvm-action="catalog-navigate"
+                  data-mvm-physical
                   onClick={() => commit(`ls ${cat}`)}
                   className="mvm-hand-magnetic w-full rounded-sm px-1 py-2 text-left font-mono text-xs capitalize text-muted hover:bg-raised hover:text-fg"
                 >
@@ -513,6 +587,8 @@ export function MvmShell() {
               <button
                 key={action.command}
                 type="button"
+                data-mvm-action="quick-action"
+                data-mvm-physical
                 onClick={() => commit(action.command)}
                 className="mvm-quick-action shrink-0 rounded-full border border-line bg-surface/70 px-3 py-1.5 font-mono text-micro text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
               >
@@ -540,6 +616,8 @@ export function MvmShell() {
               <li key={hit.app.id}>
                 <button
                   type="button"
+                  data-mvm-action="query-select"
+                  data-mvm-physical
                   onClick={() => commit(input, hit.app)}
                   className={cn(
                     "mvm-query-item flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left",
@@ -560,7 +638,7 @@ export function MvmShell() {
           </ul>
         )}
 
-        <form data-motion="09-input-ignite"
+        <form data-motion="09-input-ignite" data-mvm-action="command-surface" data-mvm-physical
           className="mvm-motion-input-ignite mvm-primary-command mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
           onSubmit={(e) => {
             e.preventDefault();
@@ -581,6 +659,8 @@ export function MvmShell() {
               type="button"
               aria-label={lang === "uz" ? "Tozalash" : "Clear"}
               className="mvm-command-clear order-3 rounded-full px-2 py-1 font-mono text-sm text-faint"
+              data-mvm-action="clear-input"
+              data-mvm-physical
               onClick={() => {
                 setInput("");
                 setSel(0);
@@ -609,6 +689,8 @@ export function MvmShell() {
           <button
             type="submit"
             className="mvm-hand-magnetic mvm-hand-spring-snap hidden rounded-sm bg-accent px-4 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:inline-flex"
+            data-mvm-action="launch-submit"
+            data-mvm-physical
           >
             {t(lang, "launch")}
           </button>
