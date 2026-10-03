@@ -74,8 +74,7 @@ public final class MvmQrActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.BLACK);
-        getWindow().setNavigationBarColor(Color.BLACK);
+        MvmUiKit.applyWindow(this);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
@@ -100,7 +99,7 @@ public final class MvmQrActivity extends AppCompatActivity {
 
     private void buildUi() {
         root = new FrameLayout(this);
-        root.setBackgroundColor(Color.BLACK);
+        root.setBackgroundColor(MvmUiKit.BG);
 
         previewView = new PreviewView(this);
         previewView.setImplementationMode(PreviewView.ImplementationMode.PERFORMANCE);
@@ -118,8 +117,8 @@ public final class MvmQrActivity extends AppCompatActivity {
 
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(dp(14), dp(12), dp(14), dp(10));
-        top.setBackgroundColor(0x66000000);
+        top.setPadding(dp(12), dp(10), dp(12), dp(10));
+        top.setBackground(MvmUiKit.stroke(this, 0x78070A0F, 22, 0x332F3948));
 
         TextView back = text("‹", 34, false);
         back.setGravity(Gravity.CENTER);
@@ -160,7 +159,7 @@ public final class MvmQrActivity extends AppCompatActivity {
         status = text("ALIGN CODE INSIDE THE FRAME", 10, true);
         status.setTextColor(0xCCFFFFFF);
         status.setGravity(Gravity.CENTER);
-        status.setBackground(round(0x55000000, 20));
+        status.setBackground(MvmUiKit.stroke(this, 0x8A0A0E15, 99, 0x443C4657));
         FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 dp(34),
@@ -352,7 +351,7 @@ public final class MvmQrActivity extends AppCompatActivity {
         if (resultCard != null) root.removeView(resultCard);
 
         resultCard = new FrameLayout(this);
-        resultCard.setBackground(round(0xF20B0D10, 28));
+        resultCard.setBackground(MvmUiKit.stroke(this, 0xF20B0F16, 28, 0x66465263));
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -402,7 +401,7 @@ public final class MvmQrActivity extends AppCompatActivity {
         content.addView(checks);
 
         ScrollView rawScroll = new ScrollView(this);
-        rawScroll.setBackground(round(0x6614171C, 14));
+        rawScroll.setBackground(MvmUiKit.stroke(this, 0x7812161D, 16, 0x44394452));
 
         TextView rawView = text(raw, 14, false);
         rawView.setTextIsSelectable(true);
@@ -630,11 +629,11 @@ public final class MvmQrActivity extends AppCompatActivity {
     }
 
     private TextView action(String label) {
-        TextView v = text(label, 9, true);
+        TextView v = MvmUiKit.text(this, label, 10, MvmUiKit.FG, true);
         v.setGravity(Gravity.CENTER);
-        v.setTextColor(0xFFECEAE4);
-        v.setBackground(round(0x66191C22, 12));
+        v.setBackground(MvmUiKit.stroke(this, 0x9A171D26, 14, 0x55414B5D));
         v.setPadding(dp(8), 0, dp(8), 0);
+        MvmUiKit.installPress(v);
         return v;
     }
 
@@ -655,7 +654,7 @@ public final class MvmQrActivity extends AppCompatActivity {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(dp(radius));
-        d.setStroke(dp(1), 0x226C7480);
+        d.setStroke(dp(1), 0x553B4657);
         return d;
     }
 
