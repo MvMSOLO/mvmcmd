@@ -638,7 +638,7 @@ export function MvmShell() {
           </ul>
         )}
 
-        <form data-motion="09-input-ignite" data-mvm-action="command-surface" data-mvm-physical
+        <form data-motion="09-input-ignite" data-mvm-action="command-surface"
           className="mvm-motion-input-ignite mvm-primary-command mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
           onSubmit={(e) => {
             e.preventDefault();
