@@ -1,7 +1,6 @@
 package com.mvmcmd.launcher;
 
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -82,7 +81,6 @@ public final class MvmUiKit {
         b.setPadding(dp(c, 14), 0, dp(c, 14), 0);
         b.setStateListAnimator(null);
         b.setBackground(surface(c, primary ? ACCENT : PANEL_2, 16));
-        b.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
         installPress(b);
         return b;
     }
