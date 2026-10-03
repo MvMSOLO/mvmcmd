@@ -26,6 +26,10 @@ public final class MvmUiKit {
     public static final int BLUE = Color.rgb(94, 190, 255);
     public static final int RED = Color.rgb(255, 105, 125);
     public static final int LINE = Color.rgb(40, 48, 62);
+    public static final int ROLE_BENTO = 40;
+    public static final int ROLE_GLASS = 20;
+    public static final int ROLE_NEUMORPHIC = 20;
+    public static final int ROLE_SKEUOMORPHIC = 20;
 
     private MvmUiKit() {}
 
@@ -34,10 +38,23 @@ public final class MvmUiKit {
     }
 
     public static GradientDrawable surface(Context c, int color, int radius) {
-        GradientDrawable d = new GradientDrawable();
-        d.setColor(color);
+        GradientDrawable d = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{tint(color, 228), tint(color, 198)}
+        );
         d.setCornerRadius(dp(c, radius));
-        d.setStroke(dp(c, 1), 0x55303A4B);
+        d.setStroke(dp(c, 1), 0x66374352);
+        return d;
+    }
+
+    /** Large-surface variant: translucent by intent, reserved for Bento panels. */
+    public static GradientDrawable glass(Context c, int color, int radius) {
+        GradientDrawable d = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{tint(color, 214), tint(color, 182)}
+        );
+        d.setCornerRadius(dp(c, radius));
+        d.setStroke(dp(c, 1), 0x663A4657);
         return d;
     }
 
@@ -80,9 +97,40 @@ public final class MvmUiKit {
         b.setMinHeight(dp(c, 48));
         b.setPadding(dp(c, 14), 0, dp(c, 14), 0);
         b.setStateListAnimator(null);
-        b.setBackground(surface(c, primary ? ACCENT : PANEL_2, 16));
+        int base = primary ? ACCENT : PANEL_2;
+        b.setBackground(neumorphic(c, base, 16, primary));
+        b.setElevation(dp(c, primary ? 3 : 2));
+        b.setTranslationZ(dp(c, 1));
         installPress(b);
         return b;
+    }
+
+    private static GradientDrawable neumorphic(Context c, int base, int radius, boolean primary) {
+        int top = primary ? shift(base, 1.08f) : shift(base, 1.05f);
+        int bottom = primary ? shift(base, 0.90f) : shift(base, 0.88f);
+        GradientDrawable d = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{top, bottom}
+        );
+        d.setCornerRadius(dp(c, radius));
+        d.setStroke(dp(c, 1), primary ? 0x88FFFFFF : 0x66404C5F);
+        return d;
+    }
+
+    private static int tint(int color, int alpha) {
+        return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    private static int shift(int color, float factor) {
+        return Color.rgb(
+                clamp((int)(Color.red(color) * factor)),
+                clamp((int)(Color.green(color) * factor)),
+                clamp((int)(Color.blue(color) * factor))
+        );
+    }
+
+    private static int clamp(int value) {
+        return Math.max(0, Math.min(255, value));
     }
 
     public static void installPress(View v) {
