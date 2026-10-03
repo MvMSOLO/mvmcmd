@@ -3273,3 +3273,238 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD — professional surface contract
+   40% Bento layout · 20% Glass surfaces · 20% Neumorphic controls
+   · 20% Minimal Skeuomorphic visual anchors.
+   These roles stay deliberately separate so the UI feels designed,
+   not decorated.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-trend-view[data-mvm-design-roles] {
+    --mvm-bento-gap: .75rem;
+    --mvm-glass-fill: color-mix(in oklab, var(--color-surface) 64%, transparent);
+    --mvm-glass-fill-strong: color-mix(in oklab, var(--color-surface) 78%, transparent);
+    --mvm-glass-line: color-mix(in oklab, white 9%, transparent);
+    --mvm-glass-shadow: 0 18px 42px rgba(0, 0, 0, .20);
+    --mvm-soft-light: rgba(255,255,255,.045);
+    --mvm-soft-dark: rgba(0,0,0,.34);
+  }
+
+  /* 40% — Bento: information architecture and spatial grouping. */
+  .mvm-bento-canvas {
+    gap: var(--mvm-bento-gap);
+    padding: .75rem;
+    grid-template-areas: "rail core catalog";
+    grid-template-columns: 12.5rem minmax(0, 1fr) 17.5rem;
+  }
+
+  .mvm-bento-canvas > #mvm-space-left { grid-area: rail; }
+  .mvm-bento-canvas > #mvm-space-core { grid-area: core; min-width: 0; }
+  .mvm-bento-canvas > #mvm-space-right { grid-area: catalog; }
+
+  .mvm-bento-core {
+    min-width: 0;
+    border-radius: 22px;
+    overflow: hidden;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-bento-canvas {
+    grid-template-columns: 12rem minmax(0, 1fr) 18rem;
+  }
+
+  .mvm-bento-card {
+    border-radius: 20px;
+    min-width: 0;
+  }
+
+  /* 20% — Glass: large surfaces only, never every small control. */
+  .mvm-glass-surface {
+    background:
+      linear-gradient(145deg, color-mix(in oklab, white 3%, transparent), transparent 34%),
+      var(--mvm-glass-fill);
+    border: 1px solid var(--mvm-glass-line) !important;
+    box-shadow:
+      inset 0 1px var(--mvm-soft-light),
+      inset 0 -1px rgba(0,0,0,.12),
+      var(--mvm-glass-shadow);
+    backdrop-filter: blur(18px) saturate(1.08);
+    -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  }
+
+  .mvm-secondary-rail.mvm-glass-surface {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, white 3%, transparent), transparent 28%),
+      color-mix(in oklab, var(--color-surface) 54%, transparent) !important;
+  }
+
+  .mvm-mobile-dock.mvm-glass-surface {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, white 4%, transparent), transparent 28%),
+      color-mix(in oklab, var(--color-bg) 76%, transparent) !important;
+    border-inline: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .mvm-primary-command.mvm-glass-surface {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, white 5%, transparent), transparent 32%),
+      color-mix(in oklab, var(--color-surface) 74%, transparent);
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.07),
+      0 -16px 36px rgba(0,0,0,.14),
+      0 14px 32px rgba(0,0,0,.12);
+  }
+
+  .mvm-boot-identity.mvm-glass-surface {
+    background:
+      linear-gradient(120deg, color-mix(in oklab, var(--color-ok) 5%, transparent), transparent 40%),
+      color-mix(in oklab, var(--color-surface) 70%, transparent) !important;
+  }
+
+  /* Glass is strongest during search/result states, not at idle. */
+  .mvm-query-item {
+    border: 1px solid color-mix(in oklab, white 5%, transparent) !important;
+    background:
+      linear-gradient(120deg, color-mix(in oklab, white 3%, transparent), transparent 42%),
+      color-mix(in oklab, var(--color-surface) 46%, transparent) !important;
+    backdrop-filter: blur(10px) saturate(1.04);
+    -webkit-backdrop-filter: blur(10px) saturate(1.04);
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+    background:
+      linear-gradient(100deg, color-mix(in oklab, var(--color-ok) 9%, transparent), transparent 48%),
+      color-mix(in oklab, var(--color-surface) 72%, transparent) !important;
+    box-shadow:
+      inset 3px 0 var(--mvm-glow-strong),
+      inset 0 1px rgba(255,255,255,.05),
+      0 12px 28px rgba(0,0,0,.16);
+  }
+
+  /* 20% — Neumorphism: only compact, interactive controls. */
+  .mvm-neumorphic-control {
+    border: 1px solid color-mix(in oklab, white 7%, transparent) !important;
+    box-shadow:
+      5px 5px 12px var(--mvm-soft-dark),
+      -3px -3px 9px rgba(255,255,255,.035),
+      inset 0 1px rgba(255,255,255,.045) !important;
+  }
+
+  .mvm-neumorphic-control:hover {
+    box-shadow:
+      3px 3px 9px var(--mvm-soft-dark),
+      -2px -2px 7px rgba(255,255,255,.045),
+      inset 0 1px rgba(255,255,255,.05) !important;
+  }
+
+  .mvm-neumorphic-control:active {
+    box-shadow:
+      inset 3px 3px 8px rgba(0,0,0,.22),
+      inset -2px -2px 6px rgba(255,255,255,.03) !important;
+    transform: translateY(1px) scale(.985) !important;
+  }
+
+  .mvm-spatial-node {
+    border: 1px solid color-mix(in oklab, white 6%, transparent);
+    background: color-mix(in oklab, var(--color-surface) 52%, transparent);
+    box-shadow:
+      3px 3px 8px rgba(0,0,0,.22),
+      -2px -2px 6px rgba(255,255,255,.025),
+      inset 0 1px rgba(255,255,255,.04);
+    backdrop-filter: blur(8px);
+  }
+
+  .mvm-command-clear {
+    background: color-mix(in oklab, var(--color-surface) 60%, transparent);
+    border: 1px solid color-mix(in oklab, white 6%, transparent);
+    box-shadow:
+      3px 3px 8px rgba(0,0,0,.22),
+      -2px -2px 6px rgba(255,255,255,.025),
+      inset 0 1px rgba(255,255,255,.04);
+  }
+
+  /* 20% — Minimal skeuomorphism: physical depth only around meaningful visuals. */
+  .mvm3d-wrap .mvm3d-stage {
+    border-radius: 16px;
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.10),
+      inset 0 -10px 18px rgba(0,0,0,.16),
+      0 10px 22px rgba(0,0,0,.20);
+  }
+
+  .mvm-boot-identity .mvm3d-wrap .mvm3d-stage {
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.12),
+      inset 0 -12px 22px rgba(0,0,0,.18),
+      0 16px 30px rgba(0,0,0,.24),
+      0 0 0 1px color-mix(in oklab, var(--color-ok) 9%, transparent);
+  }
+
+  .mvm-query-item .mvm3d-wrap .mvm3d-stage {
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.08),
+      inset 0 -7px 12px rgba(0,0,0,.14),
+      0 7px 16px rgba(0,0,0,.18);
+  }
+
+  /* Remove generic decorative shine from tiny controls: the physical metaphor
+     belongs to the 3D anchor, not every chip. */
+  .mvm-quick-action::before,
+  .mvm-primary-command button[type="submit"]::before,
+  .mvm-spatial-node::before {
+    display: none !important;
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-bento-canvas {
+      grid-template-areas: "core";
+      grid-template-columns: 1fr;
+      gap: .5rem;
+      padding: 0;
+    }
+
+    .mvm-bento-card {
+      border-radius: 18px;
+    }
+
+    .mvm-glass-surface {
+      backdrop-filter: blur(14px) saturate(1.04);
+      -webkit-backdrop-filter: blur(14px) saturate(1.04);
+    }
+
+    .mvm-primary-command {
+      margin-inline: .5rem;
+      border-radius: 18px !important;
+      overflow: hidden;
+    }
+
+    .mvm-quick-action {
+      min-height: 42px;
+      padding-inline: .9rem !important;
+    }
+
+    .mvm-query-item {
+      border-radius: 14px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-neumorphic-control,
+    .mvm-neumorphic-control:hover,
+    .mvm-neumorphic-control:active {
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
+  @supports not ((backdrop-filter: blur(10px))) {
+    .mvm-glass-surface,
+    .mvm-query-item {
+      background: color-mix(in oklab, var(--color-surface) 92%, var(--color-bg)) !important;
+    }
+  }
+}
