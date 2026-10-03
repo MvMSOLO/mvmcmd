@@ -2958,3 +2958,318 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD JUICY MOTION PASS
+   More tactile, more expressive, still lightweight:
+   anticipation → overshoot → settle, not endless motion.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  :root {
+    --mvm-juice-ease: cubic-bezier(.16, 1.18, .28, 1);
+    --mvm-juice-snap: cubic-bezier(.22, 1.45, .36, 1);
+    --mvm-juice-fast: 150ms;
+    --mvm-juice-normal: 280ms;
+  }
+
+  /* Every command commit gets a tiny system pulse.
+     The element is re-mounted by React so repeated identical commands
+     still animate instead of getting stuck on a single CSS state. */
+  .mvm-juice-burst {
+    position: fixed;
+    z-index: 80;
+    left: 50%;
+    top: 50%;
+    width: min(34vw, 300px);
+    aspect-ratio: 1;
+    pointer-events: none;
+    border: 1px solid color-mix(in oklab, var(--color-ok) 28%, transparent);
+    border-radius: 999px;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(.22);
+    background: radial-gradient(circle, color-mix(in oklab, var(--color-ok) 8%, transparent), transparent 62%);
+    filter: blur(.1px);
+    animation: mvm-juice-burst 560ms var(--mvm-juice-snap) both;
+  }
+
+  .mvm-juice-burst[data-signal="warn"] {
+    border-color: color-mix(in oklab, var(--color-warn) 30%, transparent);
+    background: radial-gradient(circle, color-mix(in oklab, var(--color-warn) 9%, transparent), transparent 62%);
+  }
+
+  .mvm-juice-burst[data-signal="intent"] {
+    border-color: color-mix(in oklab, var(--color-accent) 26%, transparent);
+    background: radial-gradient(circle, color-mix(in oklab, var(--color-accent) 7%, transparent), transparent 62%);
+  }
+
+  @keyframes mvm-juice-burst {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+    12% { opacity: .32; }
+    42% { opacity: .16; transform: translate(-50%, -50%) scale(.78); }
+    76% { opacity: .08; transform: translate(-50%, -50%) scale(1.06); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.18); }
+  }
+
+  /* 3D assets: a little more life without increasing pointer travel.
+     The JS tilt values still provide the actual directional motion. */
+  .mvm3d-wrap[data-mvm-interactive="true"] .mvm3d-stage {
+    transition:
+      transform var(--mvm-juice-fast) var(--mvm-juice-ease),
+      filter var(--mvm-juice-fast) ease,
+      box-shadow var(--mvm-juice-normal) var(--mvm-juice-ease);
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:hover .mvm3d-stage {
+    filter: brightness(1.055) saturate(1.04);
+  }
+
+  .mvm3d-wrap[data-mvm-interactive="true"]:active .mvm3d-stage {
+    transform:
+      perspective(560px)
+      rotateX(calc(var(--mvm-rotate-x) * .72))
+      rotateY(calc(var(--mvm-rotate-y) * .72))
+      translate3d(calc(var(--mvm-shift-x) * .66), calc(var(--mvm-shift-y) * .66), -2px)
+      scale(.965);
+    transition-duration: 90ms;
+  }
+
+  .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage {
+    animation: mvm-juicy-core-idle 3.8s ease-in-out infinite;
+  }
+
+  @keyframes mvm-juicy-core-idle {
+    0%, 100% { transform: translateY(0) scale(1); }
+    48% { transform: translateY(-1px) scale(1.025); }
+    54% { transform: translateY(0) scale(1.01); }
+  }
+
+  /* Search results: a snappier stack, with the selected item carrying
+     the strongest physical response. */
+  .mvm-query-results > li {
+    animation: mvm-juicy-query-in 420ms var(--mvm-juice-snap) both;
+    animation-delay: calc(min(var(--mvm-query-index, 0), 6) * 34ms);
+  }
+
+  .mvm-query-results > li:nth-child(1) { --mvm-query-index: 0; }
+  .mvm-query-results > li:nth-child(2) { --mvm-query-index: 1; }
+  .mvm-query-results > li:nth-child(3) { --mvm-query-index: 2; }
+  .mvm-query-results > li:nth-child(4) { --mvm-query-index: 3; }
+
+  @keyframes mvm-juicy-query-in {
+    0% { opacity: 0; transform: translate3d(0, 10px, 0) scale(.975); }
+    62% { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.006); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+
+  .mvm-query-item {
+    transform-origin: 12% 50%;
+    transition:
+      background-color var(--mvm-juice-normal) var(--mvm-juice-ease),
+      border-color var(--mvm-juice-normal) var(--mvm-juice-ease),
+      transform 220ms var(--mvm-juice-snap),
+      box-shadow 220ms var(--mvm-juice-ease);
+  }
+
+  .mvm-query-item:hover {
+    transform: translateX(5px) translateY(-1px) scale(1.008);
+    box-shadow: 0 9px 24px color-mix(in oklab, #000 11%, transparent);
+  }
+
+  .mvm-query-item:active {
+    transform: translateX(2px) translateY(1px) scale(.985);
+    transition-duration: 80ms;
+  }
+
+  .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus {
+    animation: mvm-juicy-focus-snap 420ms var(--mvm-juice-snap) both;
+  }
+
+  @keyframes mvm-juicy-focus-snap {
+    0% { transform: translateX(1px) scale(.985); }
+    55% { transform: translateX(9px) scale(1.015); }
+    100% { transform: translateX(7px) scale(1); }
+  }
+
+  /* Quick actions now feel like physical chips, not hyperlinks. */
+  .mvm-quick-action {
+    transform-origin: center;
+    transition:
+      transform 180ms var(--mvm-juice-snap),
+      box-shadow 180ms var(--mvm-juice-ease),
+      border-color 180ms ease,
+      background-color 180ms ease;
+  }
+
+  .mvm-quick-action:hover {
+    transform: translateY(-3px) scale(1.025);
+    box-shadow: 0 9px 22px color-mix(in oklab, #000 16%, transparent);
+  }
+
+  .mvm-quick-action:active {
+    transform: translateY(1px) scale(.94);
+    box-shadow: 0 2px 7px color-mix(in oklab, #000 12%, transparent);
+    transition-duration: 70ms;
+  }
+
+  /* The main command bar gets a visible inhale → snap when focused. */
+  .mvm-primary-command:focus-within {
+    animation: mvm-juicy-command-focus 440ms var(--mvm-juice-snap) both;
+  }
+
+  .mvm-primary-command button[type="submit"] {
+    transform-origin: center;
+    transition:
+      transform 190ms var(--mvm-juice-snap),
+      box-shadow 190ms var(--mvm-juice-ease),
+      background-color 190ms ease;
+  }
+
+  .mvm-primary-command button[type="submit"]:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow:
+      0 10px 26px color-mix(in oklab, #000 17%, transparent),
+      inset 0 1px color-mix(in oklab, white 10%, transparent);
+  }
+
+  .mvm-primary-command button[type="submit"]:active {
+    transform: translateY(1px) scale(.94) !important;
+    transition-duration: 65ms;
+  }
+
+  @keyframes mvm-juicy-command-focus {
+    0% { transform: translateY(3px); }
+    45% { transform: translateY(-2px); }
+    100% { transform: translateY(0); }
+  }
+
+  /* Delegated micro feedback: stronger first-frame impact, shorter settle. */
+  .mvm-micro-flash {
+    animation: mvm-juicy-micro-flash 410ms var(--mvm-juice-snap) both;
+  }
+
+  @keyframes mvm-juicy-micro-flash {
+    0% { transform: translateZ(0) scale(.985); filter: brightness(1); }
+    44% {
+      transform: translateZ(0) scale(1.018);
+      filter: brightness(1.1);
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--color-ok) 22%, transparent),
+        0 10px 28px color-mix(in oklab, var(--color-ok) 8%, transparent);
+    }
+    100% { transform: translateZ(0) scale(1); filter: brightness(1); }
+  }
+
+  /* Physical press gets a real squash-and-release instead of simply scaling. */
+  [data-mvm-physical].mvm-physical-press {
+    animation: mvm-juicy-press 220ms var(--mvm-juice-snap) both;
+  }
+
+  @keyframes mvm-juicy-press {
+    0% { transform: perspective(920px) rotateX(0) rotateY(0) translateZ(0) scale(1); }
+    30% { transform: perspective(920px) rotateX(0) rotateY(0) translateZ(-1px) scale(.955); }
+    68% { transform: perspective(920px) rotateX(0) rotateY(0) translateZ(1px) scale(1.012); }
+    100% { transform: perspective(920px) rotateX(0) rotateY(0) translateZ(0) scale(1); }
+  }
+
+  /* Navigation pill gets a tiny magnetic drift and a clean snap. */
+  .mvm-spatial-node {
+    transform-origin: center;
+    transition:
+      transform 180ms var(--mvm-juice-snap),
+      color 160ms ease,
+      background-color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .mvm-spatial-node:hover {
+    transform: translateY(-1px) scale(1.045);
+  }
+
+  .mvm-spatial-node:active {
+    transform: translateY(1px) scale(.92);
+    transition-duration: 65ms;
+  }
+
+  /* Log rows land with a little overshoot instead of a linear fade. */
+  .mvm-motion-log-cascade {
+    transform-origin: left center;
+    animation-timing-function: var(--mvm-juice-snap);
+  }
+
+  /* Success/warn signal gets a softer aftershock. */
+  .mvm-trend-view[data-mvm-signal="success"] .mvm-primary-command::after,
+  .mvm-trend-view[data-mvm-signal="warn"] .mvm-primary-command::after {
+    animation: mvm-juicy-aftershock 620ms var(--mvm-juice-snap) 1;
+  }
+
+  @keyframes mvm-juicy-aftershock {
+    0% { opacity: .05; transform: scaleX(.7); }
+    38% { opacity: .58; transform: scaleX(1.05); }
+    100% { opacity: .15; transform: scaleX(1); }
+  }
+
+  /* The governor gets to veto the expensive eye candy. */
+  .mvm-trend-view[data-mvm-performance="balanced"] .mvm-juice-burst {
+    width: 220px;
+    animation-duration: 460ms;
+  }
+
+  .mvm-trend-view[data-mvm-performance="balanced"] .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage {
+    animation-duration: 5.2s;
+  }
+
+  .mvm-trend-view[data-mvm-performance="low"] .mvm-juice-burst,
+  .mvm-trend-view[data-mvm-performance="low"] .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage {
+    animation: none !important;
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-juice-burst {
+      width: 210px;
+      top: 44%;
+    }
+
+    .mvm-query-item:hover,
+    .mvm-quick-action:hover,
+    .mvm-spatial-node:hover {
+      transform: none !important;
+    }
+
+    .mvm-query-item:active {
+      transform: translateY(1px) scale(.985) !important;
+    }
+
+    .mvm-quick-action:active {
+      transform: translateY(1px) scale(.95) !important;
+    }
+
+    .mvm-primary-command button[type="submit"]:active {
+      transform: scale(.95) !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-juice-burst,
+    .mvm3d-wrap[data-mvm-variant="core"] .mvm3d-stage,
+    .mvm-query-results > li,
+    .mvm-trend-view[data-command-state="active"] .mvm-query-item.mvm-hand-focus,
+    .mvm-primary-command:focus-within,
+    [data-mvm-physical].mvm-physical-press {
+      animation: none !important;
+    }
+
+    .mvm-query-item,
+    .mvm-quick-action,
+    .mvm-spatial-node,
+    .mvm-primary-command button[type="submit"] {
+      transition: none !important;
+      transform: none !important;
+    }
+
+    .mvm-juice-burst {
+      display: none;
+    }
+  }
+}
