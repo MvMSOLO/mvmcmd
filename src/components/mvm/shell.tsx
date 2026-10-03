@@ -412,6 +412,7 @@ export function MvmShell() {
       data-mvm-performance-fps={performanceGovernor.fps}
       data-mvm-space-state={spatialState}
       data-mvm-juice={juicePulse}
+      data-mvm-design-roles="bento-40 glass-20 neumorphic-20 skeuo-20"
       className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg"
       style={{
         "--mvm-perf-render-scale": performanceGovernor.renderScale,
@@ -463,8 +464,8 @@ export function MvmShell() {
         </div>
       </header>
 
-      <div className="mvm-cols mvm-dynamic-layout mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
-        <aside id="mvm-space-left" data-motion="06-rail-drift" className="mvm-secondary-rail enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
+      <div className="mvm-cols mvm-dynamic-layout mvm-bento-canvas mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1">
+        <aside id="mvm-space-left" data-motion="06-rail-drift" className="mvm-secondary-rail mvm-bento-card mvm-glass-surface enter-left d2 mvm-motion-rail-drift mvm-trend-bento hidden border-r border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "pinned")}</p>
           <ul className="mt-3 space-y-1">
             {pins.length === 0 ? (
@@ -507,7 +508,7 @@ export function MvmShell() {
           </ul>
         </aside>
 
-        <section id="mvm-space-core" className="enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
+        <section id="mvm-space-core" className="mvm-bento-core enter-fade d3 mvm-motion-terminal-flicker flex min-h-0 flex-col">
           <div data-motion="04-terminal-flicker"
             ref={logRef}
             onScroll={syncLogParallax}
@@ -520,7 +521,7 @@ export function MvmShell() {
               density={Math.min(1, 0.28 + hits.length / 8 + (phase === "boot" ? 0.12 : 0))}
             />
             {phase === "boot" && (
-              <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mvm-boot-identity mb-4 border border-line bg-surface px-3 py-3">
+              <div data-motion="02-vector-scan" className="mvm-motion-vector-scan mvm-boot-identity mvm-bento-card mvm-glass-surface mb-4 border border-line px-3 py-3">
                 <div className="mvm-boot-identity__wordmark">
                   <Mvm3D asset={MVM_3D["boot-cube"]} size="md" signal="wake" />
                   <MvmWordmark mode="boot" />
@@ -545,7 +546,7 @@ export function MvmShell() {
           </div>
         </section>
 
-        <aside id="mvm-space-right" data-motion="24-liquid-glass" className="mvm-secondary-rail enter-right d4 mvm-hand-beam mvm-trend-glass hidden border-l border-line p-4 lg:block">
+        <aside id="mvm-space-right" data-motion="24-liquid-glass" className="mvm-secondary-rail mvm-bento-card mvm-glass-surface enter-right d4 mvm-hand-beam mvm-trend-glass hidden border-l border-line p-4 lg:block">
           <p className="font-mono text-micro tracking-mark text-faint">{t(lang, "catalog")}</p>
           <ul className="mt-3 space-y-0.5">
             {CATEGORIES.map((cat) => (
@@ -571,7 +572,7 @@ export function MvmShell() {
       </div>
 
       <div
-        className="enter-up d5 border-t border-line bg-bg"
+        className="mvm-mobile-dock mvm-glass-surface enter-up d5 border-t border-line bg-bg"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))", marginBottom: "var(--kb, 0px)" }}
       >
         {recents.length > 0 && (
@@ -599,7 +600,7 @@ export function MvmShell() {
                 data-mvm-action="quick-action"
                 data-mvm-physical
                 onClick={() => commit(action.command)}
-                className="mvm-quick-action shrink-0 rounded-full border border-line bg-surface/70 px-3 py-1.5 font-mono text-micro text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
+                className="mvm-quick-action mvm-neumorphic-control shrink-0 rounded-full border border-line bg-surface/70 px-3 py-1.5 font-mono text-micro text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
               >
                 {lang === "uz" ? action.uz : action.en}
               </button>
@@ -648,7 +649,7 @@ export function MvmShell() {
         )}
 
         <form data-motion="09-input-ignite" data-mvm-action="command-surface"
-          className="mvm-motion-input-ignite mvm-primary-command mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
+          className="mvm-motion-input-ignite mvm-primary-command mvm-glass-surface mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
           onSubmit={(e) => {
             e.preventDefault();
             if (selected && q && !lookupCommand(input.trim().split(/\s+/)[0] ?? "")) {
@@ -697,7 +698,7 @@ export function MvmShell() {
           />
           <button
             type="submit"
-            className="mvm-hand-magnetic mvm-hand-spring-snap hidden rounded-sm bg-accent px-4 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:inline-flex"
+            className="mvm-hand-magnetic mvm-neumorphic-control mvm-hand-spring-snap hidden rounded-sm bg-accent px-4 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:inline-flex"
             data-mvm-action="launch-submit"
             data-mvm-physical
           >
