@@ -120,6 +120,7 @@ export function MvmShell() {
   const [platform, setPlatform] = useState<PlatformKind>("desktop");
   const [standalone, setStandalone] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [juicePulse, setJuicePulse] = useState(0);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useKeyboardInset();
@@ -294,6 +295,7 @@ export function MvmShell() {
 
     const applyResult = () => {
       const result = execute(text, { state, lang });
+      setJuicePulse((value) => value + 1);
       setState(result.state);
       append([makeLine("in", text), ...result.lines], result.clearLog);
       setInput("");
@@ -409,11 +411,19 @@ export function MvmShell() {
       data-mvm-performance={performanceGovernor.tier}
       data-mvm-performance-fps={performanceGovernor.fps}
       data-mvm-space-state={spatialState}
+      data-mvm-juice={juicePulse}
       className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg"
       style={{
         "--mvm-perf-render-scale": performanceGovernor.renderScale,
         "--mvm-perf-motion-scale": performanceGovernor.motionScale,
       } as React.CSSProperties}
+    >
+      <div
+        key={`juice-${juicePulse}`}
+        aria-hidden
+        className="mvm-juice-burst"
+        data-signal={interfaceSignal}
+      />
     >
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
