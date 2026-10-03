@@ -126,8 +126,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.BLACK);
-        getWindow().setNavigationBarColor(Color.BLACK);
+        MvmUiKit.applyWindow(this);
         getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
 
         cameraExecutor = Executors.newSingleThreadExecutor();
@@ -148,7 +147,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
 
     private void buildUi() {
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.BLACK);
+        root.setBackgroundColor(MvmUiKit.BG);
 
         previewFrame = new AspectFrameLayout(this);
         previewFrame.setBackgroundColor(Color.BLACK);
@@ -176,7 +175,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
 
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(dp(16), dp(12), dp(16), dp(8));
+        top.setPadding(dp(12), dp(10), dp(12), dp(8));
         top.setOrientation(LinearLayout.HORIZONTAL);
         addGradientLessTopBackdrop(top);
 
@@ -225,7 +224,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
         TextView hdr = label("AUTO ENHANCE", 10, false);
         hdr.setGravity(Gravity.CENTER);
         hdr.setPadding(dp(10), dp(7), dp(10), dp(7));
-        hdr.setBackground(roundBg(0x66000000, 18));
+        hdr.setBackground(MvmUiKit.stroke(this, 0xB00C1118, 16, 0x553C4656));
         FrameLayout.LayoutParams hdrLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, dp(32), Gravity.TOP | Gravity.START);
         hdrLp.setMargins(dp(18), dp(84), 0, 0);
@@ -251,7 +250,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)));
         }
         filtersScroll.addView(filters);
-        filtersScroll.setBackgroundColor(0x33000000);
+        filtersScroll.setBackground(MvmUiKit.stroke(this, 0x7A080B10, 18, 0x44374252));
 
         FrameLayout.LayoutParams filterLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, dp(48), Gravity.BOTTOM);
@@ -281,7 +280,8 @@ public final class MvmCameraActivity extends AppCompatActivity {
         LinearLayout bottom = new LinearLayout(this);
         bottom.setGravity(Gravity.CENTER);
         bottom.setOrientation(LinearLayout.VERTICAL);
-        bottom.setPadding(dp(12), dp(6), dp(12), dp(12));
+        bottom.setPadding(dp(12), dp(10), dp(12), dp(12));
+        bottom.setBackground(MvmUiKit.stroke(this, 0xB30A0E15, 24, 0x553A4453));
 
         LinearLayout modeRow = new LinearLayout(this);
         modeRow.setGravity(Gravity.CENTER);
@@ -352,7 +352,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
         processLabel = label("", 12, true);
         processLabel.setGravity(Gravity.CENTER);
         processLabel.setVisibility(View.GONE);
-        processLabel.setBackgroundColor(0xDD000000);
+        processLabel.setBackground(MvmUiKit.stroke(this, 0xE20B0F16, 16, 0x55414B5C));
         root.addView(processLabel, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, dp(44), Gravity.CENTER_VERTICAL));
 
@@ -1001,17 +1001,14 @@ public final class MvmCameraActivity extends AppCompatActivity {
     }
 
     private TextView label(String text, int size, boolean bold) {
-        TextView t = new TextView(this);
-        t.setText(text);
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(size);
-        t.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL);
-        return t;
+        return MvmUiKit.text(this, text, size, MvmUiKit.FG, bold);
     }
 
     private TextView iconText(String text, int size) {
-        TextView t = label(text, size, false);
+        TextView t = label(text, size, true);
         t.setGravity(Gravity.CENTER);
+        t.setBackground(MvmUiKit.stroke(this, 0x660C1118, 99, 0x55353F50));
+        MvmUiKit.installPress(t);
         return t;
     }
 
@@ -1024,13 +1021,14 @@ public final class MvmCameraActivity extends AppCompatActivity {
     }
 
     private void addGradientLessTopBackdrop(LinearLayout top) {
-        top.setBackgroundColor(0x44000000);
+        top.setBackground(MvmUiKit.stroke(this, 0x70070A0F, 22, 0x332D3745));
     }
 
     private android.graphics.drawable.Drawable roundBg(int color, int radius) {
         android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(dp(radius));
+        d.setStroke(dp(1), 0x55364252);
         return d;
     }
 

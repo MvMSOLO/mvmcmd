@@ -150,6 +150,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
+        MvmUiKit.applyWindow(this);
         prefs=getSharedPreferences("mvm_english_studio",MODE_PRIVATE);
         load();
         seed();
@@ -166,30 +167,24 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         super.onDestroy();
     }
 
-    private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
-    private TextView tv(String s,float size,int color){
-        TextView t=new TextView(this); t.setText(s); t.setTextColor(color); t.setTextSize(size);
-        t.setTypeface(Typeface.DEFAULT); return t;
-    }
+    private int dp(int n){return MvmUiKit.dp(this,n);}
+    private TextView tv(String s,float size,int color){return MvmUiKit.text(this,s,size,color,false);}
     private LinearLayout col(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
     private LinearLayout row(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);return l;}
     private android.graphics.drawable.GradientDrawable box(int color,int radius){
-        android.graphics.drawable.GradientDrawable g=new android.graphics.drawable.GradientDrawable();
-        g.setColor(color);g.setCornerRadius(dp(radius));g.setStroke(dp(1),LINE);return g;
+        return MvmUiKit.surface(this,color,radius);
     }
-    private Button button(String s){
-        Button b=new Button(this);b.setText(s);b.setTextColor(FG);b.setTextSize(12);b.setAllCaps(false);
-        b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setMinHeight(dp(48));b.setBackground(box(PANEL,12));return b;
-    }
+    private Button button(String s){return MvmUiKit.button(this,s,false);}
     private void base(String title,String subtitle){
         if(timer!=null){timer.cancel();timer=null;}
         ScrollView sc=new ScrollView(this);
-        content=col(); content.setPadding(dp(16),dp(12),dp(16),dp(22)); sc.addView(content);
-        LinearLayout root=col(); root.setBackgroundColor(BG);
-        LinearLayout top=row(); TextView h=tv(title,23,FG);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        content=col(); content.setPadding(dp(14),dp(14),dp(14),dp(24)); sc.addView(content);
+        LinearLayout root=col(); root.setBackgroundColor(MvmUiKit.BG);
+        LinearLayout top=row(); top.setPadding(dp(12),dp(10),dp(12),dp(10)); top.setBackground(MvmUiKit.stroke(this,0xB50B1017,20,0x44384454));
+        TextView h=tv(title,24,MvmUiKit.FG);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         top.addView(h,new LinearLayout.LayoutParams(0,dp(44),1));
-        TextView xpv=tv(xp+" XP",11,ACCENT);top.addView(xpv);
-        root.addView(top);root.addView(tv(subtitle,11,MUTED),new LinearLayout.LayoutParams(-1,dp(30)));
+        TextView xpv=tv(xp+" XP",11,MvmUiKit.ACCENT);xpv.setGravity(Gravity.CENTER);xpv.setPadding(dp(10),0,dp(10),0);xpv.setBackground(MvmUiKit.surface(this,MvmUiKit.PANEL_2,99));top.addView(xpv);
+        root.addView(top); TextView sub=tv(subtitle,11,MvmUiKit.MUTED);sub.setPadding(dp(4),dp(10),dp(4),dp(12));root.addView(sub,new LinearLayout.LayoutParams(-1,dp(42)));
         root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
         LinearLayout nav=row();nav.setPadding(dp(10),dp(7),dp(10),dp(8));
         addNav(nav,"LAB",v->home());addNav(nav,"PRACTICE",v->practice());addNav(nav,"COACH",v->coach());
@@ -197,7 +192,7 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
         root.addView(nav);setContentView(root);
     }
     private void addNav(LinearLayout nav,String text,View.OnClickListener l){
-        Button b=button(text);b.setTextSize(10);b.setOnClickListener(l);nav.addView(b,new LinearLayout.LayoutParams(0,dp(44),1));
+        Button b=MvmUiKit.button(this,text,false);b.setTextSize(10);b.setOnClickListener(l);nav.addView(b,new LinearLayout.LayoutParams(0,dp(46),1));
     }
     private void gap(int n){Space s=new Space(this);content.addView(s,new LinearLayout.LayoutParams(1,dp(n)));}
 
@@ -383,9 +378,9 @@ public class MvmEnglishStudioActivity extends Activity implements TextToSpeech.O
     }
 
     private void addCard(String a,String b,String c){
-        LinearLayout x=col();x.setPadding(dp(13),dp(11),dp(13),dp(11));x.setBackground(box(PANEL,13));
-        TextView aa=tv(a,10,MUTED);aa.setTypeface(Typeface.DEFAULT,Typeface.BOLD);x.addView(aa);
-        TextView bb=tv(b,19,FG);bb.setTypeface(Typeface.DEFAULT,Typeface.BOLD);x.addView(bb);
+        LinearLayout x=col();x.setPadding(dp(15),dp(14),dp(15),dp(14));x.setBackground(MvmUiKit.surface(this,MvmUiKit.PANEL,18));
+        TextView aa=tv(a,10,MvmUiKit.MUTED);aa.setTypeface(Typeface.DEFAULT,Typeface.BOLD);x.addView(aa);
+        TextView bb=tv(b,20,MvmUiKit.FG);bb.setTypeface(Typeface.DEFAULT,Typeface.BOLD);x.addView(bb);
         x.addView(tv(c,11,MUTED));content.addView(x,new LinearLayout.LayoutParams(-1,dp(88)));gap(7);
     }
     private String focusForErrors(){
