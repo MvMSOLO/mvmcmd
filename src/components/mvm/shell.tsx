@@ -424,7 +424,6 @@ export function MvmShell() {
         className="mvm-juice-burst"
         data-signal={interfaceSignal}
       />
-    >
       <header data-motion="01-command-bloom" className="enter-down d1 mvm-motion-command-bloom mvm-hand-glass-sweep flex items-end justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
         <div>
           <p data-motion="28-variable-type" className="mvm-trend-variable font-mono text-micro tracking-mark text-muted">MACHINE VECTOR MODULE</p>
