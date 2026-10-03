@@ -621,7 +621,7 @@ export function MvmShell() {
         )}
 
         {hits.length > 0 && (
-          <ul data-motion="31-dynamic-query" className="mvm-query-results mx-auto flex max-w-6xl flex-col gap-1 px-4 pt-3 sm:px-6" aria-live="polite">
+          <ul id="mvm-query-results" data-motion="31-dynamic-query" className="mvm-query-results mx-auto flex max-w-6xl flex-col gap-1 px-4 pt-3 sm:px-6" aria-live="polite">
             {hits.map((hit, i) => (
               <li key={hit.app.id}>
                 <button
@@ -648,7 +648,10 @@ export function MvmShell() {
           </ul>
         )}
 
-        <form data-motion="09-input-ignite" data-mvm-action="command-surface"
+        <form
+          aria-label={lang === "uz" ? "MVMCMD buyruq satri" : "MVMCMD command line"}
+          data-motion="09-input-ignite"
+          data-mvm-action="command-surface"
           className="mvm-motion-input-ignite mvm-primary-command mvm-glass-surface mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6"
           onSubmit={(e) => {
             e.preventDefault();
@@ -693,6 +696,10 @@ export function MvmShell() {
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
+            enterKeyHint="go"
+            aria-autocomplete="list"
+            aria-controls={hits.length ? "mvm-query-results" : undefined}
+            aria-expanded={hits.length > 0 ? true : undefined}
             placeholder={t(lang, "prompt")}
             className="mvm-caret mvm-hand-shimmer min-h-11 min-w-0 flex-1 bg-transparent font-mono text-base text-fg outline-none placeholder:text-faint"
           />
