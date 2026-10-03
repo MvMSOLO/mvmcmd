@@ -2683,3 +2683,278 @@
     }
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MVMCMD 10–14 — performance governor + micro grammar +
+   spatial navigation + signal layer + physical UI
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .mvm-trend-view[data-mvm-performance] {
+    --mvm-physical-z: 0px;
+    --mvm-physical-rx: 0deg;
+    --mvm-physical-ry: 0deg;
+    --mvm-signal-glow: transparent;
+  }
+
+  /* 10 — Performance Governor
+     High keeps the full premium stack. Balanced trims intensity.
+     Low removes non-essential paint-heavy layers first. */
+  .mvm-trend-view[data-mvm-performance="high"] {
+    --mvm-perf-field-opacity: 1;
+    --mvm-perf-shadow-alpha: 1;
+  }
+
+  .mvm-trend-view[data-mvm-performance="balanced"] {
+    --mvm-perf-field-opacity: .58;
+    --mvm-perf-shadow-alpha: .72;
+  }
+
+  .mvm-trend-view[data-mvm-performance="low"] {
+    --mvm-perf-field-opacity: .08;
+    --mvm-perf-shadow-alpha: .32;
+  }
+
+  .mvm-trend-view[data-mvm-performance="balanced"] .mvm-generative-field {
+    opacity: .58 !important;
+  }
+
+  .mvm-trend-view[data-mvm-performance="low"] .mvm-generative-field {
+    opacity: .08 !important;
+  }
+
+  .mvm-trend-view[data-mvm-performance="low"] .mvm-trend-parallax {
+    display: none;
+  }
+
+  .mvm-trend-view[data-mvm-performance="low"] .mvm3d-stage {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 3%, transparent) !important;
+    filter: saturate(.88);
+  }
+
+  .mvm-trend-view[data-mvm-performance="low"] .mvm-boot-identity::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .mvm-performance-chip {
+    min-width: 5.9rem;
+    justify-content: center;
+  }
+
+  /* 11 — Micro-Interaction Grammar
+     Every actionable surface gets the same pulse/press language,
+     while the action-specific hue stays owned by the state system. */
+  [data-mvm-action] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mvm-micro-flash {
+    animation: mvm-micro-flash 360ms var(--ease-out) both;
+  }
+
+  @keyframes mvm-micro-flash {
+    0% {
+      filter: brightness(1);
+      box-shadow: 0 0 0 0 var(--mvm-signal-glow);
+    }
+    42% {
+      filter: brightness(1.08);
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--color-ok) 18%, transparent),
+        0 0 22px color-mix(in oklab, var(--color-ok) 7%, transparent);
+    }
+    100% {
+      filter: brightness(1);
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  /* 12 — Spatial Navigation
+     The command space subtly rebalances around the active zone rather
+     than pretending there are separate pages. */
+  .mvm-spatial-nav {
+    min-height: 26px;
+    padding: 2px;
+    border: 1px solid color-mix(in oklab, var(--color-fg) 7%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-surface) 66%, transparent);
+  }
+
+  .mvm-spatial-node {
+    border: 1px solid transparent;
+    transition:
+      color 180ms var(--ease-out),
+      background-color 180ms var(--ease-out),
+      border-color 180ms var(--ease-out),
+      transform 180ms var(--ease-out);
+  }
+
+  .mvm-spatial-node:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklab, var(--color-fg) 5%, transparent);
+  }
+
+  .mvm-spatial-node[aria-current="location"] {
+    color: var(--color-fg);
+    border-color: color-mix(in oklab, var(--color-ok) 17%, transparent);
+    background: color-mix(in oklab, var(--color-ok) 7%, var(--color-surface));
+    box-shadow: inset 0 1px color-mix(in oklab, white 5%, transparent);
+  }
+
+  .mvm-trend-view[data-mvm-space-state="catalog"] #mvm-space-right {
+    opacity: 1;
+    transform: translate3d(-2px, 0, 8px);
+  }
+
+  .mvm-trend-view[data-mvm-space-state="field"] #mvm-space-right {
+    opacity: .76;
+    transform: translate3d(0, 0, 3px);
+  }
+
+  .mvm-trend-view[data-mvm-space-state="catalog"] #mvm-space-left,
+  .mvm-trend-view[data-mvm-space-state="field"] #mvm-space-left {
+    opacity: .72;
+    transform: translate3d(2px, 0, 0);
+  }
+
+  .mvm-trend-view[data-mvm-space-state="core"] .mvm-primary-command {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, var(--color-ok) 16%, transparent),
+      0 -14px 34px rgba(0, 0, 0, .12);
+  }
+
+  /* 13 — Signal Layer
+     Visual state follows the exact same semantic signal used by
+     the sound/haptic emitter in signal-system.ts. */
+  .mvm-trend-view[data-mvm-signal="intent"] {
+    --mvm-signal-glow: color-mix(in oklab, var(--color-accent) 10%, transparent);
+  }
+
+  .mvm-trend-view[data-mvm-signal="success"] {
+    --mvm-signal-glow: color-mix(in oklab, var(--color-ok) 14%, transparent);
+  }
+
+  .mvm-trend-view[data-mvm-signal="warn"] {
+    --mvm-signal-glow: color-mix(in oklab, var(--color-warn) 13%, transparent);
+  }
+
+  .mvm-trend-view[data-mvm-signal="success"] .mvm-primary-command::before,
+  .mvm-trend-view[data-mvm-signal="warn"] .mvm-primary-command::before {
+    content: "";
+    position: absolute;
+    inset-inline: 18%;
+    top: -1px;
+    height: 1px;
+    pointer-events: none;
+    opacity: .7;
+    background: var(--mvm-signal-glow);
+  }
+
+  .mvm-trend-view[data-mvm-signal="success"] .mvm-primary-command::after {
+    content: "";
+    position: absolute;
+    inset-inline: 12%;
+    bottom: -14px;
+    height: 22px;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, var(--mvm-signal-glow), transparent 72%);
+    opacity: .45;
+  }
+
+  .mvm-trend-view[data-mvm-signal="warn"] .mvm-primary-command::after {
+    content: "";
+    position: absolute;
+    inset-inline: 14%;
+    bottom: -12px;
+    height: 18px;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, var(--mvm-signal-glow), transparent 74%);
+    opacity: .42;
+  }
+
+  /* 14 — Physical UI
+     Pointer tilt is intentionally tiny; the important effect is weight:
+     surfaces rise, settle and press consistently without becoming noisy. */
+  [data-mvm-physical] {
+    transform: perspective(920px)
+      rotateX(var(--mvm-physical-rx, 0deg))
+      rotateY(var(--mvm-physical-ry, 0deg))
+      translateZ(var(--mvm-physical-z, 0px));
+    transform-origin: center;
+    will-change: transform;
+    transition:
+      transform 180ms var(--ease-out),
+      box-shadow 180ms var(--ease-out),
+      filter 180ms var(--ease-out);
+  }
+
+  [data-mvm-physical].mvm-physical-press {
+    transform: perspective(920px) rotateX(0deg) rotateY(0deg) translateZ(-1px) scale(.985);
+    filter: brightness(.97);
+  }
+
+  [data-mvm-physical][data-mvm-action="launch-submit"] {
+    box-shadow:
+      inset 0 1px color-mix(in oklab, white 8%, transparent),
+      0 6px 18px rgba(0,0,0,.18);
+  }
+
+  [data-mvm-physical][data-mvm-action="query-select"],
+  [data-mvm-physical][data-mvm-action="rail-open"],
+  [data-mvm-physical][data-mvm-action="recent-open"],
+  [data-mvm-physical][data-mvm-action="catalog-navigate"] {
+    box-shadow: 0 2px 0 rgba(0,0,0,.12);
+  }
+
+  [data-mvm-physical][data-mvm-action="query-select"]:hover,
+  [data-mvm-physical][data-mvm-action="rail-open"]:hover,
+  [data-mvm-physical][data-mvm-action="recent-open"]:hover,
+  [data-mvm-physical][data-mvm-action="catalog-navigate"]:hover {
+    box-shadow:
+      0 4px 12px rgba(0,0,0,.13),
+      inset 0 1px color-mix(in oklab, white 4%, transparent);
+  }
+
+  @media (max-width: 63.999rem) {
+    .mvm-spatial-node:first-child,
+    .mvm-spatial-node:last-child {
+      display: none;
+    }
+
+    .mvm-trend-view[data-mvm-space-state="catalog"] #mvm-space-right,
+    .mvm-trend-view[data-mvm-space-state="field"] #mvm-space-right,
+    .mvm-trend-view[data-mvm-space-state="catalog"] #mvm-space-left,
+    .mvm-trend-view[data-mvm-space-state="field"] #mvm-space-left {
+      transform: none;
+      opacity: 1;
+    }
+
+    [data-mvm-physical] {
+      transition:
+        transform 150ms var(--ease-out),
+        box-shadow 150ms var(--ease-out),
+        filter 150ms var(--ease-out);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mvm-spatial-node,
+    [data-mvm-physical] {
+      transition: none !important;
+      transform: none !important;
+      will-change: auto;
+    }
+
+    .mvm-micro-flash {
+      animation: none !important;
+    }
+
+    .mvm-trend-view[data-mvm-space-state] #mvm-space-left,
+    .mvm-trend-view[data-mvm-space-state] #mvm-space-right {
+      transform: none !important;
+    }
+  }
+}
