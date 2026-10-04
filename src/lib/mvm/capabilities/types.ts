@@ -10,6 +10,7 @@ export interface CapabilitySnapshot {
   decision: CapabilityDecision;
   checkedAt: number;
   detail?: string;
+  needsSettings?: boolean;
 }
 
 export interface CapabilityDefinition {
