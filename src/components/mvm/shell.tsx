@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CATALOG, CATALOG_BY_ID, CATEGORIES } from "@/lib/mvm/catalog";
 import { lookupCommand, parseLine } from "@/lib/mvm/commands";
 import { t } from "@/lib/mvm/copy";
-import { execute, makeLine, runInstall, runPermRequest } from "@/lib/mvm/executor";
+import { execute, makeLine, runDeviceRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
 import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import {
@@ -305,6 +305,17 @@ export function MvmShell() {
       void runPermRequest({ state, lang }, parsed.args[0]).then((res) => {
         setState(res.state);
         append(res.lines);
+      });
+      setInput("");
+      setHistIdx(-1);
+      return;
+    }
+    if (parsed.cmd?.name === "device") {
+      append([makeLine("in", text), makeLine("sys", lang === "uz" ? "DEVICE  native telemetry o‘qilmoqda…" : "DEVICE  reading native telemetry…")]);
+      emitMvmSignal("intent");
+      void runDeviceRequest({ state, lang }).then((ls) => {
+        append(ls);
+        emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
       setInput("");
       setHistIdx(-1);
