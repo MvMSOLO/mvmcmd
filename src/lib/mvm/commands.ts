@@ -136,6 +136,13 @@ export const COMMANDS: CommandSpec[] = [  {
     summaryUz: "Android package nomini to‘g‘ridan-to‘g‘ri ochadi.",
   },
   {
+    name: "device",
+    aliases: ["hardware", "monitor", "device-info"],
+    usage: "device",
+    summaryEn: "Read real Android device, battery, memory, thermal, display, network and sensor data.",
+    summaryUz: "Android qurilma, batareya, RAM, temperatura, ekran, tarmoq va sensorlarni real o‘qiydi.",
+  },
+  {
     name: "sys",
     aliases: ["info", "status"],
     usage: "sys",
@@ -214,6 +221,7 @@ const EMPTY_OK = new Set([
   "perm",
   "install",
   "sys",
+  "device",
   "about",
   "help",
   "date",
