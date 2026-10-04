@@ -1,4 +1,4 @@
-import { compact, fold, tokens } from "./normalize";
+import { compact, fold } from "./normalize";
 
 export type MvmIntent =
   | "open_app"
@@ -26,7 +26,7 @@ export interface MvmIntentResult {
   reason: string;
 }
 
-const UZ_OPEN = ["och", "ochir", "oching", "ishga", "ishga tushir", "ishga tushiring", "yurgiz"];
+const UZ_OPEN = ["och", "oching", "ishga tushir", "ishga tushiring", "yurgiz"];
 const EN_OPEN = ["open", "launch", "start", "run"];
 
 const UZ_DEVICE = [
