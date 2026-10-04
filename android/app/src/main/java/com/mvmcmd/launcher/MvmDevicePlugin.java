@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ConfigurationInfo;
-import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
@@ -63,7 +62,9 @@ public class MvmDevicePlugin extends Plugin {
         device.put("hardware", Build.HARDWARE);
         device.put("sdk", Build.VERSION.SDK_INT);
         device.put("release", Build.VERSION.RELEASE);
-        device.put("abis", new JSArray(Build.SUPPORTED_ABIS));
+        JSArray abis = new JSArray();
+        for (String abi : Build.SUPPORTED_ABIS) abis.put(abi);
+        device.put("abis", abis);
         out.put("device", device);
 
         JSObject cpu = new JSObject();
