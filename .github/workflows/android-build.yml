@@ -51,7 +51,11 @@ jobs:
         run: |
           set -euo pipefail
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
-          grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q '@CapacitorPlugin' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'name = "MvmLauncher"' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'checkCapabilities' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'requestCapability' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'setCapabilityDecision' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
