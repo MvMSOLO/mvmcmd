@@ -2,6 +2,7 @@ import { CATALOG, CATALOG_BY_ID, CATEGORIES, findByIdOrName } from "./catalog";
 import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
+import { understandCommand } from "./intelligence";
 import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
 import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenEnglish, nativeOpenNotifications } from "./native-launcher";
 import {
@@ -118,7 +119,9 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   const state0 = pushHistory(ctx.state, trimmed);
   saveState(state0);
   const ctx2: ExecContext = { ...ctx, state: state0 };
-  const parsed = parseLine(trimmed);
+  const understood = understandCommand(trimmed);
+  const interpreted = understood.intent === "open_app" ? `open ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "find_app" ? `find ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "device_snapshot" ? "device" : understood.intent === "permission_status" ? "perm" : understood.intent === "help" ? "help" : trimmed;
+  const parsed = parseLine(interpreted);
   const name = parsed.cmd?.name;
 
   if (!parsed.cmd) {
