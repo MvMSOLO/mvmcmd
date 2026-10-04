@@ -302,7 +302,7 @@ export function MvmShell() {
     if (parsed.cmd?.name === "perm") {
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
-      void runPermRequest({ state, lang }).then((res) => {
+      void runPermRequest({ state, lang }, parsed.args[0]).then((res) => {
         setState(res.state);
         append(res.lines);
       });
