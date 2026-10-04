@@ -1,18 +1,351 @@
 package com.mvmcmd.launcher;
 
+import android.app.AppOpsManager;
+import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+import android.service.notification.NotificationListenerService;
 
+import androidx.core.app.NotificationManagerCompat;
+
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
-@CapacitorPlugin(name = "MvmLauncher")
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+@CapacitorPlugin(
+    name = "MvmLauncher",
+    permissions = {
+        @Permission(alias = "camera", strings = { "android.permission.CAMERA" }),
+        @Permission(alias = "microphone", strings = { "android.permission.RECORD_AUDIO" }),
+        @Permission(alias = "contacts", strings = { "android.permission.READ_CONTACTS" }),
+        @Permission(alias = "notifications", strings = { "android.permission.POST_NOTIFICATIONS" })
+    }
+)
 public class MvmLauncherPlugin extends Plugin {
+    private static final String PREFS = "mvmcmd_capabilities";
+    private static final String[] IDS = {
+        "camera",
+        "microphone",
+        "notifications",
+        "notification_listener",
+        "contacts",
+        "overlay",
+        "usage_access"
+    };
+
+    @PluginMethod
+    public void checkCapabilities(PluginCall call) {
+        String requested = call.getString("capabilityId");
+        JSArray result = new JSArray();
+        if (requested != null && !requested.trim().isEmpty()) {
+            result.put(snapshotFor(requested.trim()));
+        } else {
+            for (String id : IDS) result.put(snapshotFor(id));
+        }
+        JSObject out = new JSObject();
+        out.put("capabilities", result);
+        out.put("checkedAt", System.currentTimeMillis());
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void requestCapability(PluginCall call) {
+        String id = call.getString("capabilityId");
+        String decision = call.getString("decision", "allow");
+        if (id == null || !containsId(id)) {
+            call.reject("Unknown capability");
+            return;
+        }
+
+        persistDecision(id, "skip".equals(decision) ? "skip" : "allow");
+
+        if ("skip".equals(decision)) {
+            JSObject out = snapshotFor(id);
+            out.put("needsSettings", false);
+            call.resolve(out);
+            return;
+        }
+
+        if (isRuntimeAlias(id)) {
+            String alias = aliasFor(id);
+            if ("granted".equalsIgnoreCase(String.valueOf(getPermissionState(alias)))) {
+                call.resolve(snapshotFor(id));
+                return;
+            }
+            requestPermissionForAlias(alias, call, "capabilityPermissionCallback");
+            return;
+        }
+
+        if (isSpecial(id)) {
+            boolean opened = openSettingsFor(id);
+            JSObject out = snapshotFor(id);
+            out.put("needsSettings", opened && !"ready".equals(out.optString("state")));
+            if (!opened) {
+                out.put("state", "unavailable");
+                out.put("detail", "System settings screen is unavailable.");
+            }
+            call.resolve(out);
+            return;
+        }
+
+        call.resolve(snapshotFor(id));
+    }
+
+    @PermissionCallback
+    private void capabilityPermissionCallback(PluginCall call) {
+        String id = call.getString("capabilityId");
+        if (id == null || !containsId(id)) {
+            call.reject("Capability request lost its id");
+            return;
+        }
+        call.resolve(snapshotFor(id));
+    }
+
+    @PluginMethod
+    public void setCapabilityDecision(PluginCall call) {
+        String id = call.getString("capabilityId");
+        String decision = call.getString("decision");
+        if (id == null || !containsId(id)) {
+            call.reject("Unknown capability");
+            return;
+        }
+        if (!"allow".equals(decision) && !"skip".equals(decision)) {
+            call.reject("Decision must be allow or skip");
+            return;
+        }
+        persistDecision(id, decision);
+        call.resolve(snapshotFor(id));
+    }
+
+    private boolean containsId(String id) {
+        return Arrays.asList(IDS).contains(id);
+    }
+
+    private boolean isRuntimeAlias(String id) {
+        return "camera".equals(id)
+            || "microphone".equals(id)
+            || "contacts".equals(id)
+            || "notifications".equals(id);
+    }
+
+    private String aliasFor(String id) {
+        if ("notifications".equals(id)) return "notifications";
+        return id;
+    }
+
+    private boolean isSpecial(String id) {
+        return "notification_listener".equals(id)
+            || "overlay".equals(id)
+            || "usage_access".equals(id);
+    }
+
+    private JSObject snapshotFor(String id) {
+        String state = "error";
+        String detail = null;
+
+        try {
+            switch (id) {
+                case "camera":
+                    if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+                        state = "unavailable";
+                        detail = "No camera hardware was reported by Android.";
+                    } else if (!hasRuntimePermission("camera")) {
+                        state = "denied";
+                        detail = "Camera permission is not granted.";
+                    } else {
+                        state = "ready";
+                    }
+                    break;
+
+                case "microphone":
+                    if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
+                        state = "unavailable";
+                        detail = "No microphone hardware was reported by Android.";
+                    } else if (!hasRuntimePermission("microphone")) {
+                        state = "denied";
+                        detail = "Microphone permission is not granted.";
+                    } else {
+                        state = "ready";
+                    }
+                    break;
+
+                case "contacts":
+                    state = hasRuntimePermission("contacts") ? "ready" : "denied";
+                    if ("denied".equals(state)) detail = "Contacts permission is not granted.";
+                    break;
+
+                case "notifications":
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasRuntimePermission("notifications")) {
+                        state = "denied";
+                        detail = "Notification permission is not granted.";
+                    } else if (!NotificationManagerCompat.from(getContext()).areNotificationsEnabled()) {
+                        state = "denied";
+                        detail = "App notifications are disabled in Android settings.";
+                    } else {
+                        state = "ready";
+                    }
+                    break;
+
+                case "notification_listener":
+                    if (isNotificationListenerEnabled()) {
+                        state = "ready";
+                    } else {
+                        state = "restricted";
+                        detail = "Notification listener access must be enabled in Android Settings.";
+                    }
+                    break;
+
+                case "overlay":
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                        state = "unavailable";
+                        detail = "Overlay access is not supported on this Android version.";
+                    } else if (Settings.canDrawOverlays(getContext())) {
+                        state = "ready";
+                    } else {
+                        state = "restricted";
+                        detail = "Display-over-other-apps access is not enabled.";
+                    }
+                    break;
+
+                case "usage_access":
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                        state = "unavailable";
+                        detail = "Usage access is not supported on this Android version.";
+                    } else if (hasUsageAccess()) {
+                        state = "ready";
+                    } else {
+                        state = "restricted";
+                        detail = "Usage access must be enabled in Android Settings.";
+                    }
+                    break;
+
+                default:
+                    state = "unavailable";
+                    detail = "Capability is not implemented on this platform.";
+            }
+        } catch (SecurityException e) {
+            state = "restricted";
+            detail = "Android restricted access to this capability.";
+        } catch (Exception e) {
+            state = "error";
+            detail = e.getClass().getSimpleName();
+        }
+
+        SharedPreferences prefs = getPrefs();
+        String decision = prefs.getString(decisionKey(id), "unset");
+        long checkedAt = System.currentTimeMillis();
+        prefs.edit()
+            .putString(stateKey(id), state)
+            .putLong(checkedKey(id), checkedAt)
+            .apply();
+
+        JSObject out = new JSObject();
+        out.put("id", id);
+        out.put("state", state);
+        out.put("decision", decision);
+        out.put("checkedAt", checkedAt);
+        if (detail != null) out.put("detail", detail);
+        return out;
+    }
+
+    private boolean hasRuntimePermission(String alias) {
+        String state = String.valueOf(getPermissionState(alias));
+        return "granted".equalsIgnoreCase(state);
+    }
+
+    private boolean isNotificationListenerEnabled() {
+        String enabled = Settings.Secure.getString(
+            getContext().getContentResolver(),
+            "enabled_notification_listeners"
+        );
+        if (enabled == null || enabled.isEmpty()) return false;
+
+        ComponentName service = new ComponentName(getContext(), MvmNotificationListenerService.class);
+        String expected = service.flattenToString();
+        for (String value : enabled.split(":")) {
+            if (expected.equals(value)) return true;
+        }
+        return false;
+    }
+
+    private boolean hasUsageAccess() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return false;
+        AppOpsManager appOps = (AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
+        if (appOps == null) return false;
+        int mode = appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            android.os.Process.myUid(),
+            getContext().getPackageName()
+        );
+        return mode == AppOpsManager.MODE_ALLOWED;
+    }
+
+    private boolean openSettingsFor(String id) {
+        Intent intent;
+        try {
+            switch (id) {
+                case "overlay":
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
+                    intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                        intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+                    }
+                    break;
+
+                case "usage_access":
+                    intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                    break;
+
+                case "notification_listener":
+                    intent = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+                    break;
+
+                default:
+                    return false;
+            }
+
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void persistDecision(String id, String decision) {
+        getPrefs().edit().putString(decisionKey(id), decision).apply();
+    }
+
+    private SharedPreferences getPrefs() {
+        return getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    private String decisionKey(String id) { return id + ".decision"; }
+    private String stateKey(String id) { return id + ".state"; }
+    private String checkedKey(String id) { return id + ".checkedAt"; }
+
+    private PackageManager getPackageManager() {
+        return getContext().getPackageManager();
+    }
+
     @PluginMethod
     public void openCamera(PluginCall call) {
         try {
