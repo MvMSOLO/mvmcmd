@@ -24,6 +24,7 @@ import {
 import { detectRuntime } from "./platform";
 import { nativeRequestCapability } from "./native-launcher";
 import { refreshNativeCapabilities } from "./capabilities";
+import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
 let seq = 0;
@@ -429,6 +430,38 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       }
       launchPackage(pkg);
       return { state: state0, lines: [line("ok", `PACK  ${pkg}`)] };
+    }
+    case "device": {
+      if (!canUseNativeDeviceEngine()) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, "DEVICE engine hozir native Android APKda ishlaydi.", "DEVICE engine currently runs in the native Android APK."))],
+        };
+      }
+      try {
+        const s = await nativeGetDeviceSnapshot();
+        return {
+          state: state0,
+          lines: [
+            line("sys", `DEVICE  ${s.device.manufacturer} ${s.device.model}`),
+            line("out", `CPU      ${s.cpu.cores} cores · ${s.cpu.architecture}${s.cpu.loadPercent === undefined ? "" : ` · ${s.cpu.loadPercent.toFixed(1)}%`}`),
+            line("out", `RAM      ${formatBytes(s.memory.usedBytes)} / ${formatBytes(s.memory.totalBytes)} · free ${formatBytes(s.memory.availableBytes)}`),
+            line("out", `STORAGE  ${formatBytes(s.storage.usedBytes)} / ${formatBytes(s.storage.totalBytes)} · free ${formatBytes(s.storage.availableBytes)}`),
+            line("out", `BATTERY  ${s.battery.percent === undefined ? "unknown" : s.battery.percent + "%"} · ${s.battery.charging ? "charging" : "not charging"}${s.battery.temperatureC === undefined ? "" : ` · ${s.battery.temperatureC.toFixed(1)}°C`}`),
+            line("out", `THERMAL  ${s.thermal.statusName.toUpperCase()}`),
+            line("out", `DISPLAY  ${s.display.widthPx ?? "?"}×${s.display.heightPx ?? "?"} · ${s.display.refreshRateHz === undefined ? "?" : s.display.refreshRateHz.toFixed(1) + "Hz"}`),
+            line("out", `NETWORK  ${s.network.connected ? "connected" : "offline"}`),
+            line("out", `BLUETOOTH  ${s.bluetooth.state}`),
+            line("out", `SENSORS  ${s.sensors.length}`),
+            line("dim", `SCHEMA   ${s.schemaVersion} · ${new Date(s.timestamp).toISOString()}`),
+          ],
+        };
+      } catch (error) {
+        return {
+          state: state0,
+          lines: [line("warn", L(ctx2, "DEVICE ma’lumotlarini o‘qib bo‘lmadi.", "Unable to read device data."), { meta: error instanceof Error ? error.message : "unknown error" })],
+        };
+      }
     }
     case "sys": {
       const runtime = detectRuntime();
