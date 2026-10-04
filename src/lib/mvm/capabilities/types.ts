@@ -2,9 +2,12 @@ export type CapabilityState = "unknown" | "ready" | "denied" | "restricted" | "u
 
 export type CapabilityId = string;
 
+export type CapabilityDecision = "unset" | "allow" | "skip";
+
 export interface CapabilitySnapshot {
   id: CapabilityId;
   state: CapabilityState;
+  decision: CapabilityDecision;
   checkedAt: number;
   detail?: string;
 }
@@ -17,6 +20,6 @@ export interface CapabilityDefinition {
 }
 
 export interface CapabilityAdapter {
-  check(): Promise<CapabilitySnapshot>;
-  request(): Promise<CapabilitySnapshot>;
+  check(id: CapabilityId): Promise<CapabilitySnapshot>;
+  request(id: CapabilityId): Promise<CapabilitySnapshot>;
 }
