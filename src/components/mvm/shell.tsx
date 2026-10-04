@@ -297,7 +297,7 @@ export function MvmShell() {
 
     const applyResult = () => {
       const result = execute(text, { state, lang });
-      const commandName = parsed.cmd?.name ?? text.trim().split(/\\s+/)[0]?.toLowerCase();
+      const commandName = parsed.cmd?.name ?? text.trim().split(/\s+/)[0]?.toLowerCase();
       setRainVisible(commandName === "wallpaper");
       setJuicePulse((value) => value + 1);
       setState(result.state);
