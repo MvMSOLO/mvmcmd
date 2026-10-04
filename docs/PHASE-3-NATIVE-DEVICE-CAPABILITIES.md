@@ -69,8 +69,8 @@ UI / future Device Intelligence consumers
 - [x] Sensor inventory.
 - [x] `device` command integration.
 - [x] No silent permission request.
-- [ ] Final APK CI success on the final Phase 3 commit.
-- [ ] Final EXE CI success on the final Phase 3 commit.
+- [x] Final APK CI success on the verified Phase 3 implementation commit.
+- [x] Final EXE CI success on the verified Phase 3 implementation commit.
 
 ## Future consumers
 
