@@ -18,6 +18,7 @@ import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
 import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
 import { emitMvmSignal } from "@/lib/mvm/signal-system";
 import { installMvmInteractionLayer } from "@/lib/mvm/interaction-system";
+import { MvmRainBackdrop } from "./rain-backdrop";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -121,6 +122,7 @@ export function MvmShell() {
   const [standalone, setStandalone] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [juicePulse, setJuicePulse] = useState(0);
+  const [rainVisible, setRainVisible] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useKeyboardInset();
@@ -295,6 +297,8 @@ export function MvmShell() {
 
     const applyResult = () => {
       const result = execute(text, { state, lang });
+      const commandName = parsed.cmd?.name ?? text.trim().split(/\\s+/)[0]?.toLowerCase();
+      setRainVisible(commandName === "wallpaper");
       setJuicePulse((value) => value + 1);
       setState(result.state);
       append([makeLine("in", text), ...result.lines], result.clearLog);
@@ -413,12 +417,13 @@ export function MvmShell() {
       data-mvm-space-state={spatialState}
       data-mvm-juice={juicePulse}
       data-mvm-design-roles="bento-40 glass-20 neumorphic-20 skeuo-20"
-      className="mvm-trend-view flex min-h-dvh flex-col bg-bg text-fg"
+      className="mvm-trend-view relative isolate flex min-h-dvh flex-col bg-bg text-fg"
       style={{
         "--mvm-perf-render-scale": performanceGovernor.renderScale,
         "--mvm-perf-motion-scale": performanceGovernor.motionScale,
       } as React.CSSProperties}
     >
+      <MvmRainBackdrop visible={rainVisible} />
       <div
         key={`juice-${juicePulse}`}
         aria-hidden
