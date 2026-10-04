@@ -6,6 +6,17 @@ export interface NativeLaunchResult {
   error?: string;
 }
 
+export type CapabilityDecision = "unset" | "allow" | "skip";
+export type CapabilityState = "unknown" | "ready" | "denied" | "restricted" | "unavailable" | "error";
+
+export interface NativeCapabilitySnapshot {
+  id: string;
+  state: CapabilityState;
+  decision: CapabilityDecision;
+  checkedAt: number;
+  detail?: string;
+}
+
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;
@@ -19,6 +30,18 @@ interface MvmLauncherPlugin {
   }): Promise<NativeLaunchResult>;
   openUrl(options: { url: string }): Promise<{ opened: boolean }>;
   openStore(options: { packageName: string; webUrl?: string }): Promise<{ opened: boolean }>;
+  checkCapabilities(options?: { capabilityId?: string }): Promise<{
+    capabilities: NativeCapabilitySnapshot[];
+    checkedAt: number;
+  }>;
+  requestCapability(options: {
+    capabilityId: string;
+    decision: "allow";
+  }): Promise<NativeCapabilitySnapshot & { needsSettings?: boolean }>;
+  setCapabilityDecision(options: {
+    capabilityId: string;
+    decision: "skip" | "allow";
+  }): Promise<NativeCapabilitySnapshot>;
 }
 
 const NativeLauncher = registerPlugin<MvmLauncherPlugin>("MvmLauncher");
@@ -70,5 +93,37 @@ export async function nativeOpenStore(
   return NativeLauncher.openStore({
     packageName,
     ...(webUrl ? { webUrl } : {}),
+  });
+}
+
+export async function nativeCheckCapabilities(
+  capabilityId?: string,
+): Promise<NativeCapabilitySnapshot[]> {
+  const result = await NativeLauncher.checkCapabilities(
+    capabilityId ? { capabilityId } : undefined,
+  );
+  return result.capabilities;
+}
+
+export async function nativeRequestCapability(
+  capabilityId: string,
+): Promise<NativeCapabilitySnapshot & { needsSettings?: boolean }> {
+  return NativeLauncher.requestCapability({
+    capabilityId,
+    decision: "allow",
+  });
+}
+
+export async function nativeSkipCapability(capabilityId: string): Promise<NativeCapabilitySnapshot> {
+  return NativeLauncher.setCapabilityDecision({
+    capabilityId,
+    decision: "skip",
+  });
+}
+
+export async function nativeAllowCapability(capabilityId: string): Promise<NativeCapabilitySnapshot> {
+  return NativeLauncher.setCapabilityDecision({
+    capabilityId,
+    decision: "allow",
   });
 }
