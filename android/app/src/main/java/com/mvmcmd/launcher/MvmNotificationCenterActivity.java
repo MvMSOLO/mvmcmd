@@ -32,7 +32,7 @@ import java.util.Locale;
 public class MvmNotificationCenterActivity extends Activity {
     private static final int BG=Color.rgb(7,9,13),PANEL=Color.rgb(15,19,27),PANEL2=Color.rgb(20,25,34),FG=Color.WHITE,MUTED=Color.rgb(145,154,171),ACCENT=Color.rgb(188,255,78),RED=Color.rgb(255,101,121);
     private static final String PREFS="mvm_notification_settings";
-    private static final int REQ_CONTACTS=71,REQ_POST=72;
+    private static final int REQ_CONTACTS=71;
     private LinearLayout list;private String filter="ALL";private Switch safeSwitch;
 
     private int dp(int v){return MvmUiKit.dp(this,v);}
@@ -42,13 +42,8 @@ public class MvmNotificationCenterActivity extends Activity {
     private GradientDrawable bg(int c,int r){return MvmUiKit.surface(this,c,r);}
     private Button btn(String s){return MvmUiKit.button(this,s,false);}
 
-    @Override protected void onCreate(Bundle b){super.onCreate(b);MvmUiKit.applyWindow(this);build();requestMissingPermissions();}
+    @Override protected void onCreate(Bundle b){super.onCreate(b);MvmUiKit.applyWindow(this);build();}
     @Override protected void onResume(){super.onResume();if(list!=null)renderList();updateState();}
-
-    private void requestMissingPermissions(){
-        if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
-            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.POST_NOTIFICATIONS},REQ_POST);
-    }
 
     private void build(){
         LinearLayout root=col();root.setPadding(dp(14),dp(14),dp(14),dp(12));root.setBackgroundColor(MvmUiKit.BG);
