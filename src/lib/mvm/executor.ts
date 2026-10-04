@@ -25,6 +25,7 @@ import {
 import { detectRuntime } from "./platform";
 import { nativeRequestCapability } from "./native-launcher";
 import { refreshNativeCapabilities } from "./capabilities";
+import { runMvmAction, actionStatusLine } from "./action-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -80,22 +81,42 @@ function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[];
 
 function launchHit(ctx: ExecContext, hit: MatchHit): ExecResult {
   const runtime = detectRuntime();
-  const result = launchApp(hit.app, runtime.platform);
+  const action = runMvmAction({
+    context: {
+      skillId: "open-app",
+      platform: runtime.platform,
+      requiredCapabilities: ["app_launch"],
+      metadata: { appId: hit.app.id },
+    },
+    precondition: () => ({ ok: Boolean(hit.app.id), reason: "missing app id" }),
+    execute: () => launchApp(hit.app, runtime.platform),
+    observe: (result) => ({ ok: result.ok, reason: result.note }),
+    verify: (result) =>
+      result.method === "intent"
+        ? { ok: false, reason: "platform intent completion is not observable here" }
+        : { ok: result.ok, reason: result.note },
+  });
+
   const state = recordUse(ctx.state, hit.app.id);
   saveState(state);
   const pkg = hit.app.androidPackage ? `  ${hit.app.androidPackage}` : "";
+  const status = actionStatusLine(action);
   const lines: LogLine[] = [
-    line("ok", `LAUNCH  ${hit.app.name}`, { meta: result.note, appId: hit.app.id }),
-    line("dim", `${result.method.toUpperCase()}${pkg}`),
+    line(action.ok ? "ok" : "warn", `LAUNCH  ${hit.app.name}  ·  ${status}`, {
+      meta: action.message,
+      appId: hit.app.id,
+    }),
+    line("dim", `${action.status.toUpperCase()}  ${action.trace.join(" → ")}`),
+    line("dim", `${action.value?.method?.toUpperCase?.() ?? "LAUNCH"}${pkg}`),
   ];
-  if (result.method === "intent") {
+  if (action.value?.method === "intent") {
     lines.push(
       line(
         "dim",
         L(
           ctx,
-          "Agar ilova shu telefonda bo‘lsa, tizim uni ochadi. Ochilmasa: store",
-          "If the app is on this phone the system opens it. If not: store",
+          "Intent yuborildi. Tizim ilovani ochishi mumkin; MVMCMD buni hozircha VERIFIED deb ko‘rsatmaydi.",
+          "Intent requested. The system may open the app; MVMCMD does not label this VERIFIED yet.",
         ),
       ),
     );
