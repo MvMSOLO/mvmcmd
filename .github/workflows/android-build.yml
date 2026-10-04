@@ -80,6 +80,15 @@ jobs:
           test -d "scripts/wallpapers-pack-b64"
           test "$(find scripts/wallpapers-pack-b64 -maxdepth 1 -type f -name 'part-*' | wc -l)" -eq 11
           test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
+          test -s "src/lib/mvm/capabilities/types.ts"
+          test -s "src/lib/mvm/capabilities/registry.ts"
+          test -s "src/lib/mvm/capabilities/store.ts"
+          test -s "src/lib/mvm/capabilities/native-adapter.ts"
+          test -s "src/lib/mvm/capabilities/manager.ts"
+          grep -q 'checkCapabilities' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'requestCapability' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'notification_listener' "src/lib/mvm/capabilities/registry.ts"
+          ! grep -q 'requestMissingPermissions' "android/app/src/main/java/com/mvmcmd/launcher/MvmNotificationCenterActivity.java"
 
       - name: Build web application
         run: npm run build
