@@ -15,6 +15,7 @@ export interface NativeCapabilitySnapshot {
   decision: CapabilityDecision;
   checkedAt: number;
   detail?: string;
+  needsSettings?: boolean;
 }
 
 interface MvmLauncherPlugin {
