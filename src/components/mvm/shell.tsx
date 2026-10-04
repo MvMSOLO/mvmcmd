@@ -5,6 +5,14 @@ import { t } from "@/lib/mvm/copy";
 import { execute, makeLine, runInstall, runPermRequest } from "@/lib/mvm/executor";
 import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
+import {
+  canUseNativeAndroidLauncher,
+} from "@/lib/mvm/native-launcher";
+import {
+  ensureActionCapabilities,
+  refreshNativeCapabilities,
+  type CapabilityAction,
+} from "@/lib/mvm/capabilities";
 import { EMPTY, loadState, saveState } from "@/lib/mvm/persist";
 import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
@@ -180,6 +188,22 @@ export function MvmShell() {
   }, []);
 
   useEffect(() => {
+    if (phase === "gate" || platform !== "android" || !canUseNativeAndroidLauncher()) return;
+
+    const refresh = () => {
+      if (document.visibilityState === "visible") void refreshNativeCapabilities();
+    };
+
+    void refreshNativeCapabilities();
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [phase, platform]);
+
+  useEffect(() => {
     if (phase !== "boot") return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const sessionKey = "mvmcmd.booted";
@@ -270,7 +294,7 @@ export function MvmShell() {
     setLines((prev) => (clear ? next : [...prev, ...next]).slice(-240));
   }
 
-  function commit(raw: string, pick?: CatalogApp) {
+  async function commit(raw: string, pick?: CatalogApp) {
     const text = pick ? `open ${pick.name}` : raw;
     if (!text.trim()) return;
     const parsed = parseLine(text);
@@ -295,13 +319,83 @@ export function MvmShell() {
       return;
     }
 
-    const applyResult = () => {
+    const capabilityAction: CapabilityAction | null =
+      canUseNativeAndroidLauncher() &&
+      (parsed.cmd?.name === "camera" ||
+        parsed.cmd?.name === "qr" ||
+        parsed.cmd?.name === "notification")
+        ? parsed.cmd.name
+        : null;
+
+    if (capabilityAction) {
+      append([
+        makeLine("in", text),
+        makeLine(
+          "sys",
+          lang === "uz"
+            ? `CAPABILITY  ${capabilityAction.toUpperCase()}  tekshirilmoqda…`
+            : `CAPABILITY  ${capabilityAction.toUpperCase()}  checking…`,
+        ),
+      ]);
+      emitMvmSignal("intent");
+
+      try {
+        const guard = await ensureActionCapabilities(capabilityAction);
+        if (!guard.ok) {
+          const statusLine =
+            guard.reason === "settings"
+              ? lang === "uz"
+                ? "Android Settings ochildi. Access’ni yoqing va MVMCMD’ga qayting."
+                : "Android Settings opened. Enable the access and return to MVMCMD."
+              : guard.reason === "denied"
+                ? lang === "uz"
+                  ? `${guard.snapshot.id.toUpperCase()} rad etildi. Buyruq bajarilmadi.`
+                  : `${guard.snapshot.id.toUpperCase()} was denied. Command was not executed.`
+                : lang === "uz"
+                  ? `${guard.snapshot.id.toUpperCase()} bu qurilmada mavjud emas.`
+                  : `${guard.snapshot.id.toUpperCase()} is unavailable on this device.`;
+
+          append([
+            makeLine("warn", `CAPABILITY  ${guard.snapshot.id.toUpperCase()}`, {
+              meta: guard.snapshot.state,
+            }),
+            makeLine("dim", statusLine),
+          ]);
+          setInput("");
+          setHistIdx(-1);
+          return;
+        }
+
+        append([
+          makeLine(
+            "ok",
+            `CAPABILITY  ${guard.snapshot.id.toUpperCase()} READY`,
+          ),
+        ]);
+      } catch (error) {
+        append([
+          makeLine(
+            "warn",
+            lang === "uz" ? "CAPABILITY tekshiruvi xatolik berdi." : "Capability check failed.",
+            { meta: error instanceof Error ? error.message : "unknown error" },
+          ),
+        ]);
+        setInput("");
+        setHistIdx(-1);
+        return;
+      }
+    }
+
+    const applyResult = (includeInput = true) => {
       const result = execute(text, { state, lang });
       const commandName = parsed.cmd?.name ?? text.trim().split(/\s+/)[0]?.toLowerCase();
       setRainVisible(commandName === "wallpaper");
       setJuicePulse((value) => value + 1);
       setState(result.state);
-      append([makeLine("in", text), ...result.lines], result.clearLog);
+      append(
+        includeInput ? [makeLine("in", text), ...result.lines] : result.lines,
+        result.clearLog,
+      );
       setInput("");
       setHistIdx(-1);
       const signal = result.lines.some((line) => line.kind === "warn")
@@ -313,13 +407,15 @@ export function MvmShell() {
             : "intent";
       emitMvmSignal(signal);
     };
+
     const transitionDocument = document as Document & {
       startViewTransition?: (callback: () => void) => unknown;
     };
+    const transition = () => applyResult(Boolean(!capabilityAction));
     if (transitionDocument.startViewTransition) {
-      transitionDocument.startViewTransition(applyResult);
+      transitionDocument.startViewTransition(transition);
     } else {
-      applyResult();
+      transition();
     }
   }
 
