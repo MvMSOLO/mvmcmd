@@ -24,6 +24,14 @@ INPUT → INTENT → SKILL LOOKUP → CAPABILITY REQUIREMENTS → HANDLER → VE
 - notification-center
 - english-lab
 
+## Integration
+Phase 4 supported intents now resolve to canonical skill IDs:
+- open_app → open-app
+- device_snapshot → device-snapshot
+- permission_status → permission-status
+
+The resolver is metadata-only; execution remains in the existing action/executor layer.
+
 ## Phase 5 acceptance
 - [x] Canonical skill schema
 - [x] Platform metadata
@@ -33,5 +41,7 @@ INPUT → INTENT → SKILL LOOKUP → CAPABILITY REQUIREMENTS → HANDLER → VE
 - [x] Verification contract
 - [x] Fallback metadata
 - [x] Existing catalog preserved
-- [ ] APK CI success
-- [ ] Windows EXE CI success
+- [x] APK CI success — run 37222934899
+- [x] Windows EXE CI success — run 37222934953
+
+**Status: COMPLETE**
