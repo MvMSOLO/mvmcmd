@@ -26,6 +26,7 @@ function map(snapshot: NativeCapabilitySnapshot): CapabilitySnapshot {
     decision: snapshot.decision,
     checkedAt: snapshot.checkedAt,
     ...(snapshot.detail ? { detail: snapshot.detail } : {}),
+    ...(snapshot.needsSettings !== undefined ? { needsSettings: snapshot.needsSettings } : {}),
   };
 }
 
@@ -88,8 +89,7 @@ export async function ensureCapability(
 
   if (requested.state === "ready") return { ok: true, snapshot: requested };
 
-  const native = requested as CapabilitySnapshot & { needsSettings?: boolean };
-  if (native.state === "restricted" && native.needsSettings) {
+  if (requested.state === "restricted" && requested.needsSettings) {
     return { ok: false, reason: "settings", snapshot: requested, detail: requested.detail };
   }
 
