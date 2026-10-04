@@ -4,7 +4,6 @@ import {
   nativeSkipCapability,
   type NativeCapabilitySnapshot,
 } from "../native-launcher";
-import { getCapabilityDefinitions } from "./registry";
 import { setCapabilitySnapshot } from "./store";
 import type { CapabilityAdapter, CapabilityId, CapabilitySnapshot } from "./types";
 
@@ -26,17 +25,14 @@ export async function checkNativeCapabilities(): Promise<CapabilitySnapshot[]> {
 }
 
 export const androidCapabilityAdapter: CapabilityAdapter = {
-  async check() {
-    const first = getCapabilityDefinitions()[0];
-    if (!first) throw new Error("No capability definitions registered");
-    const [snapshot] = await checkNativeCapabilities();
+  async check(id) {
+    const snapshot = map((await nativeCheckCapabilities(id))[0]);
     if (!snapshot) throw new Error("Android capability check returned no result");
+    setCapabilitySnapshot(snapshot);
     return snapshot;
   },
-  async request() {
-    const first = getCapabilityDefinitions()[0];
-    if (!first) throw new Error("No capability definitions registered");
-    const snapshot = map(await nativeRequestCapability(first.id));
+  async request(id) {
+    const snapshot = map(await nativeRequestCapability(id));
     setCapabilitySnapshot(snapshot);
     return snapshot;
   },
