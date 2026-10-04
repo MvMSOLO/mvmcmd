@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATALOG, CATALOG_BY_ID, CATEGORIES } from "@/lib/mvm/catalog";
 import { lookupCommand, parseLine } from "@/lib/mvm/commands";
+import { understandCommand } from "@/lib/mvm/intelligence";
 import { t } from "@/lib/mvm/copy";
 import { execute, makeLine, runDeviceRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
 import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
@@ -297,7 +298,9 @@ export function MvmShell() {
   async function commit(raw: string, pick?: CatalogApp) {
     const text = pick ? `open ${pick.name}` : raw;
     if (!text.trim()) return;
-    const parsed = parseLine(text);
+    const understanding = understandCommand(text);
+    const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? "perm" : understanding.intent === "help" ? "help" : text;
+    const parsed = parseLine(interpretedText);
 
     if (parsed.cmd?.name === "perm") {
       append([makeLine("in", text)]);
