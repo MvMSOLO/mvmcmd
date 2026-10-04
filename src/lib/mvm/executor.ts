@@ -22,6 +22,11 @@ import {
   snapshotPerms,
 } from "./permissions";
 import { detectRuntime } from "./platform";
+import {
+  canUseNativeAndroidLauncher,
+  nativeRequestCapability,
+} from "./native-launcher";
+import { refreshNativeCapabilities } from "./capabilities";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
 let seq = 0;
@@ -544,7 +549,77 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
 
 export async function runPermRequest(
   ctx: ExecContext,
+  requestedCapability?: string,
 ): Promise<{ state: PersistedState; lines: LogLine[] }> {
+  const runtime = detectRuntime();
+
+  if (runtime.platform === "android" && canUseNativeAndroidLauncher()) {
+    if (requestedCapability) {
+      try {
+        const snapshot = await nativeRequestCapability(requestedCapability);
+        const stateLabel = snapshot.state.toUpperCase();
+        const detail = snapshot.detail ? `  ${snapshot.detail}` : "";
+        return {
+          state: ctx.state,
+          lines: [
+            line(
+              snapshot.state === "ready" ? "ok" : "warn",
+              `CAPABILITY  ${snapshot.id.toUpperCase()}  ${stateLabel}`,
+              { meta: `${snapshot.decision}${detail}` },
+            ),
+          ],
+        };
+      } catch (error) {
+        return {
+          state: ctx.state,
+          lines: [
+            line(
+              "warn",
+              `CAPABILITY  ${requestedCapability.toUpperCase()}  ERROR`,
+              { meta: error instanceof Error ? error.message : "request failed" },
+            ),
+          ],
+        };
+      }
+    }
+
+    try {
+      const snapshots = await refreshNativeCapabilities();
+      return {
+        state: ctx.state,
+        lines: [
+          line("sys", `CAPABILITIES  ${snapshots.length}`),
+          ...snapshots.map((snapshot) =>
+            line(
+              snapshot.state === "ready" ? "ok" : snapshot.state === "error" ? "warn" : "out",
+              `${snapshot.id.toUpperCase().padEnd(22, " ")} ${snapshot.state.toUpperCase()}`,
+              { meta: snapshot.decision },
+            ),
+          ),
+          line(
+            "dim",
+            L(
+              ctx,
+              "Aniq request uchun: perm camera  ·  perm notification_listener",
+              "Request one capability explicitly: perm camera · perm notification_listener",
+            ),
+          ),
+        ],
+      };
+    } catch (error) {
+      return {
+        state: ctx.state,
+        lines: [
+          line(
+            "warn",
+            L(ctx, "Android capability tekshiruvi ishlamadi.", "Android capability check failed."),
+            { meta: error instanceof Error ? error.message : "unknown error" },
+          ),
+        ],
+      };
+    }
+  }
+
   const persist = await requestPersistentStorage();
   const notify = await requestNotify();
   const snap = await snapshotPerms();
