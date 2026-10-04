@@ -176,6 +176,21 @@ function NativeCapabilityGate({ lang, onDone }: GateProps) {
     void refresh();
   }, []);
 
+  useEffect(() => {
+    if (!needsSettings) return;
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [needsSettings]);
+
   async function allow() {
     if (!currentId) return;
     setBusy("request");
