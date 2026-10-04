@@ -22,10 +22,7 @@ import {
   snapshotPerms,
 } from "./permissions";
 import { detectRuntime } from "./platform";
-import {
-  canUseNativeAndroidLauncher,
-  nativeRequestCapability,
-} from "./native-launcher";
+import { nativeRequestCapability } from "./native-launcher";
 import { refreshNativeCapabilities } from "./capabilities";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
