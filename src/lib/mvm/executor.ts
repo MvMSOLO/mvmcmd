@@ -26,6 +26,7 @@ import { detectRuntime } from "./platform";
 import { nativeRequestCapability } from "./native-launcher";
 import { refreshNativeCapabilities } from "./capabilities";
 import { runMvmAction, actionStatusLine } from "./action-engine";
+import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -136,6 +137,37 @@ function formatHit(hit: MatchHit, index: number): LogLine {
 export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   const trimmed = rawLine.trim();
   if (!trimmed) return { state: ctx.state, lines: [] };
+
+  const taskPlan = planMvmTask(trimmed);
+  if (taskPlan) {
+    const taskRun = runMvmTaskPlanSync(
+      taskPlan,
+      (step) => execute(step.input, ctx),
+      (result) => {
+        const failed = result.lines.some((item) => item.kind === "warn");
+        const verified = !failed && result.lines.some((item) => /·\\s*VERIFIED\\b/.test(item.text));
+        return {
+          ok: !failed,
+          verified,
+          reason: failed ? "step returned a warning" : verified ? undefined : "step completed without completion proof",
+        };
+      },
+    );
+    const last = taskRun.steps[taskRun.steps.length - 1]?.value;
+    const taskState = last?.state ?? ctx.state;
+    const taskStatus = taskRun.ok ? (taskRun.verified ? "VERIFIED" : "STARTED") : "FAILED";
+    const taskLines: LogLine[] = [
+      line("sys", `TASK  ${taskRun.plan.steps.length} steps  ·  ${taskStatus}`),
+      ...taskRun.steps.flatMap((step) => [
+        line(
+          step.status === "failed" || step.status === "skipped" ? "warn" : "out",
+          `${step.id.toUpperCase()}  ${step.status.toUpperCase()}  ·  ${step.input}`,
+          { meta: step.reason },
+        ),
+      ]),
+    ];
+    return { state: taskState, lines: taskLines };
+  }
 
   const state0 = pushHistory(ctx.state, trimmed);
   saveState(state0);
