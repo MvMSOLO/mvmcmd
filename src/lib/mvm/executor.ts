@@ -161,7 +161,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       ...taskRun.steps.flatMap((step) => [
         line(
           step.status === "failed" || step.status === "skipped" ? "warn" : "out",
-          `${step.id.toUpperCase()}  ${step.status.toUpperCase()}  ·  ${step.input}`,
+          `${step.stepId.toUpperCase()}  ${step.status.toUpperCase()}  ·  ${step.input}`,
           { meta: step.reason },
         ),
       ]),
