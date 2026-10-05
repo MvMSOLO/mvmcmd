@@ -40,8 +40,8 @@ export interface MvmActionDefinition<T> {
   };
 }
 
-function recoveryStrategy(
-  definition: MvmActionDefinition<unknown>,
+function recoveryStrategy<T>(
+  definition: MvmActionDefinition<T>,
   reason: RecoveryReason,
   attempt: number,
 ): RecoveryStrategy {
