@@ -136,3 +136,45 @@ export async function runMvmTaskPlan<T>(
     stoppedOnFailure: !completed && results.some((result) => result.status === "failed"),
   };
 }
+
+export function runMvmTaskPlanSync<T>(
+  plan: MvmTaskPlan,
+  executeStep: (step: MvmTaskStep) => T,
+  evaluate?: (value: T, step: MvmTaskStep) => { ok: boolean; verified?: boolean; reason?: string },
+): MvmTaskRunResult<T> {
+  const results: MvmTaskStepResult<T>[] = [];
+
+  for (const step of plan.steps) {
+    const dependencyFailed = step.dependsOn.some((dependencyId) => {
+      const dependency = results.find((item) => item.stepId === dependencyId);
+      return !dependency || !dependency.ok;
+    });
+    if (dependencyFailed) {
+      results.push({ stepId: step.id, input: step.input, status: "skipped", ok: false, verified: false, reason: "dependency failed" });
+      continue;
+    }
+    try {
+      const value = executeStep(step);
+      const checked = evaluate?.(value, step) ?? { ok: true, verified: false };
+      results.push({
+        stepId: step.id,
+        input: step.input,
+        status: checked.ok ? (checked.verified ? "verified" : "started") : "failed",
+        ok: checked.ok,
+        verified: Boolean(checked.verified),
+        value,
+        reason: checked.reason,
+      });
+      if (!checked.ok && plan.policy.stopOnFailure) break;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "step execution failed";
+      results.push({ stepId: step.id, input: step.input, status: "failed", ok: false, verified: false, reason });
+      if (plan.policy.stopOnFailure) break;
+    }
+  }
+
+  const completed = results.length === plan.steps.length;
+  const ok = completed && results.every((result) => result.ok);
+  const verified = ok && results.every((result) => result.verified);
+  return { plan, steps: results, ok, verified, stoppedOnFailure: !completed && results.some((result) => result.status === "failed") };
+}
