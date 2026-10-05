@@ -53,7 +53,6 @@ test("action engine retries only when retry policy explicitly allows it", () => 
       value.attempt >= 2
         ? { ok: true }
         : { ok: false, reason: "temporary verification miss" },
-    },
     recovery: { maxAttempts: 2, retryOn: ["verify"] },
   });
 
