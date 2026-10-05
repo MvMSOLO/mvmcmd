@@ -67,10 +67,11 @@ test("action engine never turns a fallback into verified success", () => {
     execute: () => ({ accepted: true }),
     observe: () => ({ ok: true }),
     verify: () => ({ ok: false, reason: "completion unavailable" }),
-    recover: () => ({ fallback: true }),
+    recover: () => ({ accepted: true }),
   });
 
   assert.equal(recovered.status, "recovered");
   assert.equal(recovered.ok, true);
   assert.equal(recovered.verified, false);
+  assert.deepEqual(recovered.value, { accepted: true });
 });
