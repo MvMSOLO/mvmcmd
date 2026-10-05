@@ -57,8 +57,8 @@ For example, an Android Intent launch remains one attempt and remains `STARTED` 
 - [x] Recovery reason and strategy are observable.
 - [x] Existing action lifecycle remains the single execution path.
 - [x] Unit coverage for verification, fallback, retry, and truth preservation.
-- [ ] Android APK CI success.
-- [ ] Windows EXE CI success.
+- [x] Android APK CI success.
+- [x] Windows EXE CI success.
 
 ## Truth model
 
