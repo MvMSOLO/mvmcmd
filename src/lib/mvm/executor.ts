@@ -107,7 +107,7 @@ function launchHit(ctx: ExecContext, hit: MatchHit): ExecResult {
       meta: action.message,
       appId: hit.app.id,
     }),
-    line("dim", `${action.status.toUpperCase()}  ${action.trace.join(" → ")}`),
+    line("dim", `${action.status.toUpperCase()}  ATTEMPTS=${action.attempts}  ${action.trace.join(" → ")}`),
     line("dim", `${action.value?.method?.toUpperCase?.() ?? "LAUNCH"}${pkg}`),
   ];
   if (action.value?.method === "intent") {
