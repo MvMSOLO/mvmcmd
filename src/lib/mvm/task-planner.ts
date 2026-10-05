@@ -40,9 +40,9 @@ export interface MvmTaskRunResult<T> {
  */
 export function splitTaskInput(input: string): string[] {
   const raw = input.trim();
-  if (!raw || /^https?:\\/\\//i.test(raw)) return [];
+  if (!raw || /^https?:\/\//i.test(raw)) return [];
 
-  const parts = raw.split(/\\s+(?:and then|then|va keyin|keyin|va)\\s+/i)
+  const parts = raw.split(/\s+(?:and then|then|va keyin|keyin|va)\s+/i)
     .map((part) => part.trim())
     .filter(Boolean);
 
