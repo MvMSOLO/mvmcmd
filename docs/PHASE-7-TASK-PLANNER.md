@@ -36,5 +36,5 @@ Architecture:
 - [x] Fail-stop behavior.
 - [x] Verification truth preserved.
 - [x] Unit coverage.
-- [ ] Android APK CI verification.
-- [ ] Windows EXE CI verification.
+- [x] Android APK CI verification.
+- [x] Windows EXE CI verification.
