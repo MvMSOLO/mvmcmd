@@ -29,7 +29,8 @@ import { runMvmAction, actionStatusLine } from "./action-engine";
 import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { runAppBridge } from "./app-bridge";
 import { planMvmGoal, runMvmGoal } from "./goal-engine";
-import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";\nimport { assessGaming, formatGamingAssessment, type GamingTelemetry, type GameProfile } from "./gaming-engine";
+import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
+import { assessGaming, formatGamingAssessment, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
 let seq = 0;
@@ -649,7 +650,6 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 }
 
-async function awaitDeviceSnapshot() { return nativeGetDeviceSnapshot(); }\n\n
 export async function runGamingRequest(ctx: ExecContext, target?: string): Promise<LogLine[]> {
   if (!canUseNativeDeviceEngine()) {
     return [line("warn", L(ctx, "GAMING telemetry faqat native Android APKda mavjud.", "GAMING telemetry is available only in the native Android APK."))];
