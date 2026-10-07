@@ -147,7 +147,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     let goalCtx = ctx;
     const run = runMvmGoal(goal, (step) => {
       const result = execute(step.input, goalCtx);
-      goalCtx = result;
+      goalCtx = { state: result.state, lines: result.lines, clearLog: result.clearLog };
       return result;
     }, (result) => {
       const failed = result.lines.some(item => item.kind === "warn");
