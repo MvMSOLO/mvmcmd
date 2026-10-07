@@ -28,6 +28,7 @@ import { refreshNativeCapabilities } from "./capabilities";
 import { runMvmAction, actionStatusLine } from "./action-engine";
 import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { runAppBridge } from "./app-bridge";
+import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -139,6 +140,17 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   const trimmed = rawLine.trim();
   if (!trimmed) return { state: ctx.state, lines: [] };
 
+  const goalCue = /^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)/i.test(trimmed);
+  if (goalCue) {
+    const goal = planMvmGoal(trimmed.replace(/^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)\\s*/i, ""));
+    const run = runMvmGoal(goal, (step) => execute(step.input, ctx), (result) => {
+      const failed = result.lines.some(item => item.kind === "warn");
+      const verified = !failed && result.lines.some(item => /\\bVERIFIED\\b/.test(item.text));
+      return { ok: !failed, verified, reason: failed ? "goal step returned a warning" : verified ? undefined : "completion proof unavailable" };
+    });
+    const status = run.status.toUpperCase();
+    return { state: run.goal.steps.length ? (run.goal.status === "cancelled" ? ctx.state : (run.goal.steps.at(-1)?.status === "achieved" ? ctx.state : ctx.state)) : ctx.state, lines: [line(run.status === "failed" ? "warn" : run.verified ? "ok" : "sys", `GOAL  ${status}  ·  ${run.achievedSteps}/${run.totalSteps}`), ...run.results.map(r => line(r.ok ? "out" : "warn", `${r.stepId.toUpperCase()}  ${r.status.toUpperCase()}`, { meta: r.reason }))] };
+  }
   const taskPlan = planMvmTask(trimmed);
   if (taskPlan) {
     const taskRun = runMvmTaskPlanSync(
