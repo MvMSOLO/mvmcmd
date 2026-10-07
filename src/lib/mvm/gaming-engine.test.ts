@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { assessGaming, compareGamingSnapshots } from "./gaming-engine";
 
 const base = {
@@ -7,27 +8,25 @@ const base = {
   batteryPercent: 80, batteryTemperatureC: 32, refreshRateHz: 120,
 };
 
-describe("gaming engine", () => {
-  it("selects performance mode only from healthy telemetry", () => {
+test("selects performance mode only from healthy telemetry", () => {
     const a = assessGaming(base, {name:"Test Game", platform:"android", confidence:"explicit"});
-    expect(a.mode).toBe("performance");
-    expect(a.fps.measured).toBe(false);
-  });
-  it("becomes conservative under thermal and resource pressure", () => {
+    assert.equal(a.mode, "performance");
+    assert.equal(a.fps.measured, false);
+});
+test("becomes conservative under thermal and resource pressure", () => {
     const a = assessGaming({...base, thermal:"severe", cpuLoadPercent:95, batteryTemperatureC:44, batteryPercent:15});
-    expect(a.mode).toBe("cool");
-    expect(a.recommendations.map(x=>x.code)).toEqual(expect.arrayContaining(["thermal-high","cpu-saturated","battery-hot","battery-low"]));
-  });
-  it("never invents FPS", () => {
+    assert.equal(a.mode, "cool");
+    assert.deepEqual(a.recommendations.map(x=>x.code).filter(code => ["thermal-high","cpu-saturated","battery-hot","battery-low"].includes(code)).sort(), ["battery-hot","battery-low","cpu-saturated","thermal-high"].sort());
+});
+test("never invents FPS", () => {
     const a = assessGaming(base);
-    expect(a.fps.value).toBeUndefined();
-    expect(a.fps.reason).toMatch(/no verified/i);
-  });
-  it("computes measurable before/after deltas without fabricating values", () => {
+    assert.equal(a.fps.value, undefined);
+    assert.match(a.fps.reason ?? "", /no verified/i);
+});
+test("computes measurable before/after deltas without fabricating values", () => {
     const d = compareGamingSnapshots(base, {...base, cpuLoadPercent:55, ramUsedBytes:6, batteryPercent:78, batteryTemperatureC:35});
-    expect(d.cpuDeltaPercent).toBe(15);
-    expect(d.ramDeltaBytes).toBe(2);
-    expect(d.batteryDeltaPercent).toBe(-2);
-    expect(d.temperatureDeltaC).toBe(3);
-  });
+    assert.equal(d.cpuDeltaPercent, 15);
+    assert.equal(d.ramDeltaBytes, 2);
+    assert.equal(d.batteryDeltaPercent, -2);
+    assert.equal(d.temperatureDeltaC, 3);
 });
