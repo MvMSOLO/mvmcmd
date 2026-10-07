@@ -129,6 +129,13 @@ export const COMMANDS: CommandSpec[] = [  {
     summaryUz: "Do‘kon sahifasini ochadi.",
   },
   {
+    name: "pack",
+    aliases: ["package", "apk"],
+    usage: "pack <package.name>",
+    summaryEn: "Launch a raw Android package through the Phase 9 app bridge.",
+    summaryUz: "Phase 9 app bridge orqali Android package nomini ochadi.",
+  },
+  {
     name: "share",
     aliases: ["send"],
     usage: "share <text>",
