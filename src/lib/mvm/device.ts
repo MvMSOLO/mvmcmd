@@ -103,7 +103,7 @@ export function formatBytes(bytes?: number): string {
 export function formatDeviceSnapshot(s: DeviceSnapshot, uz = true): string[] {
   const lines = [
     `DEVICE   ${s.device.manufacturer} ${s.device.model}`,
-    `CPU      ${s.cpu.cores} cores · ${s.cpu.architecture}${s.cpu.loadPercent === undefined ? "" : ` · ${s.cpu.loadPercent.toFixed(1)}%`}`,
+    `CPU      ${s.cpu.cores} cores · ${s.cpu.architecture}${s.cpu.loadPercent === undefined ? " · load unavailable" : ` · load ${s.cpu.loadPercent.toFixed(1)}% (best-effort)`}`,
     `RAM      ${formatBytes(s.memory.usedBytes)} / ${formatBytes(s.memory.totalBytes)} · free ${formatBytes(s.memory.availableBytes)}`,
     `STORAGE  ${formatBytes(s.storage.usedBytes)} / ${formatBytes(s.storage.totalBytes)} · free ${formatBytes(s.storage.availableBytes)}`,
     `BATTERY  ${s.battery.percent === undefined ? "unknown" : s.battery.percent + "%"} · ${s.battery.charging ? "charging" : "not charging"}${s.battery.temperatureC === undefined ? "" : ` · ${s.battery.temperatureC.toFixed(1)}°C`}`,

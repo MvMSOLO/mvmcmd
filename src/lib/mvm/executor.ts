@@ -27,7 +27,7 @@ import { nativeRequestCapability } from "./native-launcher";
 import { refreshNativeCapabilities } from "./capabilities";
 import { runMvmAction, actionStatusLine } from "./action-engine";
 import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
-import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
+import { runAppBridge } from "./app-bridge";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
 let seq = 0;
@@ -173,7 +173,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   saveState(state0);
   const ctx2: ExecContext = { ...ctx, state: state0 };
   const understood = understandCommand(trimmed);
-  const interpreted = understood.intent === "open_app" ? `open ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "find_app" ? `find ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "device_snapshot" ? "device" : understood.intent === "permission_status" ? "perm" : understood.intent === "help" ? "help" : trimmed;
+  const capability = understood.entities.find((e) => e.type === "capability")?.value;
+  const interpreted = understood.intent === "open_app" ? `open ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "find_app" ? `find ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "device_snapshot" ? "device" : understood.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understood.intent === "help" ? "help" : trimmed;
   const parsed = parseLine(interpreted);
   const name = parsed.cmd?.name;
 
@@ -238,8 +239,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       return {
         state: state0,
         lines: [
-          line("ok", "NOTIFICATION", { meta: "NATIVE INBOX · SAFE MODE · QUICK COPY" }),
-          line("dim", L(ctx2, "Xabarlar, kodlar va qo‘ng‘iroqlar uchun native markaz ochildi.", "Native notification center opened for messages, codes and calls.")),
+          line("sys", "NOTIFICATION  STARTED", { meta: "center open requested; inbox contents not verified" }),
+          line("dim", L(ctx2, "Markaz ochish so‘raldi. Xabarlar o‘qilgani tasdiqlanmagan.", "Center open requested. Message contents are not verified.")),
         ],
       };
     }
@@ -259,7 +260,10 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       void nativeOpenCamera().catch(() => undefined);
       return {
         state: state0,
-        lines: [line("ok", "CAMERA", { meta: "NATIVE CAMERA" })],
+        lines: [
+          line("sys", "CAMERA  STARTED", { meta: "native open requested; capture is not verified" }),
+          line("dim", L(ctx2, "Kamera ochish so‘raldi. Surat tasdiqlanmaguncha VERIFIED emas.", "Camera open requested. Not VERIFIED until a capture result exists.")),
+        ],
       };
     }
     case "qr": {
@@ -279,8 +283,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       return {
         state: state0,
         lines: [
-          line("ok", "QR", { meta: "NATIVE SCANNER · ALL FORMATS" }),
-          line("dim", L(ctx2, "QR/barcode kamerasi ochildi — kodni ramka ichiga olib keling.", "QR/barcode scanner opened — align a code inside the frame.")),
+          line("sys", "QR  STARTED", { meta: "scanner opened; decode is not verified" }),
+          line("dim", L(ctx2, "Skaner ochildi. Kod o‘qilmaguncha VERIFIED emas.", "Scanner opened. Not VERIFIED until a code is decoded.")),
         ],
       };
     }
@@ -485,7 +489,30 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         };
       }
       launchPackage(pkg);
-      return { state: state0, lines: [line("ok", `PACK  ${pkg}`)] };
+      return { state: state0, lines: [line("sys", `PACK  STARTED  ${pkg}`, { meta: "package launch requested; completion not verified" })] };
+    }
+    case "share": {
+      const text = parsed.args.join(" ").trim();
+      const runtime = detectRuntime();
+      const action = runAppBridge({ kind: "share", target: "chooser", text, platform: runtime.platform, chooser: true });
+      return {
+        state: state0,
+        lines: [
+          line(action.ok ? "sys" : "warn", `SHARE  ${action.status.toUpperCase()}  ${action.value?.method ?? "share"}`, { meta: action.reason ?? action.message }),
+        ],
+      };
+    }
+    case "link": {
+      const target = parsed.args.join(" ").trim();
+      const runtime = detectRuntime();
+      const kind = /^https?:/i.test(target) ? "url" : "deeplink";
+      const action = runAppBridge({ kind, target, platform: runtime.platform });
+      return {
+        state: state0,
+        lines: [
+          line(action.ok ? "sys" : "warn", `LINK  ${action.status.toUpperCase()}  ${action.value?.method ?? "url"}`, { meta: action.reason ?? action.value?.target }),
+        ],
+      };
     }
     case "sys": {
       const runtime = detectRuntime();
@@ -611,7 +638,7 @@ export async function runDeviceRequest(
     const s = await nativeGetDeviceSnapshot();
     return [
       line("sys", `DEVICE  ${s.device.manufacturer} ${s.device.model}`),
-      line("out", `CPU      ${s.cpu.cores} cores · ${s.cpu.architecture}${s.cpu.loadPercent === undefined ? "" : ` · ${s.cpu.loadPercent.toFixed(1)}%`}`),
+      line("out", `CPU      ${s.cpu.cores} cores · ${s.cpu.architecture}${s.cpu.loadPercent === undefined ? " · load unavailable" : ` · load ${s.cpu.loadPercent.toFixed(1)}% (best-effort)`}`),
       line("out", `RAM      ${formatBytes(s.memory.usedBytes)} / ${formatBytes(s.memory.totalBytes)} · free ${formatBytes(s.memory.availableBytes)}`),
       line("out", `STORAGE  ${formatBytes(s.storage.usedBytes)} / ${formatBytes(s.storage.totalBytes)} · free ${formatBytes(s.storage.availableBytes)}`),
       line("out", `BATTERY  ${s.battery.percent === undefined ? "unknown" : s.battery.percent + "%"} · ${s.battery.charging ? "charging" : "not charging"}${s.battery.temperatureC === undefined ? "" : ` · ${s.battery.temperatureC.toFixed(1)}°C`}`),

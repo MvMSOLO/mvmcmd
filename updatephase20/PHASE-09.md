@@ -1,7 +1,7 @@
 # Phase 09 — App Bridge / Intent / Deep-Link / Share Engine
 
 ## Status
-PLANNED.
+COMPLETED in source. Android `MvmLauncher.share` uses ACTION_SEND chooser, rejects private `file:` paths, and grants read only for explicit `content:` URIs. External completion remains STARTED. APK/EXE CI was not re-run in this workspace.
 
 ## Goal
 Create a safe bridge between MVM CMD and other Android applications without pretending that an external app completed an operation.

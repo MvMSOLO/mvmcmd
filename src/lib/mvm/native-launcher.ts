@@ -39,6 +39,7 @@ interface MvmLauncherPlugin {
     capabilityId: string;
     decision: "allow";
   }): Promise<NativeCapabilitySnapshot & { needsSettings?: boolean }>;
+  share(options: { text?: string; mime?: string; chooser?: boolean; fileUri?: string }): Promise<{ started: boolean; method?: string; reason?: string }>;
   setCapabilityDecision(options: {
     capabilityId: string;
     decision: "skip" | "allow";
@@ -95,6 +96,10 @@ export async function nativeOpenStore(
     packageName,
     ...(webUrl ? { webUrl } : {}),
   });
+}
+
+export async function nativeShare(options: { text?: string; mime?: string; chooser?: boolean; fileUri?: string }): Promise<{ started: boolean; method?: string; reason?: string }> {
+  return NativeLauncher.share(options);
 }
 
 export async function nativeCheckCapabilities(

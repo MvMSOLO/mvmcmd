@@ -30,7 +30,8 @@ export const MVM_SKILLS: readonly MvmSkill[] = [
   defineSkill({ id: "qr", name: "QR scanner", aliases: ["qr", "qrcode", "scan"], category: "tool", platforms: ["android"], requiredCapabilities: ["camera"], risk: "medium", handler: "qr.scan", verification: "decoded content or explicit no-result/cancelled state", fallback: "manual code entry" }),
   defineSkill({ id: "wallpaper", name: "Wallpaper", aliases: ["wallpaper", "background", "fon"], category: "tool", platforms: ["android", "desktop", "web"], requiredCapabilities: ["media"], risk: "medium", handler: "wallpaper.open", verification: "system/app action start result", fallback: "show preview without claiming the system wallpaper changed" }),
   defineSkill({ id: "notification-center", name: "Notification center", aliases: ["notification", "notifications", "bildirishnoma"], category: "system", platforms: ["android"], requiredCapabilities: ["notifications"], risk: "medium", handler: "notification.center", verification: "capability state checked before access", fallback: "show permission setup when access is unavailable" }),
-  defineSkill({ id: "english-lab", name: "English learning", aliases: ["english", "ielts", "ingliz"], category: "tool", platforms: ["android", "desktop", "web"], requiredCapabilities: [], risk: "low", handler: "english.open", verification: "learning surface route/state", fallback: "open local English Lab" }),
+  defineSkill({ id: "find-app", name: "Find application", aliases: ["find", "search", "qidir"], category: "system", platforms: ["android", "desktop", "web"], requiredCapabilities: [], risk: "low", handler: "app.find", verification: "ranked catalog matches, never a silent launch", fallback: "show no-match help" }),
+  defineSkill({ id: "app-bridge", name: "App bridge", aliases: ["bridge", "share", "deeplink", "link"], category: "system", platforms: ["android", "desktop", "web"], requiredCapabilities: [], risk: "medium", handler: "bridge.run", verification: "target and method reported; external completion stays STARTED", fallback: "truthful unsupported-target explanation" }),
 ];
 
 function normalize(value: string): string {
@@ -64,6 +65,7 @@ export function getSkillRequirements(id: string): string[] {
 export function skillForIntent(intent: string): MvmSkill | undefined {
   const map: Record<string, string> = {
     open_app: "open-app",
+    find_app: "find-app",
     device_snapshot: "device-snapshot",
     permission_status: "permission-status",
   };

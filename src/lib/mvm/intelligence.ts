@@ -51,7 +51,12 @@ export function understandCommand(input: string): MvmIntentResult {
     const capability = UZ_DEVICE.concat(EN_DEVICE).find((w) => normalized.includes(compact(w)));
     return base(original, "device_snapshot", 0.94, capability ? [{ type: "capability", value: capability }] : [], ["device"], "device telemetry vocabulary");
   }
-  if (hasAny(normalized, ["permission", "permissions", "ruxsat", "ruxsatlar", "access"])) return base(original, "permission_status", 0.93, [], [], "permission vocabulary");
+  if (hasAny(normalized, ["permission", "permissions", "ruxsat", "ruxsatlar", "access", "perm"])) {
+    const capability = extractAfterCue(original, ["perm", "permission", "permissions", "ruxsat", "ruxsatlar", "access"]);
+    const known = ["camera", "microphone", "notifications", "notification_listener", "contacts", "overlay", "usage_access"];
+    const matched = known.find((id) => compact(capability).includes(compact(id)) || compact(normalized).includes(compact(id)));
+    return base(original, "permission_status", 0.93, matched ? [{ type: "capability", value: matched }] : [], matched ? [matched] : [], matched ? "permission vocabulary + capability" : "permission vocabulary");
+  }
   const openCue = EN_OPEN.concat(UZ_OPEN);
   if (hasAny(normalized, openCue)) {
     const query = cleanAppQuery(extractAfterCue(original, openCue));
@@ -60,7 +65,7 @@ export function understandCommand(input: string): MvmIntentResult {
   const findCue = ["find", "search", "qidir", "top", "topib ber"];
   if (hasAny(normalized, findCue)) {
     const query = cleanAppQuery(extractAfterCue(original, findCue));
-    if (query) return { ...base(original, "find_app", 0.89, [{ type: "app_query", value: query }], [], "search verb + app entity"), skillId: undefined };
+    if (query) return base(original, "find_app", 0.89, [{ type: "app_query", value: query }], [], "search verb + app entity");
   }
   return { intent: "unknown", confidence: 0.12, entities: [{ type: "text", value: original }], context: { original, normalized, language }, requiredCapabilities: [], reason: "no supported intent pattern" };
 }

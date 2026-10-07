@@ -461,4 +461,44 @@ public class MvmLauncherPlugin extends Plugin {
         }
         JSObject result=new JSObject();result.put("opened",opened);call.resolve(result);
     }
+
+    @PluginMethod
+    public void share(PluginCall call) {
+        String text = call.getString("text");
+        String mime = call.getString("mime", "text/plain");
+        boolean chooser = call.getBoolean("chooser", true);
+        String fileUri = call.getString("fileUri");
+        if ((text == null || text.trim().isEmpty()) && (fileUri == null || fileUri.trim().isEmpty())) {
+            call.reject("share needs text or an explicit file grant");
+            return;
+        }
+        if (fileUri != null && (fileUri.startsWith("file:") || fileUri.startsWith("/") || fileUri.contains("/data/"))) {
+            JSObject blocked = new JSObject();
+            blocked.put("started", false);
+            blocked.put("reason", "private file share requires an explicit scoped grant");
+            call.resolve(blocked);
+            return;
+        }
+        try {
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType(mime == null || mime.trim().isEmpty() ? "text/plain" : mime);
+            if (text != null) send.putExtra(Intent.EXTRA_TEXT, text);
+            if (fileUri != null && fileUri.startsWith("content:")) {
+                send.putExtra(Intent.EXTRA_STREAM, Uri.parse(fileUri));
+                send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+            Intent outbound = chooser ? Intent.createChooser(send, "MVMCMD") : send;
+            outbound.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(outbound);
+            JSObject result = new JSObject();
+            result.put("started", true);
+            result.put("method", chooser ? "chooser" : "share");
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("started", false);
+            result.put("reason", e.getClass().getSimpleName());
+            call.resolve(result);
+        }
+    }
 }

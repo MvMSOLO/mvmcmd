@@ -129,11 +129,18 @@ export const COMMANDS: CommandSpec[] = [  {
     summaryUz: "Do‘kon sahifasini ochadi.",
   },
   {
-    name: "pack",
-    aliases: ["package", "apk"],
-    usage: "pack <package.name>",
-    summaryEn: "Launch a raw Android package.",
-    summaryUz: "Android package nomini to‘g‘ridan-to‘g‘ri ochadi.",
+    name: "share",
+    aliases: ["send"],
+    usage: "share <text>",
+    summaryEn: "Share explicit text. Private files are not granted silently.",
+    summaryUz: "Aniq matnni ulashadi. Yashirin fayl jim berilmaydi.",
+  },
+  {
+    name: "link",
+    aliases: ["url", "deeplink"],
+    usage: "link <url>",
+    summaryEn: "Open a validated URL or deep link. Completion stays STARTED.",
+    summaryUz: "Tekshirilgan URL yoki deep linkni ochadi. Natija STARTED.",
   },
   {
     name: "device",

@@ -299,7 +299,8 @@ export function MvmShell() {
     const text = pick ? `open ${pick.name}` : raw;
     if (!text.trim()) return;
     const understanding = understandCommand(text);
-    const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? "perm" : understanding.intent === "help" ? "help" : text;
+    const capability = understanding.entities.find((e) => e.type === "capability")?.value;
+    const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understanding.intent === "help" ? "help" : text;
     const parsed = parseLine(interpretedText);
 
     if (parsed.cmd?.name === "perm") {
