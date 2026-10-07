@@ -3,7 +3,7 @@ import { CATALOG, CATALOG_BY_ID, CATEGORIES } from "@/lib/mvm/catalog";
 import { lookupCommand, parseLine } from "@/lib/mvm/commands";
 import { understandCommand } from "@/lib/mvm/intelligence";
 import { t } from "@/lib/mvm/copy";
-import { execute, makeLine, runDeviceRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
+import { execute, makeLine, runDeviceRequest, runGamingRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
 import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import {
@@ -309,6 +309,17 @@ export function MvmShell() {
       void runPermRequest({ state, lang }, parsed.args[0]).then((res) => {
         setState(res.state);
         append(res.lines);
+      });
+      setInput("");
+      setHistIdx(-1);
+      return;
+    }
+    if (parsed.cmd?.name === "gaming") {
+      append([makeLine("in", text), makeLine("sys", lang === "uz" ? "GAMING  real telemetry o‘qilmoqda…" : "GAMING  reading real telemetry…")]);
+      emitMvmSignal("intent");
+      void runGamingRequest({ state, lang }, parsed.args.join(" ") || undefined).then((ls) => {
+        append(ls);
+        emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
       setInput("");
       setHistIdx(-1);
