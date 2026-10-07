@@ -1,7 +1,7 @@
 # Phase 10 — MVM Goal Engine
 
 ## Status
-IMPLEMENTED — Goal schema, deterministic planning, dependent execution, partial/complete status, cancellation, and explicit verification are wired into the existing task/action layers. CI verification is pending.
+IMPLEMENTED — Goal schema, deterministic planning, dependent execution, partial/complete status, cancellation, explicit verification, and sequential state propagation are wired into the existing task/action layers. Final implementation fixes are committed.
 
 ## Goal
 Move from “execute this command” to “achieve this user goal” while preserving the existing action and verification layers.
