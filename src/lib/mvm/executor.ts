@@ -3,7 +3,7 @@ import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
 import { understandCommand } from "./intelligence";
-import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
+import { launchApp, launchRawUrl, launchStore } from "./intents";
 import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenEnglish, nativeOpenNotifications } from "./native-launcher";
 import {
   dropAlias,
@@ -483,14 +483,17 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
       }
       const runtime = detectRuntime();
-      if (runtime.platform !== "android") {
-        return {
-          state: state0,
-          lines: [line("warn", L(ctx2, "Package faqat Androidda", "Raw package is Android-only"))],
-        };
-      }
-      launchPackage(pkg);
-      return { state: state0, lines: [line("sys", `PACK  STARTED  ${pkg}`, { meta: "package launch requested; completion not verified" })] };
+      const action = runAppBridge({ kind: "launch", target: pkg, platform: runtime.platform });
+      return {
+        state: state0,
+        lines: [
+          line(
+            action.ok ? "sys" : "warn",
+            `PACK  ${action.status.toUpperCase()}  ${pkg}`,
+            { meta: action.reason ?? action.message },
+          ),
+        ],
+      };
     }
     case "share": {
       const text = parsed.args.join(" ").trim();
