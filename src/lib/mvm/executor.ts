@@ -28,6 +28,7 @@ import { refreshNativeCapabilities } from "./capabilities";
 import { runMvmAction, actionStatusLine } from "./action-engine";
 import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { runAppBridge } from "./app-bridge";
+import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
 let seq = 0;
