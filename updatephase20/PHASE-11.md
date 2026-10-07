@@ -1,7 +1,7 @@
 # Phase 11 — Adaptive Gaming Engine
 
 ## Status
-IN PROGRESS — core telemetry assessment, conservative mode selection, before/after delta model, truth-preserving FPS reporting, tests, and skill registration implemented. Native telemetry/action wiring and CI verification remain.
+IN PROGRESS — core telemetry assessment, conservative mode selection, before/after delta model, truth-preserving FPS reporting, tests, and skill registration implemented. Native device telemetry is now wired through the existing Phase 3 device boundary; assessment is exposed through the command executor. Actual OEM performance-control actions remain capability-gated and are not faked. CI verification remains.
 
 ## Goal
 Provide real device-aware gaming utilities using measured device state, without fake FPS claims or unsupported “booster” behavior.
