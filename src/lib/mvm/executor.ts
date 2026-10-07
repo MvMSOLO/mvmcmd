@@ -140,35 +140,6 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   const trimmed = rawLine.trim();
   if (!trimmed) return { state: ctx.state, lines: [] };
 
-  const gamingCue = /^(gaming|game mode|gaming mode|game|game booster|gaming booster|o'yin|oyin)(?:\\s+(.*))?$/i.exec(trimmed);
-  if (gamingCue) {
-    const target = gamingCue[2]?.trim();
-    if (!canUseNativeDeviceEngine()) {
-      return { state: ctx.state, lines: [line("warn", L(ctx, "GAMING telemetry faqat native Android APKda mavjud.", "GAMING telemetry is available only in the native Android APK."))] };
-    }
-    try {
-      const s = awaitDeviceSnapshot();
-      const telemetry: GamingTelemetry = {
-        timestamp: s.timestamp,
-        cpuLoadPercent: s.cpu.loadPercent,
-        ramUsedBytes: s.memory.usedBytes,
-        ramTotalBytes: s.memory.totalBytes,
-        batteryPercent: s.battery.percent,
-        charging: s.battery.charging,
-        batteryTemperatureC: s.battery.temperatureC,
-        thermal: (s.thermal.statusName?.toLowerCase() as GamingTelemetry["thermal"]) || "unknown",
-        refreshRateHz: s.display.refreshRateHz,
-        networkConnected: s.network.connected,
-        meteredNetwork: s.network.metered,
-      };
-      const game: GameProfile | undefined = target ? { name: target, platform: "android", confidence: "explicit" } : undefined;
-      const assessment = assessGaming(telemetry, game);
-      return { state: ctx.state, lines: formatGamingAssessment(assessment).map((item, index) => line(index === 0 ? "sys" : item.startsWith("WARNING") ? "warn" : "out", item)) };
-    } catch (error) {
-      return { state: ctx.state, lines: [line("warn", L(ctx, "GAMING telemetry o'qilmadi.", "Unable to read gaming telemetry."), { meta: error instanceof Error ? error.message : "unknown error" })] };
-    }
-  }
-
   const goalCue = /^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)/i.test(trimmed);
   if (goalCue) {
     const goal = planMvmGoal(trimmed.replace(/^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)\s*/i, ""));
@@ -678,7 +649,45 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 }
 
-async function awaitDeviceSnapshot() { return nativeGetDeviceSnapshot(); }\n\nexport async function runDeviceRequest(
+async function awaitDeviceSnapshot() { return nativeGetDeviceSnapshot(); }\n\n
+export async function runGamingRequest(ctx: ExecContext, target?: string): Promise<LogLine[]> {
+  if (!canUseNativeDeviceEngine()) {
+    return [line("warn", L(ctx, "GAMING telemetry faqat native Android APKda mavjud.", "GAMING telemetry is available only in the native Android APK."))];
+  }
+  try {
+    const s = await nativeGetDeviceSnapshot();
+    const thermal = s.thermal.statusName?.toLowerCase();
+    const telemetry: GamingTelemetry = {
+      timestamp: s.timestamp,
+      cpuLoadPercent: s.cpu.loadPercent,
+      ramUsedBytes: s.memory.usedBytes,
+      ramTotalBytes: s.memory.totalBytes,
+      batteryPercent: s.battery.percent,
+      charging: s.battery.charging,
+      batteryTemperatureC: s.battery.temperatureC,
+      thermal: ["none","light","moderate","severe","critical","emergency","shutdown"].includes(thermal) ? thermal as GamingTelemetry["thermal"] : "unknown",
+      refreshRateHz: s.display.refreshRateHz,
+      networkConnected: s.network.connected,
+      meteredNetwork: s.network.metered,
+    };
+    const normalizedTarget = target?.trim();
+    const hit = normalizedTarget
+      ? rankApps(normalizedTarget, CATALOG.filter((app) => app.category === "game"), ctx.state.usage, 1)[0]?.app
+      : undefined;
+    const game: GameProfile | undefined = hit
+      ? { name: hit.name, packageName: hit.androidPackage, platform: "android", confidence: "catalog" }
+      : normalizedTarget
+        ? { name: normalizedTarget, platform: "android", confidence: "explicit" }
+        : undefined;
+    return formatGamingAssessment(assessGaming(telemetry, game)).map((item, index) =>
+      line(index === 0 ? "sys" : item.startsWith("WARNING") ? "warn" : "out", item),
+    );
+  } catch (error) {
+    return [line("warn", L(ctx, "GAMING telemetry o‘qilmadi.", "Unable to read gaming telemetry."), { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}
+
+export async function runDeviceRequest(
   ctx: ExecContext,
 ): Promise<LogLine[]> {
   if (!canUseNativeDeviceEngine()) {
