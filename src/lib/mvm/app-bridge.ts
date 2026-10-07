@@ -1,5 +1,5 @@
 import { runMvmAction, type MvmActionResult } from "./action-engine";
-import { canUseNativeAndroidLauncher, nativeOpenUrl, nativeShare } from "./native-launcher";
+import { canUseNativeAndroidLauncher, nativeOpenPackage, nativeOpenUrl, nativeShare } from "./native-launcher";
 
 export type BridgeMethod = "package" | "deeplink" | "url" | "share" | "chooser" | "desktop-fallback";
 export type BridgeStatus = "started" | "failed";
@@ -20,12 +20,12 @@ export interface BridgeResult {
   target: string;
   message: string;
   verified: false;
-  grant?: "none" | "explicit-text";
+  grant?: "none" | "explicit-text" | "explicit-content-uri";
 }
 
 const ALLOWED_SCHEMES = /^(https?:|tel:|sms:|mailto:|geo:|market:)/i;
-const PRIVATE_FILE = /^(file:|content:\/\/com\.android\.externalstorage|\/data\/|\/storage\/emulated\/)/i;
-const ALLOWED_MIME = /^(text\/plain|text\/csv|image\/png|image\/jpeg|application\/pdf)$/;
+const PRIVATE_FILE = /^(file:|content:\/\/com\.android\.externalstorage|\/data\/|\/storage\/emulated\/|\/sdcard\/)/i;
+const ALLOWED_MIME = /^(text\/plain|text\/csv|image\/png|image\/jpeg|application\/pdf)$/i;
 
 export function validateMime(mime?: string): { ok: boolean; reason?: string } {
   if (!mime) return { ok: true };
@@ -59,6 +59,12 @@ export function resolveBridge(request: BridgeRequest): { ok: boolean; method: Br
 }
 
 function dispatch(request: BridgeRequest, method: BridgeMethod): void {
+  if (method === "package") {
+    if (canUseNativeAndroidLauncher()) {
+      void nativeOpenPackage(request.target).catch(() => undefined);
+    }
+    return;
+  }
   if (method === "share" || method === "chooser") {
     if (canUseNativeAndroidLauncher()) {
       void nativeShare({
@@ -74,7 +80,7 @@ function dispatch(request: BridgeRequest, method: BridgeMethod): void {
     }
     return;
   }
-  if (method === "url" || method === "deeplink" || method === "desktop-fallback") {
+  if (method === "url" || method === "deeplink") {
     if (canUseNativeAndroidLauncher()) {
       void nativeOpenUrl(request.target).catch(() => undefined);
       return;
@@ -105,7 +111,11 @@ export function runAppBridge(request: BridgeRequest): MvmActionResult<BridgeResu
         target: request.target,
         message: "Bridge request started. External completion is not observable.",
         verified: false,
-        grant: request.kind === "share" && request.text ? "explicit-text" : "none",
+        grant: request.kind === "share" && request.fileUri?.startsWith("content:")
+          ? "explicit-content-uri"
+          : request.kind === "share" && request.text
+            ? "explicit-text"
+            : "none",
       };
       if (resolved.method !== "package") {
         dispatch(request, resolved.method);
