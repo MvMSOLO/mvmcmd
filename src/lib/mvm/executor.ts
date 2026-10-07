@@ -143,13 +143,18 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   const goalCue = /^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)/i.test(trimmed);
   if (goalCue) {
     const goal = planMvmGoal(trimmed.replace(/^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)\s*/i, ""));
-    const run = runMvmGoal(goal, (step) => execute(step.input, ctx), (result) => {
+    let goalCtx = ctx;
+    const run = runMvmGoal(goal, (step) => {
+      const result = execute(step.input, goalCtx);
+      goalCtx = result;
+      return result;
+    }, (result) => {
       const failed = result.lines.some(item => item.kind === "warn");
       const verified = !failed && result.lines.some(item => /\bVERIFIED\b/.test(item.text));
       return { ok: !failed, verified, reason: failed ? "goal step returned a warning" : verified ? undefined : "completion proof unavailable" };
     });
     const status = run.status.toUpperCase();
-    return { state: ctx.state, lines: [line(run.status === "failed" ? "warn" : run.verified ? "ok" : "sys", `GOAL  ${status}  ·  ${run.achievedSteps}/${run.totalSteps}`), ...run.results.map(r => line(r.ok ? "out" : "warn", `${r.stepId.toUpperCase()}  ${r.status.toUpperCase()}`, { meta: r.reason }))] };
+    return { state: goalCtx.state, lines: [line(run.status === "failed" ? "warn" : run.verified ? "ok" : "sys", `GOAL  ${status}  ·  ${run.achievedSteps}/${run.totalSteps}`), ...run.results.map(r => line(r.ok ? "out" : "warn", `${r.stepId.toUpperCase()}  ${r.status.toUpperCase()}`, { meta: r.reason }))] };
   }
   const taskPlan = planMvmTask(trimmed);
   if (taskPlan) {
