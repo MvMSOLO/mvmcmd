@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assessGaming, compareGamingSnapshots } from "./gaming-engine";
+import { assessGaming, compareGamingSnapshots, finishGamingSession, formatGamingSessionReport, startGamingSession } from "./gaming-engine";
 
 const base = {
   timestamp: 1, charging: false, thermal: "none" as const,
