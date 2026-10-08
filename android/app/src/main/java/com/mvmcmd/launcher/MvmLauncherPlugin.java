@@ -501,4 +501,112 @@ public class MvmLauncherPlugin extends Plugin {
             call.resolve(result);
         }
     }
+
+    @PluginMethod
+    public void lookupContact(PluginCall call) {
+        String query = call.getString("query");
+        if (query == null || query.trim().isEmpty()) { call.reject("query is required"); return; }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED) {
+            call.reject("READ_CONTACTS permission is required");
+            return;
+        }
+        String q = query.trim();
+        android.database.Cursor cursor = null;
+        try {
+            Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+            String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ? OR "
+                    + ContactsContract.CommonDataKinds.Phone.NUMBER + " LIKE ?";
+            String pattern = "%" + q + "%";
+            cursor = getContext().getContentResolver().query(
+                    uri,
+                    new String[] {
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER
+                    },
+                    selection,
+                    new String[] { pattern, pattern },
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " COLLATE NOCASE ASC"
+            );
+            JSObject result = new JSObject();
+            if (cursor != null && cursor.moveToFirst()) {
+                result.put("found", true);
+                result.put("name", cursor.getString(0));
+                result.put("phone", cursor.getString(1));
+            } else {
+                result.put("found", false);
+            }
+            call.resolve(result);
+        } catch (SecurityException e) {
+            call.reject("Contacts access is restricted", e);
+        } catch (Exception e) {
+            call.reject("Contact lookup failed", e);
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    @PluginMethod
+    public void openDialer(PluginCall call) {
+        String phone = call.getString("phone");
+        if (phone == null || phone.trim().isEmpty()) { call.reject("phone is required"); return; }
+        try {
+            Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(phone.trim())));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void openSmsComposer(PluginCall call) {
+        String phone = call.getString("phone");
+        String body = call.getString("body");
+        if (phone == null || phone.trim().isEmpty()) { call.reject("phone is required"); return; }
+        if (body == null || body.trim().isEmpty()) { call.reject("body is required"); return; }
+        try {
+            Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(phone.trim())));
+            intent.putExtra("sms_body", body);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void openEmailComposer(PluginCall call) {
+        String email = call.getString("email");
+        String subject = call.getString("subject", "");
+        String body = call.getString("body", "");
+        if (email == null || email.trim().isEmpty()) { call.reject("email is required"); return; }
+        try {
+            Uri uri = Uri.parse("mailto:" + Uri.encode(email.trim()))
+                    .buildUpon()
+                    .appendQueryParameter("subject", subject)
+                    .appendQueryParameter("body", body)
+                    .build();
+            Intent intent = new Intent(Intent.ACTION_SENDTO, uri);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            call.resolve(result);
+        }
+    }
 }
