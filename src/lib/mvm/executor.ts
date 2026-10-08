@@ -30,6 +30,7 @@ import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { runAppBridge } from "./app-bridge";
 import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
+import { copyText, lookupContact, openDialer, openEmailComposer, openSmsComposer, pasteText } from "./communication";
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -649,6 +650,48 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     default:
       return { state: state0, lines: [line("warn", trimmed)] };
   }
+}
+
+export async function runCommunicationRequest(
+  ctx: ExecContext,
+  command: string,
+  args: string[],
+): Promise<LogLine[]> {
+  const name = command.toLowerCase();
+  if (name === "contact") {
+    const result = await lookupContact(args.join(" "));
+    return [
+      line(result.status === "failed" || result.status === "unavailable" ? "warn" : "ok", `CONTACT  ${result.status.toUpperCase()}`, { meta: result.message }),
+      ...(result.name || result.phone ? [line("out", [result.name, result.phone].filter(Boolean).join(" · "))] : []),
+      ...(result.detail ? [line("dim", result.detail)] : []),
+    ];
+  }
+  if (name === "dial") {
+    const result = await openDialer(args.join(" "));
+    return [line(result.status === "started" ? "sys" : "warn", `DIAL  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  if (name === "sms") {
+    const phone = args[0] ?? "";
+    const body = args.slice(1).join(" ");
+    const result = await openSmsComposer(phone, body);
+    return [line(result.status === "started" ? "sys" : "warn", `SMS  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  if (name === "email") {
+    const email = args[0] ?? "";
+    const subject = args[1] ?? "";
+    const body = args.slice(2).join(" ");
+    const result = await openEmailComposer(email, subject, body);
+    return [line(result.status === "started" ? "sys" : "warn", `EMAIL  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  if (name === "copy") {
+    const result = await copyText(args.join(" "));
+    return [line(result.status === "started" ? "ok" : "warn", `COPY  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  const result = await pasteText();
+  return [
+    line(result.status === "started" ? "ok" : "warn", `PASTE  ${result.status.toUpperCase()}`, { meta: result.message }),
+    ...(result.text ? [line("out", result.text)] : []),
+  ];
 }
 
 export async function runGamingRequest(ctx: ExecContext, target?: string): Promise<LogLine[]> {
