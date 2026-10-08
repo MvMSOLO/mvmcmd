@@ -88,3 +88,24 @@ export function formatGamingAssessment(a: GamingAssessment): string[] {
     ...(a.recommendations.length===0 ? ["OK       telemetry within conservative thresholds"] : []),
   ];
 }
+
+
+export interface GamingSession { game?: GameProfile; before: GamingTelemetry; startedAt: number; }
+
+export interface GamingSessionReport { session: GamingSession; after: GamingTelemetry; delta: GamingSnapshotDelta; durationMs: number; }
+
+export function startGamingSession(before: GamingTelemetry, game?: GameProfile): GamingSession { return { game, before, startedAt: before.timestamp }; }
+
+export function finishGamingSession(session: GamingSession, after: GamingTelemetry): GamingSessionReport { return { session, after, delta: compareGamingSnapshots(session.before, after), durationMs: Math.max(0, after.timestamp-session.startedAt) }; }
+
+export function formatGamingSessionReport(report: GamingSessionReport): string[] {
+ const d=report.delta;
+ return [
+  `SESSION  ${report.session.game?.name ?? "unspecified"}  ·  ${Math.round(report.durationMs/1000)}s`,
+  `CPU Δ    ${d.cpuDeltaPercent === undefined ? "UNAVAILABLE" : (d.cpuDeltaPercent>=0?"+":"")+d.cpuDeltaPercent.toFixed(1)+"%" }`,
+  `RAM Δ    ${d.ramDeltaBytes === undefined ? "UNAVAILABLE" : (d.ramDeltaBytes>=0?"+":"")+d.ramDeltaBytes+" bytes" }`,
+  `BATTERY Δ ${d.batteryDeltaPercent === undefined ? "UNAVAILABLE" : (d.batteryDeltaPercent>=0?"+":"")+d.batteryDeltaPercent.toFixed(1)+"%" }`,
+  `TEMP Δ   ${d.temperatureDeltaC === undefined ? "UNAVAILABLE" : (d.temperatureDeltaC>=0?"+":"")+d.temperatureDeltaC.toFixed(1)+"°C" }`,
+  `FPS      NOT VERIFIED · in-game FPS telemetry is unavailable at this boundary`,
+ ];
+}
