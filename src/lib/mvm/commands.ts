@@ -4,9 +4,9 @@ export const COMMANDS: CommandSpec[] = [
   {
     name: "gaming",
     aliases: ["game", "game-mode", "game-booster", "gaming-mode", "oyin", "o'yin"],
-    usage: "gaming [game]",
-    summaryEn: "Assess real device telemetry for gaming and choose a conservative mode.",
-    summaryUz: "Gaming uchun real qurilma telemetrysini baholaydi va ehtiyotkor rejim tanlaydi.",
+    usage: "gaming [game|before <game>|after <game>|launch <game>]",
+    summaryEn: "Assess real telemetry, launch a game, or compare before/after gaming state.",
+    summaryUz: "Gaming telemetrysini baholaydi, o‘yinni ochadi yoki oldin/keyin holatni solishtiradi.",
   },  {
     name: "english",
     aliases: ["en", "english-learning", "ielts"],
