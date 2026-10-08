@@ -40,6 +40,10 @@ interface MvmLauncherPlugin {
     decision: "allow";
   }): Promise<NativeCapabilitySnapshot & { needsSettings?: boolean }>;
   share(options: { text?: string; mime?: string; chooser?: boolean; fileUri?: string }): Promise<{ started: boolean; method?: string; reason?: string }>;
+  lookupContact(options: { query: string }): Promise<{ found: boolean; name?: string; phone?: string }>;
+  openDialer(options: { phone: string }): Promise<{ opened: boolean }>;
+  openSmsComposer(options: { phone: string; body: string }): Promise<{ opened: boolean }>;
+  openEmailComposer(options: { email: string; subject?: string; body?: string }): Promise<{ opened: boolean }>;
   setCapabilityDecision(options: {
     capabilityId: string;
     decision: "skip" | "allow";
@@ -102,7 +106,7 @@ export async function nativeShare(options: { text?: string; mime?: string; choos
   return NativeLauncher.share(options);
 }
 
-export async function nativeCheckCapabilities(
+export async function nativeLookupContact(query: string): Promise<{ found: boolean; name?: string; phone?: string }> {\n  return NativeLauncher.lookupContact({ query });\n}\n\nexport async function nativeOpenDialer(phone: string): Promise<{ opened: boolean }> {\n  return NativeLauncher.openDialer({ phone });\n}\n\nexport async function nativeOpenSmsComposer(phone: string, body: string): Promise<{ opened: boolean }> {\n  return NativeLauncher.openSmsComposer({ phone, body });\n}\n\nexport async function nativeOpenEmailComposer(email: string, subject = "", body = ""): Promise<{ opened: boolean }> {\n  return NativeLauncher.openEmailComposer({ email, subject, body });\n}\n\nexport async function nativeCheckCapabilities(
   capabilityId?: string,
 ): Promise<NativeCapabilitySnapshot[]> {
   const result = await NativeLauncher.checkCapabilities(
