@@ -3,7 +3,7 @@ import { CATALOG, CATALOG_BY_ID, CATEGORIES } from "@/lib/mvm/catalog";
 import { lookupCommand, parseLine } from "@/lib/mvm/commands";
 import { understandCommand } from "@/lib/mvm/intelligence";
 import { t } from "@/lib/mvm/copy";
-import { execute, makeLine, runDeviceRequest, runGamingRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
+import { execute, makeLine, runCommunicationRequest, runDeviceRequest, runGamingRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
 import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import {
@@ -303,6 +303,17 @@ export function MvmShell() {
     const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understanding.intent === "help" ? "help" : text;
     const parsed = parseLine(interpretedText);
 
+    if (parsed.cmd && ["contact", "dial", "sms", "email", "copy", "paste"].includes(parsed.cmd.name)) {
+      append([makeLine("in", text), makeLine("sys", lang === "uz" ? "COMMUNICATION  tekshirilmoqda…" : "COMMUNICATION  checking…")]);
+      emitMvmSignal("intent");
+      void runCommunicationRequest({ state, lang }, parsed.cmd.name, parsed.args).then((ls) => {
+        append(ls);
+        emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
+      });
+      setInput("");
+      setHistIdx(-1);
+      return;
+    }
     if (parsed.cmd?.name === "perm") {
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
