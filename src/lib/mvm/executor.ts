@@ -675,7 +675,7 @@ export async function runGamingRequest(ctx: ExecContext, target?: string): Promi
     const rawTarget = target?.trim() ?? "";
     const match = /^(before|after|launch)\s+/i.exec(rawTarget);
     const operation = match?.[1]?.toLowerCase() as "before" | "after" | "launch" | undefined;
-    const gameQuery = operation ? rawTarget.slice(match[0].length).trim() : rawTarget;
+    const gameQuery = operation ? rawTarget.slice(match?.[0]?.length ?? 0).trim() : rawTarget;
     const hit = gameQuery
       ? rankApps(gameQuery, CATALOG.filter((app) => app.category === "game"), ctx.state.usage, 1)[0]?.app
       : undefined;
