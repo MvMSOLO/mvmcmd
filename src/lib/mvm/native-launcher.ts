@@ -106,7 +106,23 @@ export async function nativeShare(options: { text?: string; mime?: string; choos
   return NativeLauncher.share(options);
 }
 
-export async function nativeLookupContact(query: string): Promise<{ found: boolean; name?: string; phone?: string }> {\n  return NativeLauncher.lookupContact({ query });\n}\n\nexport async function nativeOpenDialer(phone: string): Promise<{ opened: boolean }> {\n  return NativeLauncher.openDialer({ phone });\n}\n\nexport async function nativeOpenSmsComposer(phone: string, body: string): Promise<{ opened: boolean }> {\n  return NativeLauncher.openSmsComposer({ phone, body });\n}\n\nexport async function nativeOpenEmailComposer(email: string, subject = "", body = ""): Promise<{ opened: boolean }> {\n  return NativeLauncher.openEmailComposer({ email, subject, body });\n}\n\nexport async function nativeCheckCapabilities(
+export async function nativeLookupContact(query: string): Promise<{ found: boolean; name?: string; phone?: string }> {
+  return NativeLauncher.lookupContact({ query });
+}
+
+export async function nativeOpenDialer(phone: string): Promise<{ opened: boolean }> {
+  return NativeLauncher.openDialer({ phone });
+}
+
+export async function nativeOpenSmsComposer(phone: string, body: string): Promise<{ opened: boolean }> {
+  return NativeLauncher.openSmsComposer({ phone, body });
+}
+
+export async function nativeOpenEmailComposer(email: string, subject = "", body = ""): Promise<{ opened: boolean }> {
+  return NativeLauncher.openEmailComposer({ email, subject, body });
+}
+
+export async function nativeCheckCapabilities(
   capabilityId?: string,
 ): Promise<NativeCapabilitySnapshot[]> {
   const result = await NativeLauncher.checkCapabilities(
