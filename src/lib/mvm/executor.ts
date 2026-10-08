@@ -30,10 +30,11 @@ import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { runAppBridge } from "./app-bridge";
 import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
-import { assessGaming, formatGamingAssessment, type GamingTelemetry, type GameProfile } from "./gaming-engine";
+import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
 let seq = 0;
+let gamingSession: GamingSession | undefined;
 function line(kind: LogLine["kind"], text: string, extra?: Partial<LogLine>): LogLine {
   seq += 1;
   return { id: `l${seq.toString(36)}`, kind, text, ...extra };
@@ -670,15 +671,52 @@ export async function runGamingRequest(ctx: ExecContext, target?: string): Promi
       networkConnected: s.network.connected,
       meteredNetwork: s.network.metered,
     };
-    const normalizedTarget = target?.trim();
-    const hit = normalizedTarget
-      ? rankApps(normalizedTarget, CATALOG.filter((app) => app.category === "game"), ctx.state.usage, 1)[0]?.app
+
+    const rawTarget = target?.trim() ?? "";
+    const match = /^(before|after|launch)\s+/i.exec(rawTarget);
+    const operation = match?.[1]?.toLowerCase() as "before" | "after" | "launch" | undefined;
+    const gameQuery = operation ? rawTarget.slice(match[0].length).trim() : rawTarget;
+    const hit = gameQuery
+      ? rankApps(gameQuery, CATALOG.filter((app) => app.category === "game"), ctx.state.usage, 1)[0]?.app
       : undefined;
     const game: GameProfile | undefined = hit
       ? { name: hit.name, packageName: hit.androidPackage, platform: "android", confidence: "catalog" }
-      : normalizedTarget
-        ? { name: normalizedTarget, platform: "android", confidence: "explicit" }
+      : gameQuery
+        ? { name: gameQuery, platform: "android", confidence: "explicit" }
         : undefined;
+
+    if (operation === "launch") {
+      if (!hit) return [line("warn", L(ctx, "O‘yin katalogdan topilmadi.", "Game was not found in the catalog."))];
+      const result = launchApp(hit, "android");
+      return [
+        line(result.ok ? "sys" : "warn", `GAMING  LAUNCH  ${hit.name}`, { meta: result.note }),
+        line("dim", result.ok ? "Launch requested; external game completion remains STARTED." : "Game launch failed."),
+      ];
+    }
+
+    if (operation === "before") {
+      gamingSession = startGamingSession(telemetry, game);
+      const assessment = assessGaming(telemetry, game);
+      return [
+        line("sys", `GAMING  BEFORE  ${game?.name ?? "unspecified"}`),
+        ...formatGamingAssessment(assessment).map((item, index) =>
+          line(index === 0 ? "sys" : item.startsWith("WARNING") ? "warn" : "out", item),
+        ),
+        line("dim", "BASELINE  captured from native device telemetry; FPS remains unverified."),
+      ];
+    }
+
+    if (operation === "after") {
+      if (!gamingSession) {
+        return [line("warn", L(ctx, "Avval GAMING BEFORE ishlating.", "Run GAMING BEFORE first; no baseline exists."))];
+      }
+      const report = finishGamingSession(gamingSession, telemetry);
+      gamingSession = undefined;
+      return formatGamingSessionReport(report).map((item, index) =>
+        line(item.startsWith("FPS") ? "dim" : index === 0 ? "sys" : "out", item),
+      );
+    }
+
     return formatGamingAssessment(assessGaming(telemetry, game)).map((item, index) =>
       line(index === 0 ? "sys" : item.startsWith("WARNING") ? "warn" : "out", item),
     );
@@ -686,7 +724,6 @@ export async function runGamingRequest(ctx: ExecContext, target?: string): Promi
     return [line("warn", L(ctx, "GAMING telemetry o‘qilmadi.", "Unable to read gaming telemetry."), { meta: error instanceof Error ? error.message : "unknown error" })];
   }
 }
-
 export async function runDeviceRequest(
   ctx: ExecContext,
 ): Promise<LogLine[]> {
