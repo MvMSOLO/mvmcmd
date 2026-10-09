@@ -92,7 +92,7 @@ export async function listFolder(uri: string, options: { query?: string; minByte
 }
 export async function copyMoveScopedFile(sourceUri: string, destinationTreeUri: string, name: string, move = false): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "Scoped file copy/move requires Android.", verified: false };
-  if (!sourceUri.startsWith("content://") || !destinationTreeUri.startsWith("content://") || !name.trim() || /[\\/\\0]/.test(name)) return { status: "failed", message: "Source, destination and a safe filename are required.", verified: false };
+  if (!sourceUri.startsWith("content://") || !destinationTreeUri.startsWith("content://") || !name.trim() || name.trim() === "." || name.trim() === ".." || name.trim().length > 180 || /[\\/\\0]/.test(name)) return { status: "failed", message: "Source, destination and a safe filename are required.", verified: false };
   try {
     const r = await NativeFiles.copyMoveFile({ sourceUri, destinationTreeUri, name: name.trim(), move });
     return r.status === "verified" ? { status: "verified", message: r.message, verified: true, items: r.uri ? [{id:r.uri,uri:r.uri,name:name.trim(),mimeType:"application/octet-stream",isDirectory:false}] : [] } : { status: "failed", message: r.message, verified: false };
@@ -107,7 +107,7 @@ export async function deleteScopedFile(uri: string, confirmed: boolean): Promise
 }
 export async function createScopedArchive(treeUri: string, name: string, uris: string[]): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "ZIP creation requires Android.", verified: false };
-  if (!treeUri.startsWith("content://") || !/^[a-zA-Z0-9 _.-]{1,80}\\.zip$/i.test(name) || uris.length === 0 || uris.some((uri) => !uri.startsWith("content://"))) return { status: "failed", message: "Choose a destination and at least one scoped file; use a safe .zip name.", verified: false };
+  if (!treeUri.startsWith("content://") || !/^[a-zA-Z0-9 _.-]{1,76}\\.zip$/i.test(name) || uris.length === 0 || uris.length > 500 || uris.some((uri) => !uri.startsWith("content://"))) return { status: "failed", message: "Choose a destination and at least one scoped file; use a safe .zip name.", verified: false };
   try { const r = await NativeFiles.createArchive({ treeUri, name, uris }); return r.created ? { status: "verified", message: r.message, verified: true, items: r.uri ? [{id:r.uri,uri:r.uri,name,mimeType:"application/zip",isDirectory:false}] : [] } : { status: "failed", message: r.message, verified: false }; }
   catch (e) { return { status: "failed", message: "ZIP creation failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
 }
