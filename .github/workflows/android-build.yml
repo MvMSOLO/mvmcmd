@@ -91,6 +91,9 @@ jobs:
           grep -q 'notification_listener' "src/lib/mvm/capabilities/registry.ts"
           ! grep -q 'requestMissingPermissions' "android/app/src/main/java/com/mvmcmd/launcher/MvmNotificationCenterActivity.java"
 
+      - name: Run project tests
+        run: npm test
+
       - name: Build web application
         run: npm run build
 
