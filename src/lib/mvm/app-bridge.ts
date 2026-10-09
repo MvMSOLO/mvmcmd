@@ -43,6 +43,17 @@ function isSafeDesktopFallbackDeepLink(target: string): boolean {
 }
 
 export function resolveBridge(request: BridgeRequest): { ok: boolean; method: BridgeMethod; reason?: string } {
+  if (!request || typeof request !== "object") {
+    return { ok: false, method: "url", reason: "invalid bridge request" };
+  }
+  if (!["launch", "deeplink", "url", "share"].includes(request.kind)) {
+    return { ok: false, method: "url", reason: "unsupported bridge action" };
+  }
+  if (typeof request.target !== "string" || typeof request.platform !== "string"
+      || !request.platform.trim() || request.platform.length > 32
+      || /[\u0000-\u001f\u007f]/.test(request.platform)) {
+    return { ok: false, method: "url", reason: "missing or invalid target/platform" };
+  }
   const target = request.target.trim();
   if (!target || target.length > 2048 || /[\u0000-\u001f\u007f]/.test(target)) return { ok: false, method: "url", reason: "missing or invalid target" };
   if (request.kind === "share") {

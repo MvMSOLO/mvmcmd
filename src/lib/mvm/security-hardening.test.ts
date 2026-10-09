@@ -147,3 +147,28 @@ test("release hardening review: sensitive-data backup is off and exported Androi
   assert.match(electronMain, /X-Content-Type-Options/);
   assert.match(electronMain, /webSecurity: true/);
 });
+
+
+test("bridge and MIME validators reject malformed runtime payload types without throwing", () => {
+  assert.doesNotThrow(() => resolveBridge(null as never));
+  assert.equal(resolveBridge(null as never).ok, false);
+  assert.equal(resolveBridge({kind:"url",target:42,platform:"android"} as never).ok, false);
+  assert.equal(resolveBridge({kind:"url",target:"https://example.com",platform:"\u0000android"} as never).ok, false);
+  assert.equal(resolveBridge({kind:"unknown",target:"https://example.com",platform:"android"} as never).ok, false);
+  assert.equal(isAllowedShareMime(123 as never), false);
+  assert.equal(isSafeFilename(123 as never), false);
+});
+
+test("core Android feature entry points remain registered and app-private activities stay non-exported", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const root = resolve(process.cwd());
+  const manifest = readFileSync(resolve(root, "android/app/src/main/AndroidManifest.xml"), "utf8");
+  const launcher = readFileSync(resolve(root, "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"), "utf8");
+  for (const activity of ["MvmCameraActivity", "MvmQrActivity", "MvmWallpaperActivity", "MvmEnglishActivity", "MvmEnglishStudioActivity", "MvmNotificationCenterActivity"]) {
+    assert.match(manifest, new RegExp('android:name="\\\\.' + activity + '"[^>]*android:exported="false"'));
+  }
+  for (const method of ["openCamera", "openQr", "openWallpaper", "openEnglish", "openNotifications", "openIncomingFile", "openUrl"]) {
+    assert.match(launcher, new RegExp("public void " + method + "\\\\("));
+  }
+});

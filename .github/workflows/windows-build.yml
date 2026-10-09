@@ -116,6 +116,24 @@ jobs:
           }
           $exe | ForEach-Object { Write-Host "$($_.FullName) - $($_.Length) bytes" }
 
+      - name: Windows packaged EXE launch smoke
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $exe = Get-ChildItem -Path "release" -Filter "*.exe" -File | Select-Object -First 1
+          if ($null -eq $exe) { throw "No portable EXE was produced for launch smoke." }
+          $process = Start-Process -FilePath $exe.FullName -WorkingDirectory $PWD.Path -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            $process.Refresh()
+            if ($process.HasExited) { throw "Portable EXE exited during launch smoke (exit code $($process.ExitCode))." }
+            Write-Host "Portable EXE started and remained alive for the smoke window."
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+          }
+
       - name: Final success gate
         if: ${{ success() }}
         shell: pwsh

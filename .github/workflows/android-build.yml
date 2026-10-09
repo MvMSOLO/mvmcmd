@@ -273,6 +273,21 @@ jobs:
                   assert hashlib.sha256(data).digest()==hashlib.sha256(src).digest(), name
           print("Verified APK contains the exact 17 PNG wallpaper payloads.")
 
+      - name: Android emulator install and launch smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.mvmcmd.launcher/.MainActivity
+            sleep 4
+            adb shell pidof com.mvmcmd.launcher
+            echo "Android emulator install/launch smoke passed."
+
       - name: Final success gate
         if: ${{ success() }}
         shell: bash

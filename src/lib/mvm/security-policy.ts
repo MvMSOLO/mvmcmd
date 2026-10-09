@@ -81,6 +81,7 @@ export function isSafeDesktopFileUrl(raw: unknown): raw is string {
 
 export function isAllowedShareMime(mime?: string): boolean {
   if (mime === undefined || mime === "") return true;
+  if (typeof mime !== "string" || mime.length > 127) return false;
   return ALLOWED_SHARE_MIME.has(mime.trim().toLowerCase());
 }
 export function isSafeShareText(text: unknown): text is string {
@@ -88,6 +89,7 @@ export function isSafeShareText(text: unknown): text is string {
     && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text);
 }
 export function isSafeFilename(raw: string): boolean {
+  if (typeof raw !== "string") return false;
   const name = raw.trim();
   if (!name || name.length > 180 || name === "." || name === "..") return false;
   if (/[\\/\u0000-\u001f\u007f<>:"|?*]/.test(name) || /[. ]$/.test(name)) return false;
