@@ -121,7 +121,8 @@ public final class CoreActivitiesLaunchTest {
         target.getSharedPreferences("mvm_english_studio", Context.MODE_PRIVATE).edit().clear().commit();
 
         try (ActivityScenario<MvmEnglishStudioActivity> scenario = ActivityScenario.launch(MvmEnglishStudioActivity.class)) {
-            onView(withText("GRAMMAR CHECKER  ·  EXPLAIN MY MISTAKES")).perform(click());
+            onView(withText("GRAMMAR CHECKER  ·  EXPLAIN MY MISTAKES"))
+                    .perform(androidx.test.espresso.action.ViewActions.scrollTo(), click());
             onView(withHint("Paste or type English here…"))
                     .perform(typeText("he go school"), closeSoftKeyboard());
             onView(withText("CHECK EVERYTHING  →")).perform(click());
