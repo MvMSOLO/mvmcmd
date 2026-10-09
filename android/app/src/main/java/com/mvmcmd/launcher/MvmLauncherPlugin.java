@@ -455,9 +455,8 @@ public class MvmLauncherPlugin extends Plugin {
             call.reject("Only external scoped content URIs can be opened"); return;
         }
         String safeType = mime;
-        if (safeType == null || !safeType.matches("(?i)^[a-z0-9!#    @PluginMethod
-    public void openUrl(PluginCall call) {^_.+-]+/[a-z0-9!#    @PluginMethod
-    public void openUrl(PluginCall call) {^_.+*-]+$")) {
+        if (safeType == null || safeType.length() > 127
+                || !safeType.matches("(?i)^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+*-]*$")) {
             safeType = getContext().getContentResolver().getType(uri);
         }
         if (safeType == null || safeType.trim().isEmpty()) safeType = "*/*";
@@ -465,7 +464,12 @@ public class MvmLauncherPlugin extends Plugin {
             Intent view = new Intent(Intent.ACTION_VIEW);
             view.setDataAndType(uri, safeType);
             view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-            getActivity().startActivity(Intent.createChooser(view, "Open with"));
+            Intent chooser = Intent.createChooser(view, "Open with");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS,
+                    new ComponentName[] { new ComponentName(getContext(), MainActivity.class) });
+            }
+            getActivity().startActivity(chooser);
             JSObject result = new JSObject();
             result.put("opened", true);
             result.put("reason", "system chooser started; external file handling is not verified");
