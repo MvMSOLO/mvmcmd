@@ -141,7 +141,28 @@ export async function runFileCommand(args: string[]): Promise<string[]> {
     if (result.uri) selectedFolderUri = result.uri;
     return [`FOLDER  ${result.status.toUpperCase()}`, result.message, ...(result.uri ? ["Folder permission is scoped and saved for this session."] : [])];
   }
+  if (operation === "delete") {
+    const uri = args[1] ?? "";
+    const confirmed = (args[2] ?? "").toLowerCase() === "confirm";
+    if (!confirmed) return ["FILES  NEEDS_CONFIRMATION", "Review the exact content URI, then run `files delete <content-uri> confirm`. This permanently deletes the selected item if Android permits it."];
+    const result = await deleteScopedFile(uri, true);
+    return [`DELETE  ${result.status.toUpperCase()}`, result.message];
+  }
   if (!selectedFolderUri) return ["FILES  NEEDS_FOLDER", "Run `files choose` and select a folder in Android's system picker first. No broad storage access is requested."];
+  if (operation === "copy" || operation === "move") {
+    const sourceUri = args[1] ?? "";
+    const name = args[2] ?? "";
+    if (!sourceUri.startsWith("content://") || !name) return ["FILES  FAILED", "Usage: files copy <content-uri> <new-name> OR files move <content-uri> <new-name>. Destination is the selected folder."];
+    if (operation === "move" && (args[3] ?? "").toLowerCase() !== "confirm") return ["FILES  NEEDS_CONFIRMATION", "Copy will be created first. Confirm the source removal with: files move <content-uri> <new-name> confirm"];
+    const result = await copyMoveScopedFile(sourceUri, selectedFolderUri, name, operation === "move" && (args[3] ?? "").toLowerCase() === "confirm");
+    return [`${operation.toUpperCase()}  ${result.status.toUpperCase()}`, result.message, ...(result.detail ? [result.detail] : [])];
+  }
+  if (operation === "zip") {
+    const name = args[1] ?? "";
+    const uris = args.slice(2).filter((v) => v.startsWith("content://"));
+    const result = await createScopedArchive(selectedFolderUri, name, uris);
+    return [`ZIP  ${result.status.toUpperCase()}`, result.message, ...(result.detail ? [result.detail] : [])];
+  }
   let query = "";
   let minBytes = 0;
   if (operation === "find" || operation === "media") query = args.slice(1).join(" ");
@@ -153,6 +174,17 @@ export async function runFileCommand(args: string[]): Promise<string[]> {
   const result = await listFolder(selectedFolderUri, { query, minBytes, limit: 200 });
   if (!result.items) return [`FILES  ${result.status.toUpperCase()}`, result.message, ...(result.detail ? [result.detail] : [])];
   const rows = result.items.slice().sort((a,b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));
+  if (operation === "recent") rows.sort((a,b) => (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0));
+  if (operation === "duplicates") {
+    const groups = new Map<string, FileEntry[]>();
+    for (const item of rows.filter((entry) => !entry.isDirectory && entry.sizeBytes !== undefined)) {
+      const key = `${item.sizeBytes}:${item.name.toLowerCase()}`;
+      groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+    const candidates = [...groups.values()].filter((group) => group.length > 1).flat();
+    const lines = candidates.slice(0, 30).map((item) => `POSSIBLE DUPLICATE · ${item.name} · ${item.sizeBytes} bytes · ${item.uri}`);
+    return ["DUPLICATES  CANDIDATES ONLY", "Grouped by matching filename and size; content hashes are not checked, so these are not verified duplicates.", ...lines];
+  }
   const shown = rows.slice(0, 30).map((item) => `${item.isDirectory ? "[DIR]" : classifyMedia(item.mimeType, item.name).toUpperCase()} · ${item.name} · ${item.sizeBytes === undefined ? "folder" : item.sizeBytes + " bytes"} · ${item.uri}`);
   return [`FILES  VERIFIED · ${rows.length} result(s)`, result.message, ...shown, ...(rows.length > shown.length ? [`+ ${rows.length - shown.length} more omitted`] : [])];
 }
