@@ -32,6 +32,7 @@ import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import { copyText, lookupContact, openDialer, openEmailComposer, openSmsComposer, pasteText } from "./communication";
 import { runFileCommand } from "./file-intelligence";
+import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessionFileResults, rememberActiveSessionTurn, resolveActiveSessionReference } from "./session-context";
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -140,7 +141,7 @@ function formatHit(hit: MatchHit, index: number): LogLine {
   });
 }
 
-export function execute(rawLine: string, ctx: ExecContext): ExecResult {
+function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
   const trimmed = rawLine.trim();
   if (!trimmed) return { state: ctx.state, lines: [] };
 
@@ -149,7 +150,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     const goal = planMvmGoal(trimmed.replace(/^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)\s*/i, ""));
     let goalCtx = ctx;
     const run = runMvmGoal(goal, (step) => {
-      const result = execute(step.input, goalCtx);
+      const result = executeRawLine(step.input, goalCtx);
       goalCtx = { state: result.state, lang: ctx.lang };
       return result;
     }, (result) => {
@@ -164,7 +165,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   if (taskPlan) {
     const taskRun = runMvmTaskPlanSync(
       taskPlan,
-      (step) => execute(step.input, ctx),
+      (step) => executeRawLine(step.input, ctx),
       (result) => {
         const failed = result.lines.some((item) => item.kind === "warn");
         const verified = !failed && result.lines.some((item) => /·\\s*VERIFIED\\b/.test(item.text));
@@ -191,8 +192,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
     return { state: taskState, lines: taskLines };
   }
 
-  const state0 = pushHistory(ctx.state, trimmed);
-  saveState(state0);
+  const state0 = ctx.state;
   const ctx2: ExecContext = { ...ctx, state: state0 };
   const understood = understandCommand(trimmed);
   const capability = understood.entities.find((e) => e.type === "capability")?.value;
@@ -448,6 +448,20 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       saveState(state);
       return { state, lines: [line("ok", `${name.toUpperCase()}  ${app.name}`)] };
     }
+    case "session": {
+      const operation = (parsed.args[0] ?? "show").toLowerCase();
+      if (operation === "clear" || operation === "reset") {
+        clearActiveSessionContext();
+        return {
+          state: { ...state0, history: [] },
+          lines: [line("ok", L(ctx2, "Joriy sessiya konteksti va buyruqlar tarixi tozalandi.", "Current session context and command history cleared."))],
+        };
+      }
+      if (!["show", "status", "history"].includes(operation)) {
+        return { state: state0, lines: [line("warn", L(ctx2, "Foydalanish: session [show|clear]", "Usage: session [show|clear]"))] };
+      }
+      return { state: state0, lines: getActiveSessionSummary().map((message, index) => line(index === 0 ? "sys" : "dim", message)) };
+    }
     case "hist": {
       const rows = state0.history.slice(0, 16);
       return {
@@ -653,6 +667,46 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 }
 
+export function execute(rawLine: string, ctx: ExecContext): ExecResult {
+  const input = rawLine.trim();
+  if (!input) return { state: ctx.state, lines: [] };
+
+  const resolution = resolveActiveSessionReference(input);
+  if (resolution.status === "ambiguous") {
+    const state = pushHistory(ctx.state, input);
+    saveState(state);
+    rememberActiveSessionTurn(input, undefined);
+    return {
+      state,
+      lines: [
+        line("warn", resolution.message ?? "This reference is ambiguous; no action was executed."),
+        line("dim", "Name the app or file explicitly, or run session to inspect current context."),
+      ],
+    };
+  }
+
+  const command = resolution.command;
+  const result = executeRawLine(command, ctx);
+  const parsed = parseLine(command);
+  const operation = (parsed.args[0] ?? "").toLowerCase();
+  const isSessionClear = parsed.cmd?.name === "session" && ["clear", "reset"].includes(operation);
+  const isFullReset = parsed.cmd?.name === "reset";
+  let state = result.state;
+  if (isSessionClear) {
+    state = { ...state, history: [] };
+  } else if (isFullReset) {
+    clearActiveSessionContext();
+    state = { ...state, history: [] };
+  } else {
+    state = pushHistory(state, input);
+  }
+  saveState(state);
+
+  if (!isSessionClear && !isFullReset) {
+    rememberActiveSessionTurn(input, command, result.launch ? { id: result.launch.id, name: result.launch.name } : undefined);
+  }
+  return { ...result, state };
+}
 export async function runCommunicationRequest(
   ctx: ExecContext,
   command: string,
@@ -936,6 +990,7 @@ export { line as makeLine };
 export async function runFileRequest(args: string[], ctx: ExecContext): Promise<LogLine[]> {
   try {
     const messages = await runFileCommand(args);
+    rememberActiveSessionFileResults("files " + args.join(" "), messages);
     return messages.map((message, index) => line(
       /FAILED|UNAVAILABLE|NEEDS_FOLDER|NEEDS_CONFIRMATION/.test(message) ? "warn" : index === 0 ? "sys" : "out",
       message,

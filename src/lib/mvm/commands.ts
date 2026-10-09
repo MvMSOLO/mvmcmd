@@ -94,6 +94,13 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "Qadalgan ilovani yechadi.",
   },
   {
+    name: "session",
+    aliases: ["context", "memory"],
+    usage: "session [show|clear]",
+    summaryEn: "Inspect or clear volatile session context and command history.",
+    summaryUz: "Joriy vaqtinchalik sessiya konteksti va buyruqlar tarixini ko‘rsatadi yoki tozalaydi.",
+  },
+  {
     name: "hist",
     aliases: ["history"],
     usage: "hist",
@@ -286,6 +293,7 @@ export function lookupCommand(token: string): CommandSpec | undefined {
 const EMPTY_OK = new Set([
   "ls",
   "hist",
+  "session",
   "recents",
   "clear",
   "perm",

@@ -14,7 +14,8 @@ import {
   refreshNativeCapabilities,
   type CapabilityAction,
 } from "@/lib/mvm/capabilities";
-import { EMPTY, loadState, saveState } from "@/lib/mvm/persist";
+import { EMPTY, loadState, pushHistory, saveState } from "@/lib/mvm/persist";
+import { rememberActiveSessionTurn, resolveActiveSessionReference } from "@/lib/mvm/session-context";
 import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
@@ -296,14 +297,28 @@ export function MvmShell() {
   }
 
   async function commit(raw: string, pick?: CatalogApp) {
-    const text = pick ? `open ${pick.name}` : raw;
-    if (!text.trim()) return;
+    const displayText = pick ? `open ${pick.name}` : raw;
+    if (!displayText.trim()) return;
+    const resolution = resolveActiveSessionReference(displayText);
+    if (resolution.status === "ambiguous") {
+      const next = pushHistory(state, displayText);
+      saveState(next);
+      setState(next);
+      rememberActiveSessionTurn(displayText, undefined);
+      append([makeLine("in", displayText), makeLine("warn", resolution.message ?? "This reference is ambiguous; no action was executed."), makeLine("dim", "Name the app or file explicitly, or run session to inspect current context.")]);
+      setInput("");
+      setHistIdx(-1);
+      emitMvmSignal("warn");
+      return;
+    }
+    const text = resolution.command;
     const understanding = understandCommand(text);
     const capability = understanding.entities.find((e) => e.type === "capability")?.value;
     const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understanding.intent === "help" ? "help" : text;
     const parsed = parseLine(interpretedText);
 
     if (parsed.cmd && ["contact", "dial", "sms", "email", "copy", "paste"].includes(parsed.cmd.name)) {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "COMMUNICATION  tekshirilmoqda…" : "COMMUNICATION  checking…")]);
       emitMvmSignal("intent");
       void runCommunicationRequest({ state, lang }, parsed.cmd.name, parsed.args).then((ls) => {
@@ -315,6 +330,7 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "perm") {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
       void runPermRequest({ state, lang }, parsed.args[0]).then((res) => {
@@ -326,6 +342,7 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "gaming") {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "GAMING  real telemetry o‘qilmoqda…" : "GAMING  reading real telemetry…")]);
       emitMvmSignal("intent");
       void runGamingRequest({ state, lang }, parsed.args.join(" ") || undefined).then((ls) => {
@@ -337,6 +354,7 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "files") {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "FILES  scoped fayl amali ishga tushmoqda…" : "FILES  running scoped file operation…")]);
       emitMvmSignal("intent");
       void runFileRequest(parsed.args, { state, lang }).then((ls) => {
@@ -348,6 +366,7 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "device") {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "DEVICE  native telemetry o‘qilmoqda…" : "DEVICE  reading native telemetry…")]);
       emitMvmSignal("intent");
       void runDeviceRequest({ state, lang }).then((ls) => {
@@ -359,6 +378,7 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "install") {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
       void runInstall({ state, lang }).then((ls) => append(ls));
@@ -376,6 +396,7 @@ export function MvmShell() {
         : null;
 
     if (capabilityAction) {
+      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
       append([
         makeLine("in", text),
         makeLine(
@@ -441,7 +462,7 @@ export function MvmShell() {
       setJuicePulse((value) => value + 1);
       setState(result.state);
       append(
-        includeInput ? [makeLine("in", text), ...result.lines] : result.lines,
+        includeInput ? [makeLine("in", displayText), ...result.lines] : result.lines,
         result.clearLog,
       );
       setInput("");

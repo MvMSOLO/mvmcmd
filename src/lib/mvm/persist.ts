@@ -28,7 +28,7 @@ export function loadState(): PersistedState {
       pins: Array.isArray(parsed.pins) ? parsed.pins : [],
       recents: Array.isArray(parsed.recents) ? parsed.recents : [],
       usage: parsed.usage && typeof parsed.usage === "object" ? parsed.usage : {},
-      history: Array.isArray(parsed.history) ? parsed.history.slice(0, 120) : [],
+      history: [], // Command history is session-only; old persisted entries are intentionally ignored.
       storageGranted: Boolean(parsed.storageGranted),
       notifyGranted: Boolean(parsed.notifyGranted),
       gateSeen: Boolean(parsed.gateSeen),
@@ -41,7 +41,8 @@ export function loadState(): PersistedState {
 export function saveState(state: PersistedState): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    // Keep aliases and preferences durable, but never write command text to persistent storage.
+    localStorage.setItem(KEY, JSON.stringify({ ...state, history: [] }));
   } catch {
     /* quota */
   }
