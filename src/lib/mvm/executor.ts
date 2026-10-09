@@ -36,7 +36,7 @@ import { runFileCommand } from "./file-intelligence";
 import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessionFileResults, rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference } from "./session-context";
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
-import { explainCapabilitySnapshot, formatAndroidCompatibilityReport, formatLocalDateTime, normalizeLanguageToken } from "./compatibility";
+import { explainCapabilitySnapshot, formatAndroidCompatibilityReport, formatLocalDateTime, normalizeCapabilityId, normalizeLanguageToken } from "./compatibility";
 
 let seq = 0;
 let gamingSession: GamingSession | undefined;
@@ -891,7 +891,7 @@ export async function runPermRequest(
   requestedCapability?: string,
 ): Promise<{ state: PersistedState; lines: LogLine[] }> {
   const runtime = detectRuntime();
-  const normalizedCapability = requestedCapability?.trim().toLocaleLowerCase("en-US");
+  const normalizedCapability = normalizeCapabilityId(requestedCapability);
   let compatibilityEnv: { sdk?: number; release?: string; manufacturer?: string; model?: string } = {};
   if (runtime.platform === "android" && canUseNativeDeviceEngine()) {
     try {

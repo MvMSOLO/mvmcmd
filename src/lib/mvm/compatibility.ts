@@ -44,6 +44,27 @@ export function normalizeCommandHead(value: string): string {
   const token = normalizeCommandWord(value);
   return COMMAND_HEAD_ALIASES[token] ?? token;
 }
+const CAPABILITY_ALIASES: Record<string, string> = {
+  camera: "camera", kamera: "camera", камера: "camera",
+  microphone: "microphone", mic: "microphone", mikrofon: "microphone",
+  notification: "notifications", notifications: "notifications", notify: "notifications",
+  bildirishnoma: "notifications", bildirishnomalar: "notifications",
+  xabarnoma: "notifications", xabarnomalar: "notifications",
+  notification_listener: "notification_listener", "notification-listener": "notification_listener",
+  "notification-access": "notification_listener", "bildirishnomalarga-kirish": "notification_listener",
+  "xabarnomalarga-kirish": "notification_listener",
+  contact: "contacts", contacts: "contacts", kontakt: "contacts", kontaktlar: "contacts",
+  overlay: "overlay", "display-over-other-apps": "overlay", "boshqa-ilovalar-ustida": "overlay",
+  usage: "usage_access", usage_access: "usage_access", "usage-access": "usage_access",
+  "foydalanish-statistikasi": "usage_access", "ilova-foydalanish": "usage_access",
+};
+
+export function normalizeCapabilityId(value?: string): string | undefined {
+  if (!value?.trim()) return undefined;
+  const token = normalizeCommandWord(value);
+  return CAPABILITY_ALIASES[token] ?? token;
+}
+
 export function normalizeLanguageToken(value?: string): MvmLanguage | undefined {
   if (!value) return undefined;
   const token = normalizeCommandWord(value);

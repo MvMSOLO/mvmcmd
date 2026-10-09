@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   androidVersionLabel, detectOemFamily, explainCapabilitySnapshot,
   formatAndroidCompatibilityReport, formatLocalDateTime, formatLocaleNumber,
-  normalizeCommandHead, normalizeCommandWord, normalizeLanguageToken,
+  normalizeCapabilityId, normalizeCommandHead, normalizeCommandWord, normalizeLanguageToken,
 } from "./compatibility.ts";
 import { parseLine } from "./commands.ts";
 
@@ -13,6 +13,11 @@ test("command tokens normalize English and Uzbek Latin/Cyrillic aliases", () => 
   assert.equal(normalizeCommandHead("камера"), "camera");
   assert.equal(normalizeCommandHead("RUXSAT"), "perm");
   assert.equal(normalizeCommandHead("moslik"), "compat");
+  assert.equal(normalizeCapabilityId("KAMERA"), "camera");
+  assert.equal(normalizeCapabilityId("bildirishnoma"), "notifications");
+  assert.equal(normalizeCapabilityId("notification-listener"), "notification_listener");
+  assert.equal(normalizeCapabilityId("foydalanish statistikasi"), "usage_access");
+  assert.equal(normalizeCapabilityId("   "), undefined);
   assert.equal(normalizeCommandWord("O‘zbekcha"), "o'zbekcha");
   assert.equal(parseLine("OCH camera").cmd?.name, "open");
   assert.equal(parseLine("ruxsat CAMERA").cmd?.name, "perm");
