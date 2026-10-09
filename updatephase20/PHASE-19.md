@@ -17,7 +17,7 @@ Make the feature-complete application verifiable and release-ready without inven
 - Android instrumentation tests that exercise main launch, camera controls, QR scanner UI/image fallback, native wallpaper actions, English adaptive XP, English Studio grammar correction, notification demo/clear, and activity launch.
 - Android APK assembly, APK integrity verification, exact 17-wallpaper payload SHA-256 checks, emulator install/launch and isolated UI instrumentation.
 - Windows portable EXE build, package verification, launch smoke, final success gate and artifact upload.
-- Dependency-audit gate blocks critical advisories; code remains transparent about moderate advisories.
+- Dependency-audit gate blocks high and critical advisories; code remains transparent about moderate advisories.
 - Emulator KVM setup and bounded per-test instrumentation were added to reduce emulator start-up, animation and timeout instability.
 
 ## Validated release-candidate evidence
