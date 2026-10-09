@@ -33,6 +33,7 @@ export function resolveBridge(request: BridgeRequest): { ok: boolean; method: Br
   if (!target || target.length > 2048 || /[\u0000-\u001f\u007f]/.test(target)) return { ok: false, method: "url", reason: "missing or invalid target" };
   if (request.kind === "share") {
     if (request.fileUri && !isSafeScopedContentUri(request.fileUri)) return { ok: false, method: "share", reason: "file sharing requires a validated scoped content URI" };
+    if (request.fileUri && !request.mime) return { ok: false, method: "share", reason: "file sharing requires a supported MIME type" };
     const mime = validateMime(request.mime);
     if (!mime.ok) return { ok: false, method: "share", reason: mime.reason };
     if (request.text !== undefined && !isSafeShareText(request.text)) return { ok: false, method: "share", reason: "share text is empty, oversized, or contains control characters" };

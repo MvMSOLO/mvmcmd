@@ -94,6 +94,7 @@ test("bridge rejects arbitrary schemes and malicious payloads before dispatch", 
   assert.equal(resolveBridge({kind:"url",target:"https://user:pass@example.com",platform:"android"}).ok, false);
   assert.equal(resolveBridge({kind:"url",target:"https://example.com/ok",platform:"android"}).ok, true);
   assert.equal(resolveBridge({kind:"share",target:"share",text:"x",fileUri:"content://provider/document/one",mime:"application/pdf",platform:"android"}).ok, true);
+  assert.equal(resolveBridge({kind:"share",target:"share",fileUri:"content://provider/document/one",platform:"android"}).ok, false);
   assert.equal(resolveBridge({kind:"share",target:"share",text:"x",mime:"application/x-msdownload",platform:"android"}).ok, false);
 });
 test("external-entry normalizer rejects control chars, malformed links and oversized share text", () => {

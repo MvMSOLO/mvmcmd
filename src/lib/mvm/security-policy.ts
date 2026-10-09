@@ -9,6 +9,20 @@ function hasControlCharacters(value: string): boolean { return /[\u0000-\u001f\u
 function decodeUriPath(pathname: string): string | undefined {
   try { return decodeURIComponent(pathname); } catch { return undefined; }
 }
+function hasUnsafeRawPathSegments(raw: string, scheme: "content" | "file"): boolean {
+  const path = scheme === "content"
+    ? raw.replace(/^content:\/\/[^/?#]*/i, "").split(/[?#]/)[0] ?? ""
+    : raw.replace(/^file:\/\/[^/?#]*/i, "").split(/[?#]/)[0] ?? "";
+  let decoded = path;
+  for (let depth = 0; depth < 3; depth++) {
+    let next: string;
+    try { next = decodeURIComponent(decoded); } catch { return true; }
+    if (next.includes("\\") || next.split("/").some((part) => part === "." || part === "..")) return true;
+    if (next === decoded) break;
+    decoded = next;
+  }
+  return false;
+}
 
 export function validateExternalTarget(raw: string, kind: ExternalTargetKind): { ok: boolean; reason?: string } {
   if (typeof raw !== "string" || !raw.trim()) return { ok: false, reason: "missing target" };
@@ -40,7 +54,7 @@ export function validateExternalTarget(raw: string, kind: ExternalTargetKind): {
 }
 
 export function isSafeScopedContentUri(raw: unknown): raw is string {
-  if (typeof raw !== "string" || !raw.trim() || raw.length > MAX_URI_LENGTH || hasControlCharacters(raw)) return false;
+  if (typeof raw !== "string" || !raw.trim() || raw.length > MAX_URI_LENGTH || hasControlCharacters(raw) || hasUnsafeRawPathSegments(raw, "content")) return false;
   try {
     const parsed = new URL(raw);
     if (parsed.protocol !== "content:" || !parsed.hostname || parsed.username || parsed.password) return false;
@@ -54,7 +68,7 @@ export function isSafeScopedContentUri(raw: unknown): raw is string {
 }
 
 export function isSafeDesktopFileUrl(raw: unknown): raw is string {
-  if (typeof raw !== "string" || !raw.trim() || raw.length > MAX_URI_LENGTH || hasControlCharacters(raw)) return false;
+  if (typeof raw !== "string" || !raw.trim() || raw.length > MAX_URI_LENGTH || hasControlCharacters(raw) || hasUnsafeRawPathSegments(raw, "file")) return false;
   try {
     const parsed = new URL(raw);
     if (parsed.protocol !== "file:" || parsed.host || parsed.username || parsed.password || parsed.search || parsed.hash) return false;
@@ -81,8 +95,9 @@ export function isSafeFilename(raw: string): boolean {
 }
 export function sanitizeZipEntryName(raw: unknown, index: number): string {
   const fallback = "file-" + Math.max(0, Math.floor(Number.isFinite(index) ? index : 0));
-  if (typeof raw !== "string") return fallback;
-  let name = raw.replace(/[\u0000-\u001f\u007f]/g, "").replace(/[\\/]/g, "_").replace(/[:]/g, "_").trim();
+  if (typeof raw !== "string" || !raw.trim() || raw.trim() === "." || raw.trim() === "..") return fallback;
+  const parts = raw.replace(/[\u0000-\u001f\u007f]/g, "").split(/[\\/]+/).filter(Boolean);
+  let name = parts.map((part) => part === "." || part === ".." ? "_" : part.replace(/:/g, "_")).join("_").trim();
   if (!name || name === "." || name === "..") name = fallback;
   name = name.slice(0, 180);
   if (/[. ]$/.test(name)) name = name.replace(/[. ]+$/g, "") || fallback;
