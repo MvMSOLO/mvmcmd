@@ -275,6 +275,7 @@ jobs:
 
       - name: Android emulator install and launch smoke
         uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 12
         with:
           api-level: 35
           arch: x86_64
@@ -282,11 +283,25 @@ jobs:
           disable-animations: true
           script: |
             set -euo pipefail
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -W -n com.mvmcmd.launcher/.MainActivity
+            echo "SMOKE: waiting for emulator device"
+            timeout 30s adb wait-for-device
+            echo "SMOKE: waiting for Android boot completion"
+            boot=""
+            for _ in $(seq 1 60); do
+              boot="$(timeout 10s adb shell getprop sys.boot_completed | tr -d '\r')"
+              if [ "$boot" = "1" ]; then break; fi
+              sleep 2
+            done
+            test "$boot" = "1"
+            echo "SMOKE: emulator booted; installing APK"
+            timeout 180s adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            echo "SMOKE: APK installed; launching MainActivity"
+            timeout 120s adb shell am start -W -n com.mvmcmd.launcher/.MainActivity
             sleep 4
-            adb shell pidof com.mvmcmd.launcher
-            echo "Android emulator install/launch smoke passed."
+            echo "SMOKE: checking process is alive"
+            pid="$(timeout 30s adb shell pidof com.mvmcmd.launcher | tr -d '\r')"
+            test -n "$pid"
+            echo "Android emulator install/launch smoke passed; pid=$pid."
 
       - name: Final success gate
         if: ${{ success() }}
