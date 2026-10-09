@@ -27,11 +27,6 @@ import java.io.OutputStream;
 import java.io.BufferedOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.BufferedOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Locale;
@@ -44,14 +39,14 @@ public class MvmFileToolsPlugin extends Plugin {
     @PluginMethod
     public void getStorageOverview(PluginCall call) {
         try {
-            android.os.StatFs fs = new android.os.StatFs(android.os.Environment.getDataDirectory().getPath());
+            android.os.StatFs fs = new android.os.StatFs(android.os.Environment.getExternalStorageDirectory().getPath());
             long total = fs.getTotalBytes();
             long available = fs.getAvailableBytes();
             JSObject out = new JSObject();
             out.put("totalBytes", total);
             out.put("availableBytes", available);
             out.put("usedBytes", Math.max(0L, total - available));
-            out.put("source", "Android StatFs app data volume");
+            out.put("source", "Android StatFs shared storage volume");
             call.resolve(out);
         } catch (Exception e) {
             call.reject("Unable to read Android storage statistics", e);
@@ -178,48 +173,87 @@ public class MvmFileToolsPlugin extends Plugin {
 
     @PluginMethod
     public void deleteFile(PluginCall call) {
-        String raw = call.getString("uri"); boolean confirmed = call.getBoolean("confirmed", false);
+        String raw = call.getString("uri");
+        boolean confirmed = call.getBoolean("confirmed", false);
         if (!confirmed) { call.reject("Explicit confirmation required"); return; }
         if (raw == null || !raw.startsWith("content://")) { call.reject("Scoped content URI required"); return; }
         try {
-            DocumentFile file = DocumentFile.fromSingleUri(getContext(), Uri.parse(raw));
-            if (file == null) file = DocumentFile.fromTreeUri(getContext(), Uri.parse(raw));
+            Uri uri = Uri.parse(raw);
+            DocumentFile file = DocumentFile.fromSingleUri(getContext(), uri);
+            if (file == null) file = DocumentFile.fromTreeUri(getContext(), uri);
             if (file == null || !file.exists()) { call.reject("Selected item no longer exists"); return; }
+            if (file.isDirectory()) { call.reject("Directory deletion is blocked; select an individual file instead"); return; }
             String name = file.getName() == null ? "" : file.getName();
-            if (name.equalsIgnoreCase("Android") || name.equalsIgnoreCase("data") || name.equalsIgnoreCase("obb") || name.equalsIgnoreCase("system") || (name.equalsIgnoreCase("DCIM") && file.isDirectory())) { call.reject("Protected/high-risk directory deletion blocked"); return; }
-            boolean deleted = file.delete(); JSObject out = new JSObject(); out.put("deleted",deleted); out.put("message",deleted ? "Android confirmed deletion." : "Android did not confirm deletion."); call.resolve(out);
-        } catch (Exception e) { call.reject("Scoped deletion failed",e); }
+            if (name.equalsIgnoreCase("Android") || name.equalsIgnoreCase("data") || name.equalsIgnoreCase("obb") || name.equalsIgnoreCase("system")) {
+                call.reject("Protected/high-risk item deletion blocked"); return;
+            }
+            boolean deleted = file.delete();
+            boolean absentAfterDelete = deleted && !file.exists();
+            JSObject out = new JSObject();
+            out.put("deleted", absentAfterDelete);
+            out.put("message", absentAfterDelete ? "Android confirmed the selected file is no longer present." : "Android did not verify that the selected file was removed.");
+            call.resolve(out);
+        } catch (Exception e) { call.reject("Scoped deletion failed", e); }
     }
 
     @PluginMethod
     public void createArchive(PluginCall call) {
-        String treeRaw = call.getString("treeUri"); String name = call.getString("name"); JSArray uris = call.getArray("uris");
-        if (treeRaw == null || !treeRaw.startsWith("content://") || name == null || !name.matches("(?i)[a-z0-9 _.-]{1,76}\\.zip") || uris == null || uris.length() == 0) { call.reject("Scoped destination, safe ZIP name and files required"); return; }
+        String treeRaw = call.getString("treeUri");
+        String name = call.getString("name");
+        JSArray uris = call.getArray("uris");
+        if (treeRaw == null || !treeRaw.startsWith("content://") || name == null
+            || !name.matches("(?i)[a-z0-9 _.-]{1,76}\\.zip") || uris == null || uris.length() == 0 || uris.length() > 500) {
+            call.reject("Scoped destination, safe ZIP name and 1–500 files required"); return;
+        }
         try {
-            DocumentFile folder = DocumentFile.fromTreeUri(getContext(),Uri.parse(treeRaw));
-            if (folder == null || !folder.canWrite() || folder.findFile(name) != null) { call.reject("Destination is not writable or ZIP already exists"); return; }
-            DocumentFile archive = folder.createFile("application/zip",name); if (archive == null) { call.reject("Could not create ZIP"); return; }
-            try (OutputStream out = getContext().getContentResolver().openOutputStream(archive.getUri(),"w")) {
+            DocumentFile folder = DocumentFile.fromTreeUri(getContext(), Uri.parse(treeRaw));
+            if (folder == null || !folder.canWrite() || folder.findFile(name) != null) {
+                call.reject("Destination is not writable or ZIP already exists"); return;
+            }
+            ArrayList<DocumentFile> sources = new ArrayList<>();
+            for (int i = 0; i < uris.length(); i++) {
+                String raw = uris.getString(i);
+                if (raw == null || !raw.startsWith("content://")) { call.reject("Every ZIP input must be a scoped content URI"); return; }
+                DocumentFile source = DocumentFile.fromSingleUri(getContext(), Uri.parse(raw));
+                if (source == null || !source.exists() || source.isDirectory() || !source.canRead()) {
+                    call.reject("Every ZIP input must be an existing readable file"); return;
+                }
+                sources.add(source);
+            }
+            if (sources.isEmpty()) { call.reject("No readable files selected"); return; }
+            DocumentFile archive = folder.createFile("application/zip", name);
+            if (archive == null) { call.reject("Could not create ZIP"); return; }
+            try (OutputStream out = getContext().getContentResolver().openOutputStream(archive.getUri(), "w")) {
                 if (out == null) throw new java.io.IOException("Could not open ZIP output");
                 try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(out))) {
                     Set<String> names = new HashSet<>();
-                    for (int i=0;i<uris.length();i++) {
-                        String raw = uris.getString(i); if (raw == null || !raw.startsWith("content://")) continue;
-                        DocumentFile source = DocumentFile.fromSingleUri(getContext(),Uri.parse(raw));
-                        if (source == null || !source.exists() || source.isDirectory()) continue;
-                        String base = source.getName() == null ? "file-"+i : source.getName(); String entry = base; int suffix=1;
-                        while (!names.add(entry)) entry = base+"-"+(suffix++);
+                    int index = 0;
+                    for (DocumentFile source : sources) {
+                        String base = source.getName() == null ? "file-" + index : source.getName();
+                        String entry = base;
+                        int suffix = 1;
+                        while (!names.add(entry)) entry = base + "-" + (suffix++);
                         zip.putNextEntry(new ZipEntry(entry));
                         try (InputStream in = getContext().getContentResolver().openInputStream(source.getUri())) {
-                            if (in == null) throw new java.io.IOException("Could not read "+entry);
-                            byte[] buffer=new byte[65536]; int count; while ((count=in.read(buffer))!=-1) zip.write(buffer,0,count);
+                            if (in == null) throw new java.io.IOException("Could not read " + entry);
+                            byte[] buffer = new byte[65536];
+                            int count;
+                            while ((count = in.read(buffer)) != -1) zip.write(buffer, 0, count);
                         }
                         zip.closeEntry();
+                        index++;
                     }
                 }
-            } catch (Exception e) { archive.delete(); throw e; }
-            JSObject out = new JSObject(); out.put("created",true); out.put("uri",archive.getUri().toString()); out.put("message","ZIP created from selected scoped files."); call.resolve(out);
-        } catch (Exception e) { call.reject("ZIP creation failed",e); }
+            } catch (Exception e) {
+                archive.delete();
+                throw e;
+            }
+            JSObject out = new JSObject();
+            out.put("created", true);
+            out.put("uri", archive.getUri().toString());
+            out.put("message", "ZIP created from all selected scoped files.");
+            call.resolve(out);
+        } catch (Exception e) { call.reject("ZIP creation failed", e); }
     }
 
     @PluginMethod
