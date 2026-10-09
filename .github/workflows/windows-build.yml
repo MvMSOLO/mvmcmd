@@ -39,8 +39,18 @@ jobs:
       - name: Typecheck web application
         run: npm run typecheck
 
+      - name: Verify global entry point bridge
+        shell: pwsh
+        run: |
+          node --check desktop/main.cjs
+          if ($LASTEXITCODE -ne 0) { throw "desktop/main.cjs syntax check failed" }
+          node --check desktop/preload.cjs
+          if ($LASTEXITCODE -ne 0) { throw "desktop/preload.cjs syntax check failed" }
+          if (-not (Test-Path "src/lib/mvm/global-entry-points.test.ts")) { throw "Missing global entry tests" }
+          if (-not (Test-Path "src/lib/mvm/global-entry-bridge.ts")) { throw "Missing global bridge" }
+
       - name: Run project tests
-        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts
 
       - name: Build web application
         run: npm run build
