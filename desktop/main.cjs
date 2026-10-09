@@ -2,7 +2,7 @@ const { app, BrowserWindow, shell, ipcMain, Tray, Menu, globalShortcut, nativeIm
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
-const { URL, pathToFileURL, fileURLToPath } = require("node:url");
+const { URL, pathToFileURL } = require("node:url");
 const crypto = require("node:crypto");
 const { getSafeLocalFilePath, isSafeExternalWebUrl, isTrustedRenderer } = require("./security.cjs");
 
@@ -114,7 +114,14 @@ function startStaticServer() {
 
   server = http.createServer((req, res) => {
     try {
-      const requestUrl = new URL(req.url || "/", "http://127.0.0.1");
+      const expectedHost = localOrigin ? new URL(localOrigin).host : "";
+      if (!expectedHost || req.headers.host !== expectedHost) {
+        res.writeHead(403, { "X-Content-Type-Options": "nosniff" }); res.end("Forbidden"); return;
+      }
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        res.writeHead(405, { "Allow": "GET, HEAD", "X-Content-Type-Options": "nosniff" }); res.end("Method not allowed"); return;
+      }
+      const requestUrl = new URL(req.url || "/", localOrigin || "http://127.0.0.1");
       let pathname = decodeURIComponent(requestUrl.pathname);
       if (pathname === "/") pathname = "/index.html";
 
@@ -143,6 +150,7 @@ function startStaticServer() {
           ? "no-cache"
           : "public, max-age=31536000, immutable",
       });
+      if (req.method === "HEAD") { body.destroy(); res.end(); return; }
       body.pipe(res);
     } catch (error) {
       console.error("[MVMCMD] static server error", error);
@@ -247,4 +255,5 @@ app.on("before-quit", () => {
     server.close();
     server = null;
   }
+  localOrigin = null;
 });

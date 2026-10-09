@@ -120,3 +120,27 @@ test("desktop security helpers restrict origins, protocols and local file paths"
   assert.equal(desktopSecurity.isSafeLocalFileUrl("file:///C:/Users/demo/../Windows/System32/secret.pdf"), false);
   assert.equal(desktopSecurity.isSafeLocalFileUrl("file:///C:/Windows/System32/config.pdf"), false);
 });
+
+test("release hardening review: sensitive-data backup is off and exported Android components are guarded", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const root = resolve(process.cwd());
+  const manifest = readFileSync(resolve(root, "android/app/src/main/AndroidManifest.xml"), "utf8");
+  const launcher = readFileSync(resolve(root, "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"), "utf8");
+  const filePlugin = readFileSync(resolve(root, "android/app/src/main/java/com/mvmcmd/launcher/MvmFileToolsPlugin.java"), "utf8");
+  const electronMain = readFileSync(resolve(root, "desktop/main.cjs"), "utf8");
+  assert.match(manifest, /android:allowBackup="false"/);
+  const exportedServices = [...manifest.matchAll(/<service\b[^>]*android:exported="true"[^>]*>/gs)].map((match) => match[0]);
+  assert.ok(exportedServices.length >= 3);
+  for (const tag of exportedServices) assert.match(tag, /android:permission="android\.permission\.BIND_/);
+  const exportedActivities = [...manifest.matchAll(/<activity\b[^>]*android:exported="true"[^>]*>/gs)].map((match) => match[0]);
+  assert.equal(exportedActivities.length, 1);
+  assert.match(exportedActivities[0], /android:name="\.MainActivity"/);
+  assert.match(launcher, /isAllowedExternalUri\(url\)/);
+  assert.match(launcher, /Decision must be allow or skip/);
+  assert.match(filePlugin, /safeZipEntryName/);
+  assert.match(filePlugin, /isSafeScopedContentUri/);
+  assert.match(electronMain, /assertTrustedIpcSender/);
+  assert.match(electronMain, /X-Content-Type-Options/);
+  assert.match(electronMain, /webSecurity: true/);
+});

@@ -31,7 +31,8 @@ function isSafeLocalFileUrl(raw) {
     if (next === decoded) break;
     decoded = next;
   }
-  if (/\/(?:Windows\/(?:System32|SysWOW64)|ProgramData\/Microsoft\/Windows\/Start Menu)(?:\/|$)/i.test(decoded)) return false;
+  if (/\/(?:Windows\/(?:System32|SysWOW64|WinSxS)|ProgramData(?:\/|$)|ProgramData\/Microsoft\/Windows\/Start Menu)(?:\/|$)/i.test(decoded)) return false;
+  if (/^\/(?:etc|proc|sys|dev|root|boot)(?:\/|$)/i.test(decoded)) return false;
   try {
     const parsed = new URL(raw);
     return parsed.protocol === "file:" && !parsed.host && !parsed.username && !parsed.password && !parsed.search && !parsed.hash;
