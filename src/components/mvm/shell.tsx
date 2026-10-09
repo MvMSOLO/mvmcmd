@@ -26,7 +26,7 @@ import { Mvm3D } from "./mvm-3d";
 import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
 import { Mic, MicOff } from "lucide-react";
-import { cancelVoiceCapture, isVoiceCaptureSupported, speakVoiceInstruction, speakVoiceOutcome, startVoiceCapture, stopVoiceCapture, cancelVoiceSpeech } from "@/lib/mvm/voice-assistant";
+import { cancelVoiceCapture, isVoiceCaptureSupported, speakVoiceInstruction, speakVoiceOutcome, startVoiceCapture, cancelVoiceSpeech } from "@/lib/mvm/voice-assistant";
 import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
 import { emitMvmSignal } from "@/lib/mvm/signal-system";
 import { installMvmInteractionLayer } from "@/lib/mvm/interaction-system";
