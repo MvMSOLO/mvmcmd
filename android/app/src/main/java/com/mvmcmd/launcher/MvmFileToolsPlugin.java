@@ -27,6 +27,11 @@ import java.io.OutputStream;
 import java.io.BufferedOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.BufferedOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Locale;
@@ -143,6 +148,78 @@ public class MvmFileToolsPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Unable to scan selected folder", e);
         }
+    }
+
+    @PluginMethod
+    public void copyMoveFile(PluginCall call) {
+        String sourceRaw = call.getString("sourceUri");
+        String destinationRaw = call.getString("destinationTreeUri");
+        String name = call.getString("name");
+        boolean move = call.getBoolean("move", false);
+        if (sourceRaw == null || !sourceRaw.startsWith("content://") || destinationRaw == null || !destinationRaw.startsWith("content://") || name == null || name.trim().isEmpty() || name.contains("/") || name.contains("\\") || name.contains("\0")) { call.reject("Valid scoped source/destination URIs and safe name required"); return; }
+        try {
+            DocumentFile source = DocumentFile.fromSingleUri(getContext(), Uri.parse(sourceRaw));
+            if (source == null) source = DocumentFile.fromTreeUri(getContext(), Uri.parse(sourceRaw));
+            DocumentFile destination = DocumentFile.fromTreeUri(getContext(), Uri.parse(destinationRaw));
+            if (source == null || !source.exists() || source.isDirectory() || destination == null || !destination.canWrite()) { call.reject("Source or destination is not accessible"); return; }
+            String safeName = name.trim();
+            if (destination.findFile(safeName) != null) { call.reject("Destination name already exists"); return; }
+            DocumentFile output = destination.createFile(source.getType() == null ? "application/octet-stream" : source.getType(), safeName);
+            if (output == null) { call.reject("Could not create destination"); return; }
+            try (InputStream in = getContext().getContentResolver().openInputStream(source.getUri()); OutputStream out = getContext().getContentResolver().openOutputStream(output.getUri(), "w")) {
+                if (in == null || out == null) throw new java.io.IOException("Could not open stream");
+                byte[] buffer = new byte[65536]; int count;
+                while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+            } catch (Exception e) { output.delete(); throw e; }
+            if (move && !source.delete()) { JSObject out = new JSObject(); out.put("status","failed"); out.put("message","Copy succeeded but Android did not confirm source deletion; original remains."); out.put("uri",output.getUri().toString()); call.resolve(out); return; }
+            JSObject out = new JSObject(); out.put("status","verified"); out.put("message",move ? "Copy created and source removal confirmed." : "Copy created."); out.put("uri",output.getUri().toString()); call.resolve(out);
+        } catch (Exception e) { call.reject("Scoped copy/move failed", e); }
+    }
+
+    @PluginMethod
+    public void deleteFile(PluginCall call) {
+        String raw = call.getString("uri"); boolean confirmed = call.getBoolean("confirmed", false);
+        if (!confirmed) { call.reject("Explicit confirmation required"); return; }
+        if (raw == null || !raw.startsWith("content://")) { call.reject("Scoped content URI required"); return; }
+        try {
+            DocumentFile file = DocumentFile.fromSingleUri(getContext(), Uri.parse(raw));
+            if (file == null) file = DocumentFile.fromTreeUri(getContext(), Uri.parse(raw));
+            if (file == null || !file.exists()) { call.reject("Selected item no longer exists"); return; }
+            String name = file.getName() == null ? "" : file.getName();
+            if (name.equalsIgnoreCase("Android") || name.equalsIgnoreCase("data") || name.equalsIgnoreCase("obb") || name.equalsIgnoreCase("system") || (name.equalsIgnoreCase("DCIM") && file.isDirectory())) { call.reject("Protected/high-risk directory deletion blocked"); return; }
+            boolean deleted = file.delete(); JSObject out = new JSObject(); out.put("deleted",deleted); out.put("message",deleted ? "Android confirmed deletion." : "Android did not confirm deletion."); call.resolve(out);
+        } catch (Exception e) { call.reject("Scoped deletion failed",e); }
+    }
+
+    @PluginMethod
+    public void createArchive(PluginCall call) {
+        String treeRaw = call.getString("treeUri"); String name = call.getString("name"); JSArray uris = call.getArray("uris");
+        if (treeRaw == null || !treeRaw.startsWith("content://") || name == null || !name.matches("(?i)[a-z0-9 _.-]{1,76}\\.zip") || uris == null || uris.length() == 0) { call.reject("Scoped destination, safe ZIP name and files required"); return; }
+        try {
+            DocumentFile folder = DocumentFile.fromTreeUri(getContext(),Uri.parse(treeRaw));
+            if (folder == null || !folder.canWrite() || folder.findFile(name) != null) { call.reject("Destination is not writable or ZIP already exists"); return; }
+            DocumentFile archive = folder.createFile("application/zip",name); if (archive == null) { call.reject("Could not create ZIP"); return; }
+            try (OutputStream out = getContext().getContentResolver().openOutputStream(archive.getUri(),"w")) {
+                if (out == null) throw new java.io.IOException("Could not open ZIP output");
+                try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(out))) {
+                    Set<String> names = new HashSet<>();
+                    for (int i=0;i<uris.length();i++) {
+                        String raw = uris.getString(i); if (raw == null || !raw.startsWith("content://")) continue;
+                        DocumentFile source = DocumentFile.fromSingleUri(getContext(),Uri.parse(raw));
+                        if (source == null || !source.exists() || source.isDirectory()) continue;
+                        String base = source.getName() == null ? "file-"+i : source.getName(); String entry = base; int suffix=1;
+                        while (!names.add(entry)) entry = base+"-"+(suffix++);
+                        zip.putNextEntry(new ZipEntry(entry));
+                        try (InputStream in = getContext().getContentResolver().openInputStream(source.getUri())) {
+                            if (in == null) throw new java.io.IOException("Could not read "+entry);
+                            byte[] buffer=new byte[65536]; int count; while ((count=in.read(buffer))!=-1) zip.write(buffer,0,count);
+                        }
+                        zip.closeEntry();
+                    }
+                }
+            } catch (Exception e) { archive.delete(); throw e; }
+            JSObject out = new JSObject(); out.put("created",true); out.put("uri",archive.getUri().toString()); out.put("message","ZIP created from selected scoped files."); call.resolve(out);
+        } catch (Exception e) { call.reject("ZIP creation failed",e); }
     }
 
     @PluginMethod
