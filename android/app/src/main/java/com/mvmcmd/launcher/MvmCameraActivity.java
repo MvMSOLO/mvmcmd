@@ -85,6 +85,7 @@ import java.util.concurrent.Executors;
 public final class MvmCameraActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 701;
+    static final String EXTRA_DISABLE_CAMERA_FOR_TESTS = "com.mvmcmd.launcher.extra.DISABLE_CAMERA_FOR_TESTS";
     private static final int REQ_AUDIO = 702;
     private static final int PHOTO_BURST_FRAMES = 3;
 
@@ -120,6 +121,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
     private float warmth = 0f;
     private boolean prefer60 = true;
     private boolean pendingVideoStart = false;
+    private boolean disableCameraForTests = false;
     private Uri lastMediaUri;
     private final ExecutorService verificationExecutor = Executors.newSingleThreadExecutor();
 
@@ -128,6 +130,8 @@ public final class MvmCameraActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         MvmUiKit.applyWindow(this);
         getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
+        disableCameraForTests = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                && getIntent().getBooleanExtra(EXTRA_DISABLE_CAMERA_FOR_TESTS, false);
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         buildUi();
@@ -140,7 +144,7 @@ public final class MvmCameraActivity extends AppCompatActivity {
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
-        } else {
+        } else if (!disableCameraForTests) {
             startCamera();
         }
     }

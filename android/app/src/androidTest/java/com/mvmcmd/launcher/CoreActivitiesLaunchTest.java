@@ -58,7 +58,9 @@ public final class CoreActivitiesLaunchTest {
     @Test
     public void cameraActivityShowsCaptureAndAdjustmentControls() {
         grantCameraPermissionForEmulator();
-        try (ActivityScenario<MvmCameraActivity> scenario = ActivityScenario.launch(MvmCameraActivity.class)) {
+        Intent intent = new Intent(targetContext(), MvmCameraActivity.class)
+                .putExtra(MvmCameraActivity.EXTRA_DISABLE_CAMERA_FOR_TESTS, true);
+        try (ActivityScenario<MvmCameraActivity> scenario = ActivityScenario.launch(intent)) {
             onView(withText("4:3")).check(matches(isDisplayed()));
             onView(withText("Natural")).check(matches(isDisplayed()));
             onView(withText("Vivid")).perform(click());
