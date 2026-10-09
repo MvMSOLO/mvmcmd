@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import { isSafeDesktopFileUrl, isSafeScopedContentUri, sanitizeDiagnosticText } from "./security-policy.ts";
 import { canUseNativeAndroidLauncher, nativeOpenIncomingFile } from "./native-launcher";
 
 interface NativeEntryPlugin {
@@ -39,15 +40,15 @@ function report(opened:boolean,reason?:string):void {
 }
 export function requestExternalFileOpen(uri:string,mimeType?:string):{started:boolean;method?:string;reason?:string} {
   const target=uri.trim();
-  if(target.length>2048||/[\u0000-\u001f]/.test(target))return{started:false,reason:"invalid file reference"};
+  if(target.length>2048||/[\u0000-\u001f\u007f]/.test(target))return{started:false,reason:"invalid file reference"};
   if(canUseNativeAndroidLauncher()){
-    if(!/^content:\/\//i.test(target)||/\/data\/|\/proc\//i.test(target))return{started:false,reason:"Android file open requires a scoped content URI"};
-    void nativeOpenIncomingFile(target,mimeType).then(r=>report(r.opened,r.reason)).catch(e=>report(false,e instanceof Error?e.message:"Android file handoff failed"));
+    if(!isSafeScopedContentUri(target))return{started:false,reason:"Android file open requires a validated scoped content URI"};
+    void nativeOpenIncomingFile(target,mimeType).then(r=>report(r.opened,r.reason)).catch(e=>report(false,sanitizeDiagnosticText(e instanceof Error?e.message:"Android file handoff failed")));
     return{started:true,method:"android-view-chooser",reason:"system open request dispatched; external handling is not verified"};
   }
   if(typeof window!=="undefined"&&window.mvmcmdEntry){
-    if(!/^file:\/\//i.test(target))return{started:false,reason:"desktop file open requires a local file URL"};
-    void window.mvmcmdEntry.openFile(target,mimeType).then(r=>report(r.opened,r.reason)).catch(e=>report(false,e instanceof Error?e.message:"Desktop file handoff failed"));
+    if(!isSafeDesktopFileUrl(target))return{started:false,reason:"desktop file open requires a safe local file URL"};
+    void window.mvmcmdEntry.openFile(target,mimeType).then(r=>report(r.opened,r.reason)).catch(e=>report(false,sanitizeDiagnosticText(e instanceof Error?e.message:"Desktop file handoff failed")));
     return{started:true,method:"desktop-default-app",reason:"system open request dispatched; external handling is not verified"};
   }
   return{started:false,reason:"file open is available only from a supported native or desktop entry point"};

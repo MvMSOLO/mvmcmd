@@ -1,5 +1,6 @@
-import { runMvmAction, type MvmActionResult } from "./action-engine";
-import { canUseNativeAndroidLauncher, nativeOpenPackage, nativeOpenUrl, nativeShare } from "./native-launcher";
+import { runMvmAction, type MvmActionResult } from "./action-engine.ts";
+import { canUseNativeAndroidLauncher, nativeOpenPackage, nativeOpenUrl, nativeShare } from "./native-launcher.ts";
+import { isAllowedShareMime, isSafeScopedContentUri, isSafeShareText, redactExternalTarget, validateExternalTarget } from "./security-policy.ts";
 
 export type BridgeMethod = "package" | "deeplink" | "url" | "share" | "chooser" | "desktop-fallback";
 export type BridgeStatus = "started" | "failed";
@@ -23,38 +24,27 @@ export interface BridgeResult {
   grant?: "none" | "explicit-text" | "explicit-content-uri";
 }
 
-const ALLOWED_SCHEMES = /^(https?:|tel:|sms:|mailto:|geo:|market:)/i;
-const PRIVATE_FILE = /^(file:|content:\/\/com\.android\.externalstorage|\/data\/|\/storage\/emulated\/|\/sdcard\/)/i;
-const ALLOWED_MIME = /^(text\/plain|text\/csv|image\/png|image\/jpeg|application\/pdf)$/i;
-
 export function validateMime(mime?: string): { ok: boolean; reason?: string } {
-  if (!mime) return { ok: true };
-  return ALLOWED_MIME.test(mime) ? { ok: true } : { ok: false, reason: `unsupported mime: ${mime}` };
+  return isAllowedShareMime(mime) ? { ok: true } : { ok: false, reason: "unsupported MIME type" };
 }
 
 export function resolveBridge(request: BridgeRequest): { ok: boolean; method: BridgeMethod; reason?: string } {
   const target = request.target.trim();
-  if (!target) return { ok: false, method: "url", reason: "missing target" };
+  if (!target || target.length > 2048 || /[\u0000-\u001f\u007f]/.test(target)) return { ok: false, method: "url", reason: "missing or invalid target" };
   if (request.kind === "share") {
-    if (request.fileUri && PRIVATE_FILE.test(request.fileUri)) {
-      return { ok: false, method: "share", reason: "private file share requires an explicit scoped grant" };
-    }
+    if (request.fileUri && !isSafeScopedContentUri(request.fileUri)) return { ok: false, method: "share", reason: "file sharing requires a validated scoped content URI" };
     const mime = validateMime(request.mime);
     if (!mime.ok) return { ok: false, method: "share", reason: mime.reason };
-    if (!request.text && !request.fileUri) return { ok: false, method: "share", reason: "share needs text or an explicit file grant" };
+    if (request.text !== undefined && !isSafeShareText(request.text)) return { ok: false, method: "share", reason: "share text is empty, oversized, or contains control characters" };
+    if (!request.text && !request.fileUri) return { ok: false, method: "share", reason: "share needs text or an explicit scoped file grant" };
     return { ok: true, method: request.chooser ? "chooser" : "share" };
   }
   if (request.kind === "launch") {
-    if (!/^[a-zA-Z][\w]*(\.[\w]+)+$/.test(target)) return { ok: false, method: "package", reason: "invalid package name" };
+    if (target.length > 255 || !/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(target)) return { ok: false, method: "package", reason: "invalid package name" };
     return { ok: true, method: request.platform === "android" ? "package" : "desktop-fallback" };
   }
-  if (!ALLOWED_SCHEMES.test(target) && !/^[a-z][a-z0-9+.-]*:/i.test(target)) {
-    return { ok: false, method: "deeplink", reason: "unsupported deep link" };
-  }
-  if (/^(javascript:|data:|file:)/i.test(target)) return { ok: false, method: "url", reason: "blocked scheme" };
-  if (request.kind === "deeplink" && !ALLOWED_SCHEMES.test(target) && request.platform !== "android") {
-    return { ok: false, method: "desktop-fallback", reason: "deep link has no desktop handler" };
-  }
+  const validation = validateExternalTarget(target, request.kind);
+  if (!validation.ok) return { ok: false, method: request.kind === "url" ? "url" : "deeplink", reason: validation.reason };
   return { ok: true, method: request.kind === "url" ? "url" : "deeplink" };
 }
 
@@ -97,7 +87,7 @@ export function runAppBridge(request: BridgeRequest): MvmActionResult<BridgeResu
     context: {
       skillId: "app-bridge",
       platform: request.platform,
-      metadata: { kind: request.kind, target: request.target },
+      metadata: { kind: request.kind, target: request.kind === "launch" ? request.target : redactExternalTarget(request.target) },
     },
     precondition: () => {
       const resolved = resolveBridge(request);
@@ -108,7 +98,7 @@ export function runAppBridge(request: BridgeRequest): MvmActionResult<BridgeResu
       const result: BridgeResult = {
         status: "started",
         method: resolved.method,
-        target: request.target,
+        target: request.kind === "launch" ? request.target : redactExternalTarget(request.target),
         message: "Bridge request started. External completion is not observable.",
         verified: false,
         grant: request.kind === "share" && request.fileUri?.startsWith("content:")

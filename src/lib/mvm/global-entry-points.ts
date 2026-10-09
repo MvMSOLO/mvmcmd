@@ -1,3 +1,5 @@
+import { isSafeDesktopFileUrl, isSafeScopedContentUri, isSafeShareText } from "./security-policy.ts";
+
 export type GlobalEntrySource = "android" | "desktop";
 export type GlobalEntryKind = "command" | "share-text" | "share-file" | "open-file";
 export interface GlobalEntryPayload {
@@ -25,19 +27,11 @@ export function normalizeExternalCommand(v: unknown): string | undefined {
   return COMMANDS[s];
 }
 function safeUri(v: unknown, source: GlobalEntrySource): string | undefined {
-  const raw=clean(v,2048);
-  if (!raw || /[\u0000-\u001f]/.test(raw)) return undefined;
-  try {
-    const u=new URL(raw);
-    if (source === "android") {
-      if (u.protocol !== "content:" || !u.hostname || u.hostname.toLowerCase().includes("mvmcmd.launcher.fileprovider") || /\/data\/|\/proc\/|\/sys\//i.test(raw)) return undefined;
-      return raw;
-    }
-    if (u.protocol !== "file:" || u.host) return undefined;
-    const p=decodeURIComponent(u.pathname);
-    if (/\/(?:Windows\/System32|Windows\/SysWOW64)\//i.test(p)) return undefined;
-    return u.href;
-  } catch { return undefined; }
+  if (typeof v !== "string" || v.length > 2048 || /[\u0000-\u001f\u007f]/.test(v)) return undefined;
+  const raw = v.trim();
+  if (!raw) return undefined;
+  if (source === "android") return isSafeScopedContentUri(raw) ? raw : undefined;
+  return isSafeDesktopFileUrl(raw) ? raw : undefined;
 }
 function safeMime(v: unknown): string | undefined {
   const s=clean(v,127)?.toLowerCase();
@@ -56,11 +50,13 @@ export function normalizeGlobalEntry(v: unknown): GlobalEntryPayload | undefined
     return command ? {...base,command} : undefined;
   }
   if (kind === "share-text") {
+    if (!isSafeShareText(r.text)) return undefined;
     const text=clean(r.text);
     return text ? {...base,text,mimeType:safeMime(r.mimeType)||"text/plain"} : undefined;
   }
   const uri=safeUri(r.uri,source);
   if (!uri) return undefined;
+  if (kind === "share-file" && r.text !== undefined && !isSafeShareText(r.text)) return undefined;
   return {...base,uri,...(clean(r.displayName,180)?{displayName:clean(r.displayName,180)}:{}),...(safeMime(r.mimeType)?{mimeType:safeMime(r.mimeType)}:{}),...(kind==="share-file"&&clean(r.text)?{text:clean(r.text)}:{})};
 }
 /** Creates a draft only; a caller must not execute it just because the OS event arrived. */

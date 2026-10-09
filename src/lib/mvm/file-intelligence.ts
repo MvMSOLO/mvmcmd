@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { isSafeFilename, isSafeScopedContentUri, sanitizeDiagnosticText } from "./security-policy.ts";
 
 export type FileUtilityStatus = "verified" | "started" | "unavailable" | "failed" | "needs_confirmation";
 export interface FileEntry {
@@ -39,9 +40,8 @@ export function formatStorageOverview(totalBytes: number, availableBytes: number
 export function isSafeFileEntry(item: Pick<FileEntry, "uri" | "name" | "isDirectory">): boolean {
   const uri = item.uri.trim();
   const name = item.name.trim();
-  if (!uri || !name || name === "." || name === "..") return false;
-  if (/^(file:\/\/|content:\/\/com\.android\.externalstorage\.documents\/root\/primary%3AAndroid%2Fdata)/i.test(uri)) return false;
-  if (/^(\/|[A-Za-z]:\\)/.test(name) || name.includes("\0") || name.includes("/") || name.includes("\\")) return false;
+  if (!isSafeScopedContentUri(uri) || !name || name === "." || name === "..") return false;
+  if (/^(\/|[A-Za-z]:\\)/.test(name) || /[\\/\0\u0001-\u001f\u007f]/.test(name)) return false;
   return true;
 }
 export function classifyMedia(mimeType: string, name: string): "image" | "video" | "audio" | "document" | "archive" | "other" {
@@ -63,7 +63,7 @@ export async function getStorageOverview(): Promise<FileUtilityResult & { storag
       ? { status: "verified", message: `Storage read from Android (${s.source}).`, verified: true, storage }
       : { status: "failed", message: "Android returned inconsistent storage numbers; no estimate substituted.", verified: false, storage };
   } catch (e) {
-    return { status: "failed", message: "Could not read storage from Android.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+    return { status: "failed", message: "Could not read storage from Android.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") };
   }
 }
 export async function chooseFolder(): Promise<FileUtilityResult & { uri?: string }> {
@@ -74,50 +74,51 @@ export async function chooseFolder(): Promise<FileUtilityResult & { uri?: string
     if (!r.granted || !r.uri) return { status: "failed", message: "Folder access was not granted.", verified: false };
     return { status: "verified", message: `Scoped access granted for ${r.name ?? "selected folder"}.`, verified: true, uri: r.uri };
   } catch (e) {
-    return { status: "failed", message: "Could not open Android folder picker.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+    return { status: "failed", message: "Could not open Android folder picker.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") };
   }
 }
 export async function listFolder(uri: string, options: { query?: string; minBytes?: number; limit?: number } = {}): Promise<FileUtilityResult & { scanned?: number; truncated?: boolean }> {
   if (!nativeAndroid()) return { status: "unavailable", message: "File discovery is available only in the native Android app.", verified: false };
-  if (!uri.trim() || !uri.startsWith("content://")) return { status: "failed", message: "Choose a folder using Android's folder picker first.", verified: false };
-  if (options.minBytes !== undefined && (!Number.isFinite(options.minBytes) || options.minBytes < 0)) return { status: "failed", message: "Minimum file size must be a non-negative number.", verified: false };
+  if (!isSafeScopedContentUri(uri)) return { status: "failed", message: "Choose a valid scoped folder using Android's folder picker first.", verified: false };
+  if (options.query !== undefined && options.query.length > 120) return { status: "failed", message: "Search text is limited to 120 characters.", verified: false };
+  if (options.minBytes !== undefined && (!Number.isFinite(options.minBytes) || options.minBytes < 0 || options.minBytes > 1024 * 1024 * 1024 * 1024)) return { status: "failed", message: "Minimum file size must be a non-negative number within the supported range.", verified: false };
   try {
     const r = await NativeFiles.listFolder({ uri, query: options.query?.trim(), minBytes: options.minBytes, limit: Math.min(1000, Math.max(1, options.limit ?? 200)) });
     const safe = r.items.filter(isSafeFileEntry);
     return { status: "verified", message: `Scanned ${r.scanned} scoped entries; ${safe.length} matched.${r.truncated ? " Results were capped." : ""}`, verified: true, items: safe, scanned: r.scanned, truncated: r.truncated };
   } catch (e) {
-    return { status: "failed", message: "Scoped folder scan failed; no files were changed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+    return { status: "failed", message: "Scoped folder scan failed; no files were changed.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") };
   }
 }
 export async function copyMoveScopedFile(sourceUri: string, destinationTreeUri: string, name: string, move = false): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "Scoped file copy/move requires Android.", verified: false };
-  if (!sourceUri.startsWith("content://") || !destinationTreeUri.startsWith("content://") || !name.trim() || name.trim() === "." || name.trim() === ".." || name.trim().length > 180 || /[\\/\\0]/.test(name)) return { status: "failed", message: "Source, destination and a safe filename are required.", verified: false };
+  if (!isSafeScopedContentUri(sourceUri) || !isSafeScopedContentUri(destinationTreeUri) || !isSafeFilename(name)) return { status: "failed", message: "Source, destination and a safe filename are required.", verified: false };
   try {
     const r = await NativeFiles.copyMoveFile({ sourceUri, destinationTreeUri, name: name.trim(), move });
     return r.status === "verified" ? { status: "verified", message: r.message, verified: true, items: r.uri ? [{id:r.uri,uri:r.uri,name:name.trim(),mimeType:"application/octet-stream",isDirectory:false}] : [] } : { status: "failed", message: r.message, verified: false };
-  } catch (e) { return { status: "failed", message: "Copy/move failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
+  } catch (e) { return { status: "failed", message: "Copy/move failed.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") }; }
 }
 export async function deleteScopedFile(uri: string, confirmed: boolean): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "Scoped deletion requires Android.", verified: false };
   if (!confirmed) return { status: "needs_confirmation", message: "Deletion requires explicit confirmation.", verified: false };
-  if (!uri.startsWith("content://")) return { status: "failed", message: "Only a scoped content URI can be deleted.", verified: false };
+  if (!isSafeScopedContentUri(uri)) return { status: "failed", message: "Only a validated scoped content URI can be deleted.", verified: false };
   try { const r = await NativeFiles.deleteFile({ uri, confirmed }); return r.deleted ? { status: "verified", message: r.message, verified: true } : { status: "failed", message: r.message, verified: false }; }
-  catch (e) { return { status: "failed", message: "Delete failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
+  catch (e) { return { status: "failed", message: "Delete failed.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") }; }
 }
 export async function createScopedArchive(treeUri: string, name: string, uris: string[]): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "ZIP creation requires Android.", verified: false };
-  if (!treeUri.startsWith("content://") || !/^[a-zA-Z0-9 _.-]{1,76}\.zip$/i.test(name) || uris.length === 0 || uris.length > 500 || uris.some((uri) => !uri.startsWith("content://"))) return { status: "failed", message: "Choose a destination and at least one scoped file; use a safe .zip name.", verified: false };
+  if (!isSafeScopedContentUri(treeUri) || !/^[a-zA-Z0-9 _.-]{1,76}\.zip$/i.test(name) || uris.length === 0 || uris.length > 500 || uris.some((uri) => !isSafeScopedContentUri(uri))) return { status: "failed", message: "Choose a destination and at least one valid scoped file; use a safe .zip name.", verified: false };
   try { const r = await NativeFiles.createArchive({ treeUri, name, uris }); return r.created ? { status: "verified", message: r.message, verified: true, items: r.uri ? [{id:r.uri,uri:r.uri,name,mimeType:"application/zip",isDirectory:false}] : [] } : { status: "failed", message: r.message, verified: false }; }
-  catch (e) { return { status: "failed", message: "ZIP creation failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
+  catch (e) { return { status: "failed", message: "ZIP creation failed.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") }; }
 }
 export async function shareScopedFile(uri: string): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "Scoped file sharing requires Android.", verified: false };
-  if (!uri.startsWith("content://")) return { status: "failed", message: "Only a scoped content URI can be shared.", verified: false };
+  if (!isSafeScopedContentUri(uri)) return { status: "failed", message: "Only a validated scoped content URI can be shared.", verified: false };
   try {
     const r = await NativeFiles.shareFile({ uri });
     return r.started ? { status: "started", message: "Android share chooser opened; recipient delivery is not verified.", verified: false } : { status: "failed", message: r.reason ?? "Share chooser could not be opened.", verified: false };
   } catch (e) {
-    return { status: "failed", message: "Could not share this scoped file.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+    return { status: "failed", message: "Could not share this scoped file.", verified: false, detail: sanitizeDiagnosticText(e instanceof Error ? e.message : "unknown error") };
   }
 }
 
