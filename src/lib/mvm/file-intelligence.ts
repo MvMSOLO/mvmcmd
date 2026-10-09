@@ -96,3 +96,38 @@ export async function shareScopedFile(uri: string): Promise<FileUtilityResult> {
     return { status: "failed", message: "Could not share this scoped file.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
   }
 }
+
+let selectedFolderUri: string | undefined;
+export async function runFileCommand(args: string[]): Promise<string[]> {
+  const operation = (args[0] ?? "storage").toLowerCase();
+  if (operation === "storage") {
+    const result = await getStorageOverview();
+    if (!result.storage?.valid) return [`FILES  ${result.status.toUpperCase()}`, result.message];
+    const s = result.storage;
+    const fmt = (n: number) => {
+      const units = ["B", "KB", "MB", "GB", "TB"]; let v = n, i = 0;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
+    };
+    return [`STORAGE  VERIFIED · ${s.percentUsed?.toFixed(1)}% used`, `TOTAL ${fmt(s.totalBytes)} · USED ${fmt(s.usedBytes)} · FREE ${fmt(s.availableBytes)}`, result.message];
+  }
+  if (operation === "choose") {
+    const result = await chooseFolder();
+    if (result.uri) selectedFolderUri = result.uri;
+    return [`FOLDER  ${result.status.toUpperCase()}`, result.message, ...(result.uri ? ["Folder permission is scoped and saved for this session."] : [])];
+  }
+  if (!selectedFolderUri) return ["FILES  NEEDS_FOLDER", "Run `files choose` and select a folder in Android's system picker first. No broad storage access is requested."];
+  let query = "";
+  let minBytes = 0;
+  if (operation === "find" || operation === "media") query = args.slice(1).join(" ");
+  if (operation === "large") {
+    const mb = Number(args[1] ?? 50);
+    if (!Number.isFinite(mb) || mb < 1 || mb > 102400) return ["FILES  FAILED", "Use a size threshold from 1 MB to 102400 MB."];
+    minBytes = mb * 1024 * 1024;
+  }
+  const result = await listFolder(selectedFolderUri, { query, minBytes, limit: 200 });
+  if (!result.items) return [`FILES  ${result.status.toUpperCase()}`, result.message, ...(result.detail ? [result.detail] : [])];
+  const rows = result.items.slice().sort((a,b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));
+  const shown = rows.slice(0, 30).map((item) => `${item.isDirectory ? "[DIR]" : classifyMedia(item.mimeType, item.name).toUpperCase()} · ${item.name} · ${item.sizeBytes === undefined ? "folder" : item.sizeBytes + " bytes"} · ${item.uri}`);
+  return [`FILES  VERIFIED · ${rows.length} result(s)`, result.message, ...shown, ...(rows.length > shown.length ? [`+ ${rows.length - shown.length} more omitted`] : [])];
+}
