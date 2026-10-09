@@ -1,7 +1,7 @@
 # Phase 15 — Voice + Assistant Layer
 
 ## Status
-IN PROGRESS — implementation is pushed for Android APK and Windows EXE validation; do not mark complete until both CI workflows succeed on the final commit.
+COMPLETED — voice assistant implementation, focused tests, TypeScript validation, Android APK and Windows EXE builds all succeeded on validated code commit `7d6a80842797750cf41deecfa5503a8f9b1d4b1b`.
 
 ## Goal
 Add voice input/output as another entry point into the existing command pipeline, not as a separate intelligence system.
@@ -27,5 +27,14 @@ Add voice input/output as another entry point into the existing command pipeline
 ## Dependencies
 Phases 2, 4, 10 and 14. Phase 10 implementation is present in `src/lib/mvm/goal-engine.ts`; the master-roadmap status has been aligned with the implemented Goal Engine.
 
-## CI evidence
-Pending. This section must be updated with the final code/documentation commit and both successful workflow URLs only after GitHub Actions confirms success.
+## Final acceptance and CI evidence
+
+Validated implementation commit: [`7d6a80842797750cf41deecfa5503a8f9b1d4b1b`](https://github.com/MvMSOLO/mvmcmd/commit/7d6a80842797750cf41deecfa5503a8f9b1d4b1b).
+
+- Android APK: [run 37900166326 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37900166326). Typecheck, voice-core and existing focused tests, native voice plugin source gate, web bundle, wallpaper payload verification, Gradle APK build, APK verification, final success gate, and artifact upload all passed.
+- Windows EXE: [run 37900166264 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37900166264). Typecheck, voice-core and existing focused tests, web build, portable Electron EXE build, EXE verification, final success gate, and artifact upload all passed.
+- APK artifact: `mvmcmd-debug-apk-626`, 22,273,735 bytes, artifact ID `11602211499`, SHA-256 `6705ae40ec6a0682eaa6ccde9df4cc1722f10f75531d83ca81bc9e761b52e5a1`.
+- Windows artifact: `mvmcmd-windows-exe-344`, 133,917,290 bytes, artifact ID `11602172296`, SHA-256 `790cd7c82dc5edcb63e85a9991c60b66eff9c7c2a6dad6e57351e7b6bf63c7df`.
+- The focused test set contains the new `voice-core.test.ts` plus the Action Engine, File Intelligence and Phase 14 session-context tests. It is not the whole repository-wide `npm test` suite.
+
+All acceptance items for Phase 15 are met.
