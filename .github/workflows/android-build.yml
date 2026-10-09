@@ -176,6 +176,7 @@ jobs:
           test -s "src/lib/mvm/performance-budget.test.ts"
           test -s "src/lib/mvm/commands.test.ts"
           test -s "src/lib/mvm/gaming-engine.test.ts"
+          test -s "android/app/src/androidTest/java/com/mvmcmd/launcher/CoreActivitiesLaunchTest.java"
           test -s "desktop/security.cjs"
           grep -q 'android:allowBackup="false"' "android/app/src/main/AndroidManifest.xml"
           grep -q 'isAllowedExternalUri(url)' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
