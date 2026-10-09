@@ -123,6 +123,7 @@ export async function shareScopedFile(uri: string): Promise<FileUtilityResult> {
 }
 
 let selectedFolderUri: string | undefined;
+let selectedFolderName: string | undefined;
 export async function runFileCommand(args: string[]): Promise<string[]> {
   const operation = (args[0] ?? "storage").toLowerCase();
   if (operation === "storage") {
@@ -138,8 +139,12 @@ export async function runFileCommand(args: string[]): Promise<string[]> {
   }
   if (operation === "choose") {
     const result = await chooseFolder();
-    if (result.uri) selectedFolderUri = result.uri;
+    if (result.uri) { selectedFolderUri = result.uri; selectedFolderName = result.message.replace(/^Scoped access granted for /, "").replace(/\.$/, ""); }
     return [`FOLDER  ${result.status.toUpperCase()}`, result.message, ...(result.uri ? ["Folder permission is scoped and saved for this session."] : [])];
+  }
+  if (operation === "share") {
+    const result = await shareScopedFile(args[1] ?? "");
+    return [`SHARE  ${result.status.toUpperCase()}`, result.message];
   }
   if (operation === "delete") {
     const uri = args[1] ?? "";
@@ -148,7 +153,9 @@ export async function runFileCommand(args: string[]): Promise<string[]> {
     const result = await deleteScopedFile(uri, true);
     return [`DELETE  ${result.status.toUpperCase()}`, result.message];
   }
-  if (!selectedFolderUri) return ["FILES  NEEDS_FOLDER", "Run `files choose` and select a folder in Android's system picker first. No broad storage access is requested."];
+  if (!selectedFolderUri) return ["FILES  NEEDS_FOLDER", "Run `files choose` and select a folder in Android system picker first. No broad storage access is requested."];
+  if (operation === "downloads" && !/download/i.test(selectedFolderName ?? "")) return ["FILES  NEEDS_FOLDER", "Run `files choose` and select Downloads, then run `files downloads`."];
+  if (operation === "documents" && !/document/i.test(selectedFolderName ?? "")) return ["FILES  NEEDS_FOLDER", "Run `files choose` and select Documents, then run `files documents`."];
   if (operation === "copy" || operation === "move") {
     const sourceUri = args[1] ?? "";
     const name = args[2] ?? "";
@@ -165,7 +172,8 @@ export async function runFileCommand(args: string[]): Promise<string[]> {
   }
   let query = "";
   let minBytes = 0;
-  if (operation === "find" || operation === "media") query = args.slice(1).join(" ");
+  if (operation === "find") query = args.slice(1).join(" ");
+  if (operation === "media" && args[1] && !["image","video","audio","document","archive","other"].includes(args[1].toLowerCase())) return ["FILES  FAILED", "Use `files media image|video|audio|document|archive|other`."];
   if (operation === "large") {
     const mb = Number(args[1] ?? 50);
     if (!Number.isFinite(mb) || mb < 1 || mb > 102400) return ["FILES  FAILED", "Use a size threshold from 1 MB to 102400 MB."];
@@ -173,8 +181,22 @@ export async function runFileCommand(args: string[]): Promise<string[]> {
   }
   const result = await listFolder(selectedFolderUri, { query, minBytes, limit: 200 });
   if (!result.items) return [`FILES  ${result.status.toUpperCase()}`, result.message, ...(result.detail ? [result.detail] : [])];
-  const rows = result.items.slice().sort((a,b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));
+  let rows = result.items.slice().sort((a,b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));
+  if (operation === "media" && args[1]) rows = rows.filter((item) => classifyMedia(item.mimeType, item.name) === args[1].toLowerCase());
+  if (operation === "documents") rows = rows.filter((item) => item.isDirectory || classifyMedia(item.mimeType, item.name) === "document");
   if (operation === "recent") rows.sort((a,b) => (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0));
+  if (operation === "cleanup") {
+    const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
+    const large = rows.filter((item) => !item.isDirectory && (item.sizeBytes ?? 0) >= 100 * 1024 * 1024).slice(0, 10);
+    const old = rows.filter((item) => !item.isDirectory && (item.modifiedAt ?? 0) > 0 && (item.modifiedAt ?? 0) < cutoff).slice(0, 10);
+    const byKey = new Map<string, FileEntry[]>();
+    for (const item of rows.filter((entry) => !entry.isDirectory && entry.sizeBytes !== undefined)) {
+      const key = `${item.sizeBytes}:${item.name.toLowerCase()}`;
+      byKey.set(key, [...(byKey.get(key) ?? []), item]);
+    }
+    const candidates = [...byKey.values()].filter((group) => group.length > 1).flat().slice(0, 10);
+    return ["CLEANUP  PLAN ONLY", "No files were deleted or changed. Review each item manually before a separate confirmed delete command.", `Large files (>=100 MB): ${large.length}${large.length ? " — " + large.map((item) => `${item.name} (${item.sizeBytes} bytes)`).join("; ") : ""}`, `Older than 180 days: ${old.length}${old.length ? " — " + old.map((item) => item.name).join("; ") : ""}`, `Possible duplicate candidates: ${candidates.length}${candidates.length ? " — " + candidates.map((item) => `${item.name} (${item.sizeBytes} bytes)`).join("; ") : ""}`, "Age and matching names are suggestions only; they do not prove a file is safe to remove."];
+  }
   if (operation === "duplicates") {
     const groups = new Map<string, FileEntry[]>();
     for (const item of rows.filter((entry) => !entry.isDirectory && entry.sizeBytes !== undefined)) {
