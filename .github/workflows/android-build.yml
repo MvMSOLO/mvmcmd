@@ -282,6 +282,7 @@ jobs:
                   src=(root/name).read_bytes()
                   assert hashlib.sha256(data).digest()==hashlib.sha256(src).digest(), name
           print("Verified APK contains the exact 17 PNG wallpaper payloads.")
+          PY
 
       - name: Enable KVM for Android emulator
         shell: bash
