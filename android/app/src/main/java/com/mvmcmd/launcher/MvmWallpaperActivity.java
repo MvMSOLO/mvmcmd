@@ -31,12 +31,14 @@ import java.util.concurrent.Executors;
 
 public final class MvmWallpaperActivity extends AppCompatActivity {
     static final int HOME=0, LOCK=1;
+    static final String EXTRA_DISABLE_LIVE_PREVIEW_FOR_TESTS = "com.mvmcmd.launcher.extra.DISABLE_LIVE_PREVIEW_FOR_TESTS";
 
     final ExecutorService exec=Executors.newSingleThreadExecutor();
     final List<View> cards=new ArrayList<>();
     MvmWallpaperRenderer renderer;
     MvmWallpaperCatalog.Spec selected;
     int mode=HOME;
+    private boolean disableLivePreviewForTests = false;
 
     MvmWallpaperPreview preview;
     LinearLayout gallery;
@@ -45,6 +47,8 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
     @Override protected void onCreate(@Nullable Bundle b){
         super.onCreate(b);
         MvmUiKit.applyWindow(this);
+        disableLivePreviewForTests = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                && getIntent().getBooleanExtra(EXTRA_DISABLE_LIVE_PREVIEW_FOR_TESTS, false);
         renderer=new MvmWallpaperRenderer(this);
         selected=MvmWallpaperCatalog.all().get(0);
         build();
@@ -82,9 +86,9 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         page.addView(intro);
 
         FrameLayout previewFrame=new FrameLayout(this);
-        preview=new MvmWallpaperPreview(this);
+        preview=new MvmWallpaperPreview(this, !disableLivePreviewForTests);
         preview.setSpec(selected);
-        preview.setLive(true);
+        preview.setLive(!disableLivePreviewForTests);
         previewFrame.addView(preview,new FrameLayout.LayoutParams(-1,previewHeight()));
 
         modeBadge=label("HOME  /  LIVE 3D",10,Typeface.BOLD);
@@ -193,7 +197,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         mode=m;
         boolean home=m==HOME;
         preview.showClock=home;
-        preview.setLive(home);
+        preview.setLive(home && !disableLivePreviewForTests);
         modeBadge.setText(home?"HOME  /  LIVE 3D":"LOCK  /  SYSTEM CLOCK");
         homeTab.setTextColor(home?0xff080a0d:0xffaeb5bf);
         lockTab.setTextColor(home?0xffaeb5bf:0xff080a0d);
@@ -319,11 +323,13 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         final Sensor acc=sm==null?null:sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         float tx,ty,sx,sy;
         boolean showClock=true,live=true;
+        final boolean animateTicks;
         MvmWallpaperCatalog.Spec spec;
         final Runnable tick=new Runnable(){ public void run(){ invalidate(); postDelayed(this,45); } };
 
-        MvmWallpaperPreview(Context c){
+        MvmWallpaperPreview(Context c, boolean animateTicks){
             super(c);
+            this.animateTicks=animateTicks;
             setBackgroundColor(0xff0c0e12);
             setClipToOutline(true);
             setOutlineProvider(new ViewOutlineProviderCompat(dp(20)));
@@ -338,7 +344,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         @Override protected void onAttachedToWindow(){
             super.onAttachedToWindow();
             if(live) startSensors();
-            post(tick);
+            if(animateTicks) post(tick);
         }
 
         @Override protected void onDetachedFromWindow(){

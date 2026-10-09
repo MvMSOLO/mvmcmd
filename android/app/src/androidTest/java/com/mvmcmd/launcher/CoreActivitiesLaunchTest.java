@@ -84,7 +84,9 @@ public final class CoreActivitiesLaunchTest {
 
     @Test
     public void wallpaperActivityShowsNativeWallpaperActions() {
-        try (ActivityScenario<MvmWallpaperActivity> scenario = ActivityScenario.launch(MvmWallpaperActivity.class)) {
+        Intent intent = new Intent(targetContext(), MvmWallpaperActivity.class)
+                .putExtra(MvmWallpaperActivity.EXTRA_DISABLE_LIVE_PREVIEW_FOR_TESTS, true);
+        try (ActivityScenario<MvmWallpaperActivity> scenario = ActivityScenario.launch(intent)) {
             onView(withText("WALLPAPER")).check(matches(isDisplayed()));
             onView(withText("MVMCMD  /  ORIGINAL WALLPAPERS")).check(matches(isDisplayed()));
             onView(withText("SET HOME WALLPAPER")).check(matches(isDisplayed()));
