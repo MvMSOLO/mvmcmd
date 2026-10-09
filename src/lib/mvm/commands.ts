@@ -206,6 +206,14 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "Tekshirilgan URL yoki deep linkni ochadi. Natija STARTED.",
   },
   {
+    name: "openfile",
+    aliases: ["open-file"],
+    hidden: true,
+    usage: "openfile <incoming-file-uri>",
+    summaryEn: "Hand a reviewed incoming file to the system handler.",
+    summaryUz: "Tekshirilgan kiruvchi faylni tizimdagi mos dasturga uzatadi.",
+  },
+  {
     name: "files",
     aliases: ["file", "storage", "large-files", "file-search"],
     usage: "files [storage|choose|list|find <text>|large <MB>|recent|media [type]|duplicates|downloads|documents|cleanup|share <uri>|copy <uri> <name>|move <uri> <name> confirm|delete <uri> confirm|zip <name.zip> <uri...>]",
