@@ -15,7 +15,7 @@ import {
   type CapabilityAction,
 } from "@/lib/mvm/capabilities";
 import { EMPTY, loadState, pushHistory, saveState } from "@/lib/mvm/persist";
-import { rememberActiveSessionTurn, resolveActiveSessionReference } from "@/lib/mvm/session-context";
+import { rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference } from "@/lib/mvm/session-context";
 import { detectRuntime } from "@/lib/mvm/platform";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
@@ -304,7 +304,8 @@ export function MvmShell() {
       const next = pushHistory(state, displayText);
       saveState(next);
       setState(next);
-      rememberActiveSessionTurn(displayText, undefined);
+      const turnId = rememberActiveSessionTurn(displayText, undefined);
+      rememberActiveSessionResult(displayText, [resolution.message ?? "ambiguous"], turnId, "ambiguous");
       append([makeLine("in", displayText), makeLine("warn", resolution.message ?? "This reference is ambiguous; no action was executed."), makeLine("dim", "Name the app or file explicitly, or run session to inspect current context.")]);
       setInput("");
       setHistIdx(-1);
@@ -318,10 +319,11 @@ export function MvmShell() {
     const parsed = parseLine(interpretedText);
 
     if (parsed.cmd && ["contact", "dial", "sms", "email", "copy", "paste"].includes(parsed.cmd.name)) {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "COMMUNICATION  tekshirilmoqda…" : "COMMUNICATION  checking…")]);
       emitMvmSignal("intent");
       void runCommunicationRequest({ state, lang }, parsed.cmd.name, parsed.args).then((ls) => {
+        rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
         append(ls);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
@@ -330,10 +332,11 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "perm") {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
       void runPermRequest({ state, lang }, parsed.args[0]).then((res) => {
+        rememberActiveSessionResult(text, res.lines.map((item) => item.text), sessionTurnId);
         setState(res.state);
         append(res.lines);
       });
@@ -342,10 +345,11 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "gaming") {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "GAMING  real telemetry o‘qilmoqda…" : "GAMING  reading real telemetry…")]);
       emitMvmSignal("intent");
       void runGamingRequest({ state, lang }, parsed.args.join(" ") || undefined).then((ls) => {
+        rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
         append(ls);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
@@ -354,10 +358,10 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "files") {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "FILES  scoped fayl amali ishga tushmoqda…" : "FILES  running scoped file operation…")]);
       emitMvmSignal("intent");
-      void runFileRequest(parsed.args, { state, lang }).then((ls) => {
+      void runFileRequest(parsed.args, { state, lang }, sessionTurnId).then((ls) => {
         append(ls);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
@@ -366,10 +370,11 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "device") {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text), makeLine("sys", lang === "uz" ? "DEVICE  native telemetry o‘qilmoqda…" : "DEVICE  reading native telemetry…")]);
       emitMvmSignal("intent");
       void runDeviceRequest({ state, lang }).then((ls) => {
+        rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
         append(ls);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
@@ -378,10 +383,10 @@ export function MvmShell() {
       return;
     }
     if (parsed.cmd?.name === "install") {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
-      void runInstall({ state, lang }).then((ls) => append(ls));
+      void runInstall({ state, lang }).then((ls) => { rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId); append(ls); });
       setInput("");
       setHistIdx(-1);
       return;
@@ -396,7 +401,7 @@ export function MvmShell() {
         : null;
 
     if (capabilityAction) {
-      const next = pushHistory(state, text); saveState(next); setState(next); rememberActiveSessionTurn(text, text);
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([
         makeLine("in", text),
         makeLine(
@@ -424,6 +429,7 @@ export function MvmShell() {
                   ? `${guard.snapshot.id.toUpperCase()} bu qurilmada mavjud emas.`
                   : `${guard.snapshot.id.toUpperCase()} is unavailable on this device.`;
 
+          rememberActiveSessionResult(text, ["FAILED " + statusLine], sessionTurnId);
           append([
             makeLine("warn", `CAPABILITY  ${guard.snapshot.id.toUpperCase()}`, {
               meta: guard.snapshot.state,
@@ -435,6 +441,7 @@ export function MvmShell() {
           return;
         }
 
+        rememberActiveSessionResult(text, ["CAPABILITY READY"], sessionTurnId);
         append([
           makeLine(
             "ok",
@@ -442,6 +449,7 @@ export function MvmShell() {
           ),
         ]);
       } catch (error) {
+        rememberActiveSessionResult(text, ["CAPABILITY FAILED"], sessionTurnId);
         append([
           makeLine(
             "warn",

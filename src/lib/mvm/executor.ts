@@ -32,7 +32,7 @@ import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import { copyText, lookupContact, openDialer, openEmailComposer, openSmsComposer, pasteText } from "./communication";
 import { runFileCommand } from "./file-intelligence";
-import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessionFileResults, rememberActiveSessionTurn, resolveActiveSessionReference } from "./session-context";
+import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessionFileResults, rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference } from "./session-context";
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -455,6 +455,7 @@ function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
         return {
           state: { ...state0, history: [] },
           lines: [line("ok", L(ctx2, "Joriy sessiya konteksti va buyruqlar tarixi tozalandi.", "Current session context and command history cleared."))],
+          clearLog: true,
         };
       }
       if (!["show", "status", "history"].includes(operation)) {
@@ -675,7 +676,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   if (resolution.status === "ambiguous") {
     const state = pushHistory(ctx.state, input);
     saveState(state);
-    rememberActiveSessionTurn(input, undefined);
+    const turnId = rememberActiveSessionTurn(input, undefined);
+    rememberActiveSessionResult(input, [resolution.message ?? "ambiguous"], turnId, "ambiguous");
     return {
       state,
       lines: [
@@ -690,6 +692,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   const parsed = parseLine(command);
   const operation = (parsed.args[0] ?? "").toLowerCase();
   const isSessionClear = parsed.cmd?.name === "session" && ["clear", "reset"].includes(operation);
+  const isSessionDisplay = parsed.cmd?.name === "session" && !isSessionClear;
   const isFullReset = parsed.cmd?.name === "reset";
   let state = result.state;
   if (isSessionClear) {
@@ -702,8 +705,9 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
   saveState(state);
 
-  if (!isSessionClear && !isFullReset) {
-    rememberActiveSessionTurn(input, command, result.launch ? { id: result.launch.id, name: result.launch.name } : undefined);
+  if (!isSessionClear && !isFullReset && !isSessionDisplay) {
+    const turnId = rememberActiveSessionTurn(input, command, result.launch ? { id: result.launch.id, name: result.launch.name } : undefined);
+    rememberActiveSessionResult(input, result.lines.map((item) => item.text), turnId);
   }
   return { ...result, state };
 }
@@ -987,15 +991,17 @@ export async function runInstall(ctx: ExecContext): Promise<LogLine[]> {
 
 export { line as makeLine };
 
-export async function runFileRequest(args: string[], ctx: ExecContext): Promise<LogLine[]> {
+export async function runFileRequest(args: string[], ctx: ExecContext, sessionTurnId?: number): Promise<LogLine[]> {
   try {
     const messages = await runFileCommand(args);
-    rememberActiveSessionFileResults("files " + args.join(" "), messages);
+    rememberActiveSessionFileResults("files " + args.join(" "), messages, sessionTurnId);
     return messages.map((message, index) => line(
       /FAILED|UNAVAILABLE|NEEDS_FOLDER|NEEDS_CONFIRMATION/.test(message) ? "warn" : index === 0 ? "sys" : "out",
       message,
     ));
   } catch (error) {
-    return [line("warn", L(ctx, "Fayl amali bajarilmadi; fayllar o‘zgartirilmadi.", "File operation failed; no files were changed."), { meta: error instanceof Error ? error.message : "unknown error" })];
+    const message = L(ctx, "Fayl amali bajarilmadi; fayllar o‘zgartirilmadi.", "File operation failed; no files were changed.");
+    rememberActiveSessionFileResults("files " + args.join(" "), [message + " FAILED"], sessionTurnId);
+    return [line("warn", message, { meta: error instanceof Error ? error.message : "unknown error" })];
   }
 }
