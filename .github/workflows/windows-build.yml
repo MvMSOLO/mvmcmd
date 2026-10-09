@@ -39,16 +39,7 @@ jobs:
       - name: Audit dependency health (critical vulnerabilities block release)
         shell: pwsh
         run: |
-          $PSNativeCommandUseErrorActionPreference = $false
-          $reportPath = Join-Path $env:RUNNER_TEMP "mvmcmd-npm-audit.json"
-          npm audit --json > $reportPath
-          $auditExit = $LASTEXITCODE
-          $report = Get-Content -Raw $reportPath | ConvertFrom-Json
-          $v = $report.metadata.vulnerabilities
-          if ($null -eq $v) { throw "Dependency audit produced no vulnerability summary (npm exit $auditExit)." }
-          Write-Host ("npm audit: info={0}, low={1}, moderate={2}, high={3}, critical={4}" -f $v.info,$v.low,$v.moderate,$v.high,$v.critical)
-          if ($v.critical -gt 0) { throw "CRITICAL dependency advisories block the release." }
-          if ($v.high -gt 0) { Write-Host "WARNING: High-severity dependency advisories remain; review npm audit details." }
+          node -e 'const { spawnSync } = require("node:child_process"); const r = spawnSync("npm", ["audit", "--json"], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024, shell: process.platform === "win32" }); let report; try { report = JSON.parse(r.stdout || ""); } catch { console.error("Dependency audit produced no valid JSON.", (r.stderr || r.error?.message || "").slice(0, 2000)); process.exit(1); } const v = report.metadata?.vulnerabilities; if (!v) { console.error("Dependency audit produced no vulnerability summary."); process.exit(1); } console.log("npm audit: " + JSON.stringify(v)); if ((v.critical || 0) > 0) { console.error("CRITICAL dependency advisories block the release."); process.exit(1); } if ((v.high || 0) > 0) console.log("WARNING: High-severity dependency advisories remain; inspect npm audit details."); if ((v.moderate || 0) > 0) console.log("NOTICE: Moderate dependency advisories remain; inspect npm audit details."); console.log("Dependency audit policy gate passed (no critical vulnerabilities).");'
 
       - name: Typecheck web application
         run: npm run typecheck
@@ -98,7 +89,7 @@ jobs:
           if (-not (Select-String -Path "desktop/main.cjs" -Pattern "assertTrustedIpcSender" -Quiet)) { throw "Electron IPC sender validation is missing" }
 
       - name: Run project tests
-        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts
 
       - name: Build web application
         run: npm run build
