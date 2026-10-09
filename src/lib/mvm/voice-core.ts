@@ -16,10 +16,17 @@ export function normalizeVoiceCommand(transcript: string): string {
 }
 
 export function classifyVoiceOutcome(messages: string[]): VoiceOutcomeStatus {
-  const joined = messages.join("\n");
-  if (/\b(?:FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI)\b/i.test(joined)) return "warning";
-  if (/\b(?:VERIFIED|READY|ACHIEVED|COMPLETED|COMPLETE)\b/i.test(joined)) return "verified";
-  if (/\b(?:STARTED|OPENED|INTENT)\b/i.test(joined)) return "started";
+  // Only accept a status token in a structured status line. Explanatory text such as
+  // "completion is not verified" must never turn STARTED into VERIFIED.
+  const hasExplicitState = (states: string) => messages.some((message) => {
+    const line = message.trim().toUpperCase();
+    const state = new RegExp("^(?:(?:[A-Z0-9_.-]+)(?:\\\\s+|$)){0,3}(?:" + states + ")\\\\b");
+    const labeledState = new RegExp("(?:·|:)\\\\s*(?:" + states + ")\\\\b");
+    return state.test(line) || labeledState.test(line);
+  });
+  if (hasExplicitState("FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI")) return "warning";
+  if (hasExplicitState("VERIFIED|READY|ACHIEVED|COMPLETED|COMPLETE")) return "verified";
+  if (hasExplicitState("STARTED|OPENED|INTENT")) return "started";
   return "response";
 }
 
