@@ -23,12 +23,18 @@ interface MvmFileToolsPlugin {
   chooseFolder(): Promise<{ granted: boolean; uri?: string; name?: string; cancelled?: boolean }>;
   listFolder(options: { uri: string; query?: string; minBytes?: number; limit?: number }): Promise<{ items: Array<{ id: string; name: string; uri: string; mimeType: string; sizeBytes?: number; modifiedAt?: number; isDirectory: boolean }>; scanned: number; truncated: boolean }>;
   shareFile(options: { uri: string }): Promise<{ started: boolean; reason?: string }>;
+  copyMoveFile(options: { sourceUri: string; destinationTreeUri: string; name: string; move: boolean }): Promise<{ status: string; uri?: string; message: string }>;
+  deleteFile(options: { uri: string; confirmed: boolean }): Promise<{ deleted: boolean; message: string }>;
+  createArchive(options: { treeUri: string; name: string; uris: string[] }): Promise<{ created: boolean; uri?: string; message: string }>;
 }
 const NativeFileTools = registerPlugin<MvmFileToolsPlugin>("MvmFileTools");
 export async function nativeGetStorageOverview() { return NativeFileTools.getStorageOverview(); }
 export async function nativeChooseFolder() { return NativeFileTools.chooseFolder(); }
 export async function nativeListFolder(options: { uri: string; query?: string; minBytes?: number; limit?: number }) { return NativeFileTools.listFolder(options); }
 export async function nativeShareFile(uri: string) { return NativeFileTools.shareFile({ uri }); }
+export async function nativeCopyMoveFile(sourceUri: string, destinationTreeUri: string, name: string, move = false) { return NativeFileTools.copyMoveFile({ sourceUri, destinationTreeUri, name, move }); }
+export async function nativeDeleteFile(uri: string, confirmed: boolean) { return NativeFileTools.deleteFile({ uri, confirmed }); }
+export async function nativeCreateArchive(treeUri: string, name: string, uris: string[]) { return NativeFileTools.createArchive({ treeUri, name, uris }); }
 
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
