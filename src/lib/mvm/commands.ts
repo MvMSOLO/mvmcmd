@@ -199,6 +199,13 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "Tekshirilgan URL yoki deep linkni ochadi. Natija STARTED.",
   },
   {
+    name: "files",
+    aliases: ["file", "storage", "large-files", "file-search"],
+    usage: "files [storage|choose|list|find <text>|large <MB>|recent|media]",
+    summaryEn: "Inspect storage and search files only inside a folder explicitly selected through Android scoped access.",
+    summaryUz: "Xotira va fayllarni faqat Android ruxsat bergan tanlangan papka ichida tekshiradi.",
+  },
+  {
     name: "device",
     aliases: ["hardware", "monitor", "device-info"],
     usage: "device",
