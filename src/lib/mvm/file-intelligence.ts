@@ -22,6 +22,9 @@ interface NativeFileToolsPlugin {
   chooseFolder(): Promise<{ granted: boolean; uri?: string; name?: string; cancelled?: boolean }>;
   listFolder(options: { uri: string; query?: string; minBytes?: number; limit?: number }): Promise<{ items: FileEntry[]; scanned: number; truncated: boolean }>;
   shareFile(options: { uri: string }): Promise<{ started: boolean; reason?: string }>;
+  copyMoveFile(options: { sourceUri: string; destinationTreeUri: string; name: string; move: boolean }): Promise<{ status: string; uri?: string; message: string }>;
+  deleteFile(options: { uri: string; confirmed: boolean }): Promise<{ deleted: boolean; message: string }>;
+  createArchive(options: { treeUri: string; name: string; uris: string[] }): Promise<{ created: boolean; uri?: string; message: string }>;
 }
 const NativeFiles = registerPlugin<NativeFileToolsPlugin>("MvmFileTools");
 const nativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
@@ -85,6 +88,27 @@ export async function listFolder(uri: string, options: { query?: string; minByte
   } catch (e) {
     return { status: "failed", message: "Scoped folder scan failed; no files were changed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
   }
+}
+export async function copyMoveScopedFile(sourceUri: string, destinationTreeUri: string, name: string, move = false): Promise<FileUtilityResult> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "Scoped file copy/move requires Android.", verified: false };
+  if (!sourceUri.startsWith("content://") || !destinationTreeUri.startsWith("content://") || !name.trim() || /[\\/\\0]/.test(name)) return { status: "failed", message: "Source, destination and a safe filename are required.", verified: false };
+  try {
+    const r = await NativeFiles.copyMoveFile({ sourceUri, destinationTreeUri, name: name.trim(), move });
+    return r.status === "verified" ? { status: "verified", message: r.message, verified: true, items: r.uri ? [{id:r.uri,uri:r.uri,name:name.trim(),mimeType:"application/octet-stream",isDirectory:false}] : [] } : { status: "failed", message: r.message, verified: false };
+  } catch (e) { return { status: "failed", message: "Copy/move failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
+}
+export async function deleteScopedFile(uri: string, confirmed: boolean): Promise<FileUtilityResult> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "Scoped deletion requires Android.", verified: false };
+  if (!confirmed) return { status: "needs_confirmation", message: "Deletion requires explicit confirmation.", verified: false };
+  if (!uri.startsWith("content://")) return { status: "failed", message: "Only a scoped content URI can be deleted.", verified: false };
+  try { const r = await NativeFiles.deleteFile({ uri, confirmed }); return r.deleted ? { status: "verified", message: r.message, verified: true } : { status: "failed", message: r.message, verified: false }; }
+  catch (e) { return { status: "failed", message: "Delete failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
+}
+export async function createScopedArchive(treeUri: string, name: string, uris: string[]): Promise<FileUtilityResult> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "ZIP creation requires Android.", verified: false };
+  if (!treeUri.startsWith("content://") || !/^[a-zA-Z0-9 _.-]{1,80}\\.zip$/i.test(name) || uris.length === 0 || uris.some((uri) => !uri.startsWith("content://"))) return { status: "failed", message: "Choose a destination and at least one scoped file; use a safe .zip name.", verified: false };
+  try { const r = await NativeFiles.createArchive({ treeUri, name, uris }); return r.created ? { status: "verified", message: r.message, verified: true, items: r.uri ? [{id:r.uri,uri:r.uri,name,mimeType:"application/zip",isDirectory:false}] : [] } : { status: "failed", message: r.message, verified: false }; }
+  catch (e) { return { status: "failed", message: "ZIP creation failed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" }; }
 }
 export async function shareScopedFile(uri: string): Promise<FileUtilityResult> {
   if (!nativeAndroid()) return { status: "unavailable", message: "Scoped file sharing requires Android.", verified: false };
