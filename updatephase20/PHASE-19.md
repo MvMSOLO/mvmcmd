@@ -1,59 +1,57 @@
 # Phase 19 — Hardening, Security, Performance & Massive Testing
 
 ## Status
-COMPLETED — automated CI/release-hardening scope. Physical-device and battery-impact follow-ups remain open and are not represented as passed.
+
+**AUTOMATED RELEASE-HARDENING SCOPE: COMPLETED. PHYSICAL-DEVICE SIGN-OFF: OPEN.**
+
+Phase 19 is not represented as fully field-validated until OEM permission/background behavior and battery/thermal measurements are actually recorded. The reproducible device checklist is [PHASE-19-DEVICE-VALIDATION.md](PHASE-19-DEVICE-VALIDATION.md).
 
 ## Goal
-Turn the feature-complete product into a release-quality system.
 
-## Security
-- Minimize permissions.
-- Validate all external inputs.
-- Sanitize deep links and file paths.
-- Scope file grants.
-- Avoid accidental data disclosure in logs.
-- Protect sensitive session state.
-- Review exported Android components.
-- Audit notification and overlay behavior.
-- Verify third-party dependency health.
+Make the feature-complete application verifiable and release-ready without inventing successful outcomes, device measurements, FPS, memory usage, or battery data.
 
-## Testing
-- Unit tests.
-- Parser/property tests.
-- Action lifecycle tests.
-- Task-plan tests.
-- Native bridge tests.
-- Android integration tests.
-- Permission-state matrix.
-- OEM/API compatibility matrix.
-- Desktop smoke tests.
-- Regression tests for camera, QR, wallpaper, notification and English Lab.
-- APK install/launch smoke test.
-- EXE launch smoke test.
+## Implemented automated coverage
 
-## Performance
-Define budgets for startup, command parsing, UI interaction, memory, battery impact and 3D rendering. Measure instead of guessing.
+- Command parser alias, malformed-input, multilingual-input, and deterministic stress regression tests.
+- Action lifecycle, goal/task planning, app bridge, session privacy, permission/capability state, URI allowlisting, ZIP/path validation, IPC sender trust and performance-budget contract tests.
+- Android instrumentation tests that exercise main launch, camera controls, QR scanner UI/image fallback, native wallpaper actions, English adaptive XP, English Studio grammar correction, notification demo/clear, and activity launch.
+- Android APK assembly, APK integrity verification, exact 17-wallpaper payload SHA-256 checks, emulator install/launch and isolated UI instrumentation.
+- Windows portable EXE build, package verification, launch smoke, final success gate and artifact upload.
+- Dependency-audit gate blocks critical advisories; code remains transparent about moderate advisories.
+- Emulator KVM setup and bounded per-test instrumentation were added to reduce emulator start-up, animation and timeout instability.
 
-## Acceptance
-- No known critical security defect.
-- No known data-loss path.
-- Core flows pass regression matrix.
-- Performance budgets are measured.
-- APK and EXE release candidates build successfully.
+## Validated release-candidate evidence
 
-## Dependencies
-All previous phases.
+Validated commit: [86df9129d0c981a48dc70834b6977ea7a99b020b](https://github.com/MvMSOLO/mvmcmd/commit/86df9129d0c981a48dc70834b6977ea7a99b020b).
 
-## Implementation checkpoint — 2026-10-09
+- **Android APK — SUCCESS:** [GitHub Actions run 37948025991](https://github.com/MvMSOLO/mvmcmd/actions/runs/37948025991). The Node test suite reported 99 passed, 0 failed. Isolated Android instrumentation flows, APK verification, 17-wallpaper integrity verification, emulator install/launch smoke, final success gate and upload completed successfully. Artifact: [mvmcmd-debug-apk-706](https://api.github.com/repos/MvMSOLO/mvmcmd/actions/artifacts/11624923137/zip), archive size 22,291,886 bytes.
+- **Windows EXE — SUCCESS:** [GitHub Actions run 37948026013](https://github.com/MvMSOLO/mvmcmd/actions/runs/37948026013). The Node test suite reported 99 passed, 0 failed. EXE verification, packaged launch smoke, final success gate and artifact upload completed successfully. Artifact: [mvmcmd-windows-exe-424](https://api.github.com/repos/MvMSOLO/mvmcmd/actions/artifacts/11624922817/zip), archive size 133,930,272 bytes.
+- The added Android instrumentation suite contains 10 focused MVMCMD UI-flow tests plus the application package-ID check. These tests pass in the isolated emulator workflow; this is stronger than only checking that an Activity starts, but it is not a substitute for real hardware coverage.
 
-Validated code/workflow revision: [4dd064d41f507f2bc3eb6d1d8cf945fc7f7e340d](https://github.com/MvMSOLO/mvmcmd/commit/4dd064d41f507f2bc3eb6d1d8cf945fc7f7e340d).
+## Dependency audit result and limitation
 
-- Android APK workflow: [run 37931180964 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37931180964). The 99-test suite passed (0 failures), APK verification passed, all 17 packaged wallpaper PNGs passed integrity checks, and Android emulator install/launch smoke passed. Artifact: [mvmcmd-debug-apk-686](https://api.github.com/repos/MvMSOLO/mvmcmd/actions/artifacts/11616510918), 22,291,929 bytes.
-- Windows EXE workflow: [run 37931180716 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37931180716). The 99-test suite passed (0 failures), EXE verification and packaged launch smoke passed, and the artifact uploaded. Artifact: [mvmcmd-windows-exe-404](https://api.github.com/repos/MvMSOLO/mvmcmd/actions/artifacts/11617130526), 133,933,294 bytes for the artifact archive.
-- Parser regression coverage now includes deterministic stress cases; gaming-engine tests run in both CI workflows. The tests caught and corrected inconsistent bare command aliases, a Node 22 TypeScript import path, and a gaming-session duration fixture.
-- Android CI explicitly configures KVM permissions and a longer emulator smoke window to keep install/launch validation reliable.
-- Security gates passed for URI allowlisting, ZIP entry/path validation, trusted Electron IPC senders, disabled Android backup, scoped file grants, session privacy boundaries, and performance-budget contracts.
+On the validated revision, `npm audit` reported **0 low, 7 moderate, 0 high and 0 critical** advisories. The remaining advisories are in the Electron Builder/build-tool dependency chain (including `@electron/get`, `app-builder-lib`, `dmg-builder`, `global-agent`, `roarr`, and `sprintf-js`). The [CVE-2026-97058 advisory for sprintf-js](https://github.com/advisories/ghsa-hp3w-g68c-fv3c) currently lists no patched version. Downgrading Electron Builder to 26.5.0 caused the audit to report a critical `tar` advisory, so that downgrade was rejected and the compatible 26.17.0 line was restored. The build gate passes because no critical or high advisories were reported, **not because the dependency tree is vulnerability-free**. Revisit the residual moderate build-tool advisories as upstream patches become available.
 
-### Open limitations
+## Performance facts
 
-The dependency audit reports 0 critical, 0 high, and 10 moderate advisories. CI intentionally blocks critical advisories, so “policy gate passed” does not mean “zero advisories.” Physical-device OEM testing and battery-drain measurement remain unperformed; the runtime does not invent battery-drain figures. Emulator launch smoke verifies app install/start, not every camera, QR, notification or English Lab workflow on physical hardware. Complete those device-level checks before treating the product as fully field-validated.
+The code records real renderer-mount time, sampled frame delivery where available, heap usage when the runtime exposes it, and command-parse/routing duration. Unit tests cover performance budget contracts. CI does **not** claim that those contracts constitute a measured real-device battery, thermal, memory, or sustained 3D-performance benchmark.
+
+## Acceptance ledger
+
+| Requirement | Result |
+|---|---|
+| 99-test Node regression suite | PASS, 99/99 on Android and Windows |
+| Focused Android instrumentation flows | PASS in CI emulator |
+| APK generation and verification | PASS |
+| 17 original wallpaper payload hashes | PASS |
+| Android emulator install/launch smoke | PASS |
+| Windows EXE packaging and launch smoke | PASS |
+| Final success gates and artifact uploads | PASS |
+| Critical/high dependency advisories on validated run | 0 critical / 0 high; 7 moderate remain |
+| Samsung / Xiaomi / Redmi / POCO / Pixel physical-device matrix | OPEN — no physical-device session available in CI |
+| Battery-drain and thermal measurement | OPEN — not measured; no values are inferred |
+| OEM restricted-permission/background-kill behavior | OPEN — requires real-device validation |
+
+## Remaining Phase 19 work
+
+Use [PHASE-19-DEVICE-VALIDATION.md](PHASE-19-DEVICE-VALIDATION.md) to record actual device/firmware evidence and repeatable baseline-versus-app battery measurements. Do not advance Phase 20 or mark overall field validation complete until that checklist is run on devices. The CI automation work itself is completed on the commit and Actions runs linked above.
