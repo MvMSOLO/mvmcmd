@@ -31,6 +31,7 @@ import { runAppBridge } from "./app-bridge";
 import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import { copyText, lookupContact, openDialer, openEmailComposer, openSmsComposer, pasteText } from "./communication";
+import { runFileCommand } from "./file-intelligence";
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 
@@ -931,3 +932,15 @@ export async function runInstall(ctx: ExecContext): Promise<LogLine[]> {
 }
 
 export { line as makeLine };
+
+export async function runFileRequest(args: string[], ctx: ExecContext): Promise<LogLine[]> {
+  try {
+    const messages = await runFileCommand(args);
+    return messages.map((message, index) => line(
+      /FAILED|UNAVAILABLE|NEEDS_FOLDER/.test(message) ? "warn" : index === 0 ? "sys" : "out",
+      message,
+    ));
+  } catch (error) {
+    return [line("warn", L(ctx, "Fayl amali bajarilmadi; fayllar o‘zgartirilmadi.", "File operation failed; no files were changed."), { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}
