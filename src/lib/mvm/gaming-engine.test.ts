@@ -32,6 +32,6 @@ test("computes measurable before/after deltas without fabricating values", () =>
 });
 
 
-test("gaming sessions preserve measured before/after telemetry",()=>{const before=base;const session=startGamingSession(before,{name:"Test Game",platform:"android",confidence:"explicit"});const report=finishGamingSession(session,{...base,timestamp:61000,cpuLoadPercent:55});assert.equal(report.durationMs,60000);assert.equal(report.delta.cpuDeltaPercent,15);assert.equal(report.session.game?.name,"Test Game");});
+test("gaming sessions preserve measured before/after telemetry",()=>{const before=base;const session=startGamingSession(before,{name:"Test Game",platform:"android",confidence:"explicit"});const report=finishGamingSession(session,{...base,timestamp:60001,cpuLoadPercent:55});assert.equal(report.durationMs,60000);assert.equal(report.delta.cpuDeltaPercent,15);assert.equal(report.session.game?.name,"Test Game");});
 
 test("gaming session reports never invent FPS",()=>{const report=finishGamingSession(startGamingSession(base),{...base,timestamp:2});assert.match(formatGamingSessionReport(report).find(x=>x.startsWith("FPS"))??"",/NOT VERIFIED/);});
