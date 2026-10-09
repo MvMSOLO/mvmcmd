@@ -78,7 +78,7 @@ public final class MvmQrActivity extends AppCompatActivity {
 
         MvmUiKit.applyWindow(this);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
-        disableScannerForTests = BuildConfig.DEBUG
+        disableScannerForTests = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
                 && getIntent().getBooleanExtra(EXTRA_DISABLE_SCANNER_FOR_TESTS, false);
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
