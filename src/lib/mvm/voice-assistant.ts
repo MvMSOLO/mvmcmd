@@ -53,7 +53,7 @@ function recognitionErrorMessage(code?: string): string {
   }
 }
 
-export async function startVoiceCapture(locale: string): Promise<string> {
+export async function startVoiceCapture(locale: string, isCancelled: () => boolean = () => false): Promise<string> {
   if (canUseNativeAndroidLauncher()) {
     const capability = await ensureCapability("microphone");
     if (!capability.ok) {
@@ -61,6 +61,7 @@ export async function startVoiceCapture(locale: string): Promise<string> {
       if (capability.reason === "settings") throw new Error("Enable microphone access in Android Settings, then return and retry.");
       throw new Error(capability.detail || "Microphone capability is unavailable on this device.");
     }
+    if (isCancelled()) throw new Error("Voice input was cancelled.");
     const result = await nativeStartVoiceRecognition(locale);
     return result.cancelled ? "" : normalizeVoiceCommand(result.transcript ?? "");
   }
@@ -70,6 +71,7 @@ export async function startVoiceCapture(locale: string): Promise<string> {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone access is unavailable in this browser. Type the command instead.");
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   stream.getTracks().forEach((track) => track.stop());
+  if (isCancelled()) throw new Error("Voice input was cancelled.");
 
   return await new Promise<string>((resolve, reject) => {
     const recognition = new Recognition();

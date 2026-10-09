@@ -308,8 +308,13 @@ export function MvmShell() {
 
   async function handleVoiceClick() {
     if (voiceListening) {
-      setVoiceStatus(lang === "uz" ? "Nutq yakunlanmoqda…" : "Finishing speech recognition…");
-      void stopVoiceCapture(false);
+      // Invalidate pending async permission checks as well as an active recognizer.
+      voiceRequestRef.current += 1;
+      voicePendingRef.current = false;
+      void cancelVoiceCapture();
+      cancelVoiceSpeech();
+      setVoiceListening(false);
+      setVoiceStatus(lang === "uz" ? "Ovoz kiritish bekor qilindi." : "Voice input cancelled.");
       return;
     }
     const requestId = voiceRequestRef.current + 1;
@@ -317,7 +322,7 @@ export function MvmShell() {
     setVoiceListening(true);
     setVoiceStatus(lang === "uz" ? "Mikrofon tayyorlanmoqda…" : "Preparing microphone…");
     try {
-      const transcript = await startVoiceCapture(lang === "uz" ? "uz-UZ" : "en-US");
+      const transcript = await startVoiceCapture(lang === "uz" ? "uz-UZ" : "en-US", () => requestId !== voiceRequestRef.current);
       if (requestId !== voiceRequestRef.current) return;
       if (!transcript) {
         setVoiceStatus(lang === "uz" ? "Nutq aniqlanmadi. Qayta urinib ko‘ring yoki yozing." : "No speech detected. Try again or type the command.");
@@ -942,13 +947,13 @@ export function MvmShell() {
             type="button"
             aria-label={voiceListening ? (lang === "uz" ? "Ovozni tugatish" : "Finish voice input") : (lang === "uz" ? "Ovoz bilan buyruq kiritish" : "Enter command by voice")}
             aria-pressed={voiceListening}
-            title={voiceListening ? (lang === "uz" ? "Nutqni yakunlash (Esc bekor qiladi)" : "Finish recognition (Esc cancels)") : (lang === "uz" ? "Push-to-talk" : "Push to talk")}
+            title={voiceListening ? (lang === "uz" ? "Ovoz kiritishni bekor qilish" : "Cancel voice input") : (lang === "uz" ? "Push-to-talk" : "Push to talk")}
             disabled={!isVoiceCaptureSupported()}
             onClick={() => void handleVoiceClick()}
             className={cn("mvm-neumorphic-control inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-line px-3 py-2.5 font-mono text-[10px] tracking-wide transition-colors", voiceListening ? "border-accent bg-accent/10 text-accent" : "bg-surface text-muted hover:border-line-strong hover:text-fg", !isVoiceCaptureSupported() && "cursor-not-allowed opacity-40")}
           >
             {voiceListening ? <MicOff size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" /> }
-            <span>{voiceListening ? "STOP" : "VOICE"}</span>
+            <span>{voiceListening ? "CANCEL" : "VOICE"}</span>
           </button>
           <button
             type="submit"
