@@ -301,37 +301,7 @@ jobs:
           profile: pixel_2
           emulator-boot-timeout: 600
           disable-animations: true
-          script: |
-            echo "SMOKE: waiting for emulator device"
-            timeout 30s adb wait-for-device
-            echo "SMOKE: checking Android boot completion"
-            test "$(timeout 15s adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
-            echo "SMOKE: emulator booted; installing APK"
-            timeout 180s adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            smoke_activity() {
-              local component="$1"
-              local class_name="${component##*/}"
-              echo "SMOKE: launching ${class_name}"
-              timeout 90s adb shell am start -W -n "${component}"
-              sleep 2
-              local activity_dump
-              activity_dump="$(timeout 30s adb shell dumpsys activity activities | tr -d '\r')"
-              echo "${activity_dump}" | grep -F "${class_name}" >/dev/null
-              test -n "$(timeout 30s adb shell pidof com.mvmcmd.launcher | tr -d '\r')"
-              echo "SMOKE: ${class_name} remained in the activity stack and app process is alive"
-              timeout 30s adb shell am force-stop com.mvmcmd.launcher
-            }
-
-            smoke_activity "com.mvmcmd.launcher/.MainActivity"
-            # These are native UI/activity launch checks, not claims that hardware
-            # capture, QR decoding, speech recognition, or real-device permissions
-            # were fully exercised by the emulator.
-            smoke_activity "com.mvmcmd.launcher/.MvmCameraActivity"
-            smoke_activity "com.mvmcmd.launcher/.MvmQrActivity"
-            smoke_activity "com.mvmcmd.launcher/.MvmEnglishActivity"
-            smoke_activity "com.mvmcmd.launcher/.MvmEnglishStudioActivity"
-            smoke_activity "com.mvmcmd.launcher/.MvmNotificationCenterActivity"
-            echo "Android emulator core-surface install/launch smoke passed."
+          script: bash .github/scripts/android-emulator-smoke.sh
 
       - name: Final success gate
         if: ${{ success() }}
