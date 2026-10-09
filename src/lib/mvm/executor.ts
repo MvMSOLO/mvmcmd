@@ -918,7 +918,7 @@ export async function runPermRequest(
           lines: [
             line(
               "warn",
-              `CAPABILITY  ${requestedCapability.toUpperCase()}  ERROR`,
+              `CAPABILITY  ${normalizedCapability.toUpperCase()}  ERROR`,
               { meta: error instanceof Error ? error.message : "request failed" },
             ),
           ],
