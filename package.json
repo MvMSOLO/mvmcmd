@@ -97,7 +97,7 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.2.0",
-    "electron-builder": "26.17.0"
+    "electron-builder": "26.5.0"
   },
   "version": "1.0.0",
   "main": "desktop/main.cjs",
