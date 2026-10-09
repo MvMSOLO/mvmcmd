@@ -166,9 +166,11 @@ test("core Android feature entry points remain registered and app-private activi
   const manifest = readFileSync(resolve(root, "android/app/src/main/AndroidManifest.xml"), "utf8");
   const launcher = readFileSync(resolve(root, "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"), "utf8");
   for (const activity of ["MvmCameraActivity", "MvmQrActivity", "MvmWallpaperActivity", "MvmEnglishActivity", "MvmEnglishStudioActivity", "MvmNotificationCenterActivity"]) {
-    assert.match(manifest, new RegExp('android:name=".' + activity + '"[^>]*android:exported="false"'));
+    const tag = manifest.split("<activity").find((part) => part.includes('android:name=".') && part.includes(activity));
+    assert.ok(tag, activity + " must be registered");
+    assert.match(tag.slice(0, tag.indexOf(">")), /android:exported="false"/, activity + " must stay private");
   }
   for (const method of ["openCamera", "openQr", "openWallpaper", "openEnglish", "openNotifications", "openIncomingFile", "openUrl"]) {
-    assert.ok(launcher.includes("public void " + method + "("), method);
+    assert.ok(launcher.includes("public void " + method + "("), method + " native entry point must exist");
   }
 });
