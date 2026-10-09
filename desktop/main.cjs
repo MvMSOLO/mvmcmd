@@ -4,12 +4,14 @@ const http = require("node:http");
 const path = require("node:path");
 const { URL, pathToFileURL, fileURLToPath } = require("node:url");
 const crypto = require("node:crypto");
+const { getSafeLocalFilePath, isSafeExternalWebUrl, isTrustedRenderer } = require("./security.cjs");
 
 let server = null;
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 let pendingEntries = [];
+let localOrigin = null;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 if (hasSingleInstanceLock) {
@@ -38,7 +40,7 @@ function parseProtocolEntry(rawUrl) {
 }
 function makeFileEntry(inputPath) {
   try {
-    const resolved=path.resolve(inputPath), ext=path.extname(resolved).toLowerCase();
+      const resolved=fs.realpathSync(path.resolve(inputPath)), ext=path.extname(resolved).toLowerCase();
     if(!INCOMING_EXTENSIONS.has(ext)||!fs.existsSync(resolved)||!fs.statSync(resolved).isFile())return null;
     return {available:true,id:"desktop-"+Date.now()+"-"+crypto.randomUUID(),source:"desktop",kind:"open-file",action:"open-file",uri:pathToFileURL(resolved).href,displayName:path.basename(resolved).slice(0,180),mimeType:mimeForFile(resolved)};
   } catch { return null; }
@@ -48,18 +50,23 @@ function handleLaunchArgument(arg) {
   if(/^mvmcmd:\/\//i.test(arg)){const entry=parseProtocolEntry(arg);if(entry)queueEntry(entry);return Boolean(entry);}
   const entry=makeFileEntry(arg);if(entry)queueEntry(entry);return Boolean(entry);
 }
-ipcMain.handle("mvmcmd:entry:get",()=>pendingEntries[0]||null);
-ipcMain.handle("mvmcmd:entry:acknowledge",(_event,id)=>{const count=pendingEntries.length;pendingEntries=pendingEntries.filter(entry=>entry.id!==id);return{acknowledged:pendingEntries.length<count};});
-ipcMain.handle("mvmcmd:file:open",async(_event,uri)=>{
+function assertTrustedIpcSender(event) {
+  if (!isTrustedRenderer(event, mainWindow, localOrigin)) throw new Error("Untrusted renderer origin.");
+}
+ipcMain.handle("mvmcmd:entry:get",(event)=>{ assertTrustedIpcSender(event); return pendingEntries[0]||null; });
+ipcMain.handle("mvmcmd:entry:acknowledge",(event,id)=>{
+  assertTrustedIpcSender(event);
+  if (typeof id !== "string" || id.length < 1 || id.length > 128) return { acknowledged:false };
+  const count=pendingEntries.length; pendingEntries=pendingEntries.filter(entry=>entry.id!==id); return { acknowledged:pendingEntries.length<count };
+});
+ipcMain.handle("mvmcmd:file:open",async(event,uri)=>{
+  if (!isTrustedRenderer(event, mainWindow, localOrigin)) return {opened:false,reason:"Untrusted renderer origin."};
   try {
-    if(typeof uri!=="string"||uri.length>2048)return{opened:false,reason:"invalid file URL"};
-    const parsed=new URL(uri);if(parsed.protocol!=="file:"||parsed.host)return{opened:false,reason:"only local file URLs are supported"};
-    const target=path.resolve(fileURLToPath(parsed));
-    if(!INCOMING_EXTENSIONS.has(path.extname(target).toLowerCase()))return{opened:false,reason:"unsupported file type"};
-    if(!fs.existsSync(target)||!fs.statSync(target).isFile())return{opened:false,reason:"file not found"};
+    const target=getSafeLocalFilePath(uri,{allowedExtensions:INCOMING_EXTENSIONS});
+    if (!target) return {opened:false,reason:"File URL is invalid, unsupported, inaccessible, or outside the allowed local-file policy."};
     const err=await shell.openPath(target);
-    return err?{opened:false,reason:err}:{opened:true,reason:"system handler accepted request; external handling is not verified"};
-  } catch(error) { return {opened:false,reason:error instanceof Error?error.message:"file handoff failed"}; }
+    return err?{opened:false,reason:"The system could not open this file."}:{opened:true,reason:"system handler accepted request; external handling is not verified"};
+  } catch { return {opened:false,reason:"File handoff failed."}; }
 });
 app.on("open-url",(event,url)=>{event.preventDefault();handleLaunchArgument(url);if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}});
 app.on("open-file",(event,file)=>{event.preventDefault();handleLaunchArgument(file);if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}});
@@ -128,6 +135,9 @@ function startStaticServer() {
         res.end("Internal server error");
       });
       res.writeHead(200, {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "no-referrer",
         "Content-Type": mimeType(servePath),
         "Cache-Control": servePath.endsWith("index.html")
           ? "no-cache"
@@ -149,6 +159,7 @@ function startStaticServer() {
         reject(new Error("Could not determine local server port."));
         return;
       }
+      localOrigin = `http://127.0.0.1:${address.port}`;
       resolve(address.port);
     });
   });
@@ -169,22 +180,25 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
       preload: path.join(__dirname, "preload.cjs"),
       spellcheck: true,
     },
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/i.test(url)) {
-      void shell.openExternal(url);
-    }
+    if (isSafeExternalWebUrl(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith("http://127.0.0.1:")) {
+    let trusted = false;
+    try { trusted = Boolean(localOrigin) && new URL(url).origin === localOrigin; } catch { trusted = false; }
+    if (!trusted) {
       event.preventDefault();
-      if (/^https?:/i.test(url)) void shell.openExternal(url);
+      if (isSafeExternalWebUrl(url)) void shell.openExternal(url);
     }
   });
 

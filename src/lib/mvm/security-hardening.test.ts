@@ -103,3 +103,20 @@ test("external-entry normalizer rejects control chars, malformed links and overs
   assert.equal(normalizeGlobalEntry({available:true,id:"3",source:"android",kind:"share-text",text:"x".repeat(5000)}), undefined);
   assert.equal(normalizeGlobalEntry({available:true,id:"4",source:"android",kind:"share-text",text:"ok\u0000hidden"}), undefined);
 });
+
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const desktopSecurity = require("../../../desktop/security.cjs");
+
+test("desktop security helpers restrict origins, protocols and local file paths", () => {
+  assert.equal(desktopSecurity.isTrustedLocalOrigin("http://127.0.0.1:8123/", "http://127.0.0.1:8123"), true);
+  assert.equal(desktopSecurity.isTrustedLocalOrigin("http://127.0.0.1:8124/", "http://127.0.0.1:8123"), false);
+  assert.equal(desktopSecurity.isTrustedLocalOrigin("https://127.0.0.1:8123/", "http://127.0.0.1:8123"), false);
+  assert.equal(desktopSecurity.isSafeExternalWebUrl("https://example.com/path"), true);
+  assert.equal(desktopSecurity.isSafeExternalWebUrl("javascript:alert(1)"), false);
+  assert.equal(desktopSecurity.isSafeExternalWebUrl("https://user:password@example.com"), false);
+  assert.equal(desktopSecurity.isSafeLocalFileUrl("file:///C:/Users/demo/report.pdf"), true);
+  assert.equal(desktopSecurity.isSafeLocalFileUrl("file://remotehost/share/report.pdf"), false);
+  assert.equal(desktopSecurity.isSafeLocalFileUrl("file:///C:/Users/demo/../Windows/System32/secret.pdf"), false);
+  assert.equal(desktopSecurity.isSafeLocalFileUrl("file:///C:/Windows/System32/config.pdf"), false);
+});
