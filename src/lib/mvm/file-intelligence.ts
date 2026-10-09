@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { nativeCopyMoveFile, nativeDeleteFile, nativeCreateArchive } from "./native-launcher";
 
 export type FileUtilityStatus = "verified" | "started" | "unavailable" | "failed" | "needs_confirmation";
 export interface FileEntry {
