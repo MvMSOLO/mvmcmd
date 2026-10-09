@@ -1,7 +1,7 @@
 # Phase 13 — Device Utility & File Intelligence
 
 ## Status
-PLANNED.
+IN_PROGRESS — native scoped-storage implementation and CI verification pending.
 
 ## Goal
 Make MVM CMD useful for everyday device maintenance and file tasks while respecting Android storage boundaries.
