@@ -1,7 +1,7 @@
 # Phase 16 — Global Entry Points
 
 ## Status
-PLANNED.
+IMPLEMENTED — Android shortcuts and intent intake, review-before-Launch staging, desktop protocol links, tray and global shortcut are wired. APK/EXE CI verification is required before closure.
 
 ## Goal
 Make MVM CMD reachable from useful Android and desktop entry points without duplicating command logic.
