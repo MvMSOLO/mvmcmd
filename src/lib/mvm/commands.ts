@@ -1,5 +1,5 @@
 import type { CommandSpec } from "./types";
-import { normalizeCommandHead } from "./compatibility";
+import { normalizeCommandHead } from "./compatibility.ts";
 
 export const COMMANDS: CommandSpec[] = [
   {
