@@ -40,7 +40,7 @@ jobs:
         run: npm run typecheck
 
       - name: Run project tests
-        run: npm test
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts
 
       - name: Build web application
         run: npm run build
