@@ -1,7 +1,7 @@
 # Phase 14 — Context, Session Memory & Conversation
 
 ## Status
-IN PROGRESS — result-classification false positives and continuation/privacy edge cases are being tightened; final APK/EXE CI validation pending.
+COMPLETED — implementation, focused tests, TypeScript validation, Android APK build and Windows EXE build succeeded on validated code commit `2763a04223415c6c786c6ad1f3252092dbb59ecd`.
 
 ## Goal
 Allow MVM CMD to understand short conversational references without turning memory into uncontrolled data collection.
@@ -38,17 +38,17 @@ Phases 4, 7, 8, 10 and 13.
 - Focused automated coverage is in src/lib/mvm/session-context.test.ts.
 
 ## Final acceptance and CI evidence
-- Session commands support safe repeat requests and a uniquely remembered app reference. File references resolve only after a single URI is found by a read-only scoped file query; no destructive or communication command is automatically replayed.
-- Each newer command advances an in-memory turn token. Late async results are ignored if they belong to an older turn, including after session clear.
-- The session / context command shows the current command, a content-free result status, app/file reference availability and the repeat guard. Session clear also clears the visible command log.
-- Private communication commands, email addresses, phone-like values, secret-bearing text, and file/content URIs are not retained as last-command text. Result summaries never store raw tool output.
-- Persisted browser state always writes an empty command history; loading legacy state immediately rewrites it without the old history.
-- Focused tests: 9 cases in src/lib/mvm/session-context.test.ts. Both CI workflows ran this test file together with the Action Engine and File Intelligence tests, and the TypeScript check passed.
-- Validated code commit: 7805e34253af86be4a9e272cbdcbc5802b746f10.
-- Android APK workflow: [run 37895857391 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37895857391).
-- Windows EXE workflow: [run 37895857371 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37895857371).
+- Follow-up resolution: “again” repeats only allow-listed safe commands; “that app” resolves only to one remembered app; previous-file operations require exactly one file from a read-only scoped query.
+- Ambiguous app/file references stop without executing. `continue` / `resume` does not replay old actions; it asks for the next explicit step because no background task is kept as resumable work.
+- Session context is volatile process memory. Sensitive commands, email/phone-like values, secret-bearing text, file/content URIs, and non-repeatable free text are not retained as last-command text. The summary stores a content-free result classification rather than raw command output.
+- A result is not upgraded to `VERIFIED` by incidental prose such as “does not label this VERIFIED yet”; the success classifier requires an explicit status token.
+- A monotonic in-memory turn ID ignores late asynchronous results from older commands, including after session clear.
+- `session` / `context` displays the current safe context. `session clear` clears context and visible command log; `reset` clears the same context and local state.
+- Visible command history remains session-local. Persistent browser state always writes `history: []`, and loading legacy state removes the older persisted history.
+- Focused tests: 14 cases in `src/lib/mvm/session-context.test.ts`; session-context, Action Engine and File Intelligence test command succeeded in both workflows. TypeScript checks passed.
+- Validated implementation commit: [`2763a04223415c6c786c6ad1f3252092dbb59ecd`](https://github.com/MvMSOLO/mvmcmd/commit/2763a04223415c6c786c6ad1f3252092dbb59ecd).
+- Android APK workflow: [run 37896634065 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37896634065). The APK artifact was uploaded successfully.
+- Windows EXE workflow: [run 37896634067 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37896634067). The portable EXE artifact was uploaded successfully.
 
-## Additional safety checks (pending CI)
-- Result summaries require an explicit state token; explanatory prose mentioning “not verified” cannot upgrade STARTED to VERIFIED.
-- “Continue/resume” does not silently replay an old action; the user must state the next step. Only allow-listed repeatable command text is kept in volatile context.
-- Automated tests cover explicit result-state classification, active session clear, safe continuation prompts, and non-repeatable text minimization.
+## Test-suite scope note
+The two build workflows run Phase 14's focused tests plus the Action Engine and File Intelligence tests, rather than the entire repository-wide `npm test` suite. The previously known eight unrelated Grok PWA/SEO metadata assertions remain outside Phase 14; they are not being represented as passing.
