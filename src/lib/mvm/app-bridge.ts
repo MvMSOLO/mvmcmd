@@ -28,11 +28,25 @@ export function validateMime(mime?: string): { ok: boolean; reason?: string } {
   return isAllowedShareMime(mime) ? { ok: true } : { ok: false, reason: "unsupported MIME type" };
 }
 
+function isSafeDesktopFallbackDeepLink(target: string): boolean {
+  if (!target || target.length > 2048 || /[\u0000-\u001f\u007f]/.test(target) || /\s/.test(target)) return false;
+  try {
+    const parsed = new URL(target);
+    const scheme = parsed.protocol.toLowerCase();
+    if (!/^[a-z][a-z0-9+.-]*:$/.test(scheme)) return false;
+    if (["javascript:", "data:", "file:", "content:", "intent:", "blob:", "filesystem:", "vbscript:", "electron:", "chrome:", "mvmcmd:"].includes(scheme)) return false;
+    if (parsed.username || parsed.password) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function resolveBridge(request: BridgeRequest): { ok: boolean; method: BridgeMethod; reason?: string } {
   const target = request.target.trim();
   if (!target || target.length > 2048 || /[\u0000-\u001f\u007f]/.test(target)) return { ok: false, method: "url", reason: "missing or invalid target" };
   if (request.kind === "share") {
-    if (request.fileUri && !isSafeScopedContentUri(request.fileUri)) return { ok: false, method: "share", reason: "file sharing requires a validated scoped content URI" };
+    if (request.fileUri && !isSafeScopedContentUri(request.fileUri)) return { ok: false, method: "share", reason: "file sharing requires an explicit scoped grant with a valid scoped content URI" };
     if (request.fileUri && !request.mime) return { ok: false, method: "share", reason: "file sharing requires a supported MIME type" };
     const mime = validateMime(request.mime);
     if (!mime.ok) return { ok: false, method: "share", reason: mime.reason };
@@ -45,7 +59,12 @@ export function resolveBridge(request: BridgeRequest): { ok: boolean; method: Br
     return { ok: true, method: request.platform === "android" ? "package" : "desktop-fallback" };
   }
   const validation = validateExternalTarget(target, request.kind);
-  if (!validation.ok) return { ok: false, method: request.kind === "url" ? "url" : "deeplink", reason: validation.reason };
+  if (!validation.ok) {
+    if (request.kind === "deeplink" && request.platform !== "android" && isSafeDesktopFallbackDeepLink(target)) {
+      return { ok: true, method: "desktop-fallback" };
+    }
+    return { ok: false, method: request.kind === "url" ? "url" : "deeplink", reason: validation.reason };
+  }
   return { ok: true, method: request.kind === "url" ? "url" : "deeplink" };
 }
 

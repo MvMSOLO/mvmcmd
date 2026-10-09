@@ -1,6 +1,6 @@
-import type { MvmTaskStep } from "./task-planner";
-import { planMvmTask } from "./task-planner";
-import { getMvmSkill, type MvmSkill } from "./skills";
+import type { MvmTaskStep } from "./task-planner.ts";
+import { planMvmTask } from "./task-planner.ts";
+import { getMvmSkill, type MvmSkill } from "./skills.ts";
 
 export type GoalStatus = "pending" | "running" | "achieved" | "partial" | "failed" | "cancelled" | "needs_clarification" | "needs_confirmation";
 export type GoalRisk = "low" | "medium" | "high" | "unknown";

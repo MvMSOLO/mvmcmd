@@ -48,7 +48,7 @@ jobs:
           if ($null -eq $v) { throw "Dependency audit produced no vulnerability summary (npm exit $auditExit)." }
           Write-Host ("npm audit: info={0}, low={1}, moderate={2}, high={3}, critical={4}" -f $v.info,$v.low,$v.moderate,$v.high,$v.critical)
           if ($v.critical -gt 0) { throw "CRITICAL dependency advisories block the release." }
-          if ($v.high -gt 0) { Write-Warning "High-severity dependency advisories remain; review npm audit details." }
+          if ($v.high -gt 0) { Write-Host "WARNING: High-severity dependency advisories remain; review npm audit details." }
 
       - name: Typecheck web application
         run: npm run typecheck
