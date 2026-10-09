@@ -18,7 +18,7 @@ export function normalizeVoiceCommand(transcript: string): string {
 export function classifyVoiceOutcome(messages: string[]): VoiceOutcomeStatus {
   // Only structured status lines count. Prose such as "completion is not verified"
   // must never turn a STARTED result into VERIFIED.
-  const has = (pattern: RegExp) => messages.some((message) => pattern.test(message.trim().toUpperCase()));
+  const has = (pattern: RegExp) => messages.some((message) => pattern.test(message.trim()));
   const warningLine = /^(?:[A-Z0-9_.-]+\s+){0,3}(?:FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI)\b/;
   const verifiedLine = /^(?:[A-Z0-9_.-]+\s+){0,3}(?:VERIFIED|READY|ACHIEVED|COMPLETED|COMPLETE)\b/;
   const startedLine = /^(?:[A-Z0-9_.-]+\s+){0,3}(?:STARTED|OPENED|INTENT)\b/;
