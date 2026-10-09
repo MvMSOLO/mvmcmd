@@ -84,7 +84,7 @@ jobs:
             if (-not (Test-Path $file)) { throw "Missing Phase 19 release hardening file: $file" }
           }
           if (-not (Select-String -Path "android/app/src/main/AndroidManifest.xml" -Pattern 'android:allowBackup="false"' -Quiet)) { throw "Sensitive Android app-data backup must be disabled" }
-          if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java" -Pattern 'isAllowedExternalUri(url)' -Quiet)) { throw "Native URL allowlist is missing" }
+if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java" -Pattern "isAllowedExternalUri" -Quiet)) { throw "Native URL allowlist is missing" }
           if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmFileToolsPlugin.java" -Pattern "safeZipEntryName" -Quiet)) { throw "ZIP entry sanitization is missing" }
           if (-not (Select-String -Path "desktop/main.cjs" -Pattern "assertTrustedIpcSender" -Quiet)) { throw "Electron IPC sender validation is missing" }
 
