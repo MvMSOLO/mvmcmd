@@ -25,6 +25,8 @@ import { MvmGenerativeField } from "./generative-field";
 import { Mvm3D } from "./mvm-3d";
 import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
+import { Mic, MicOff } from "lucide-react";
+import { cancelVoiceCapture, isVoiceCaptureSupported, speakVoiceInstruction, speakVoiceOutcome, startVoiceCapture, stopVoiceCapture, cancelVoiceSpeech } from "@/lib/mvm/voice-assistant";
 import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
 import { emitMvmSignal } from "@/lib/mvm/signal-system";
 import { installMvmInteractionLayer } from "@/lib/mvm/interaction-system";
@@ -135,6 +137,10 @@ export function MvmShell() {
   const [rainVisible, setRainVisible] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const voicePendingRef = useRef(false);
+  const voiceRequestRef = useRef(0);
   useKeyboardInset();
 
   useEffect(() => {
@@ -296,9 +302,49 @@ export function MvmShell() {
     setLines((prev) => (clear ? next : [...prev, ...next]).slice(-240));
   }
 
+  function announceVoiceLines(items: LogLine[], fromVoice: boolean) {
+    if (fromVoice) speakVoiceOutcome(items.map((item) => item.text), lang);
+  }
+
+  async function handleVoiceClick() {
+    if (voiceListening) {
+      setVoiceStatus(lang === "uz" ? "Nutq yakunlanmoqda…" : "Finishing speech recognition…");
+      void stopVoiceCapture(false);
+      return;
+    }
+    const requestId = voiceRequestRef.current + 1;
+    voiceRequestRef.current = requestId;
+    setVoiceListening(true);
+    setVoiceStatus(lang === "uz" ? "Mikrofon tayyorlanmoqda…" : "Preparing microphone…");
+    try {
+      const transcript = await startVoiceCapture(lang === "uz" ? "uz-UZ" : "en-US");
+      if (requestId !== voiceRequestRef.current) return;
+      if (!transcript) {
+        setVoiceStatus(lang === "uz" ? "Nutq aniqlanmadi. Qayta urinib ko‘ring yoki yozing." : "No speech detected. Try again or type the command.");
+        return;
+      }
+      voicePendingRef.current = true;
+      setInput(transcript);
+      setVoiceStatus(lang === "uz" ? "Buyruq tanildi. Tekshirib, Launch tugmasini bosing — hali bajarilmadi." : "Command recognized. Review it and press Launch — nothing has run yet.");
+      inputRef.current?.focus();
+      speakVoiceInstruction(lang);
+    } catch (error) {
+      if (requestId !== voiceRequestRef.current) return;
+      const detail = error instanceof Error ? error.message : "Voice input is unavailable.";
+      const message = "VOICE  " + detail;
+      setVoiceStatus(message);
+      append([makeLine("warn", message)]);
+    } finally {
+      if (requestId === voiceRequestRef.current) setVoiceListening(false);
+    }
+  }
+
   async function commit(raw: string, pick?: CatalogApp) {
     const displayText = pick ? `open ${pick.name}` : raw;
     if (!displayText.trim()) return;
+    const voiceOrigin = voicePendingRef.current;
+    voicePendingRef.current = false;
+    setVoiceStatus("");
     const resolution = resolveActiveSessionReference(displayText);
     if (resolution.status === "ambiguous") {
       const next = pushHistory(state, displayText);
@@ -310,6 +356,7 @@ export function MvmShell() {
       setInput("");
       setHistIdx(-1);
       emitMvmSignal("warn");
+      if (voiceOrigin) speakVoiceOutcome([resolution.message ?? "AMBIGUOUS"], lang);
       return;
     }
     const text = resolution.command;
@@ -325,6 +372,7 @@ export function MvmShell() {
       void runCommunicationRequest({ state, lang }, parsed.cmd.name, parsed.args).then((ls) => {
         rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
         append(ls);
+        announceVoiceLines(ls, voiceOrigin);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
       setInput("");
@@ -339,6 +387,7 @@ export function MvmShell() {
         rememberActiveSessionResult(text, res.lines.map((item) => item.text), sessionTurnId);
         setState(res.state);
         append(res.lines);
+        announceVoiceLines(res.lines, voiceOrigin);
       });
       setInput("");
       setHistIdx(-1);
@@ -351,6 +400,7 @@ export function MvmShell() {
       void runGamingRequest({ state, lang }, parsed.args.join(" ") || undefined).then((ls) => {
         rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
         append(ls);
+        announceVoiceLines(ls, voiceOrigin);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
       setInput("");
@@ -363,6 +413,7 @@ export function MvmShell() {
       emitMvmSignal("intent");
       void runFileRequest(parsed.args, { state, lang }, sessionTurnId).then((ls) => {
         append(ls);
+        announceVoiceLines(ls, voiceOrigin);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
       setInput("");
@@ -376,6 +427,7 @@ export function MvmShell() {
       void runDeviceRequest({ state, lang }).then((ls) => {
         rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
         append(ls);
+        announceVoiceLines(ls, voiceOrigin);
         emitMvmSignal(ls.some((line) => line.kind === "warn") ? "warn" : "success");
       });
       setInput("");
@@ -386,7 +438,7 @@ export function MvmShell() {
       const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
       append([makeLine("in", text)]);
       emitMvmSignal("intent");
-      void runInstall({ state, lang }).then((ls) => { rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId); append(ls); });
+      void runInstall({ state, lang }).then((ls) => { rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId); append(ls); announceVoiceLines(ls, voiceOrigin); });
       setInput("");
       setHistIdx(-1);
       return;
@@ -430,12 +482,12 @@ export function MvmShell() {
                   : `${guard.snapshot.id.toUpperCase()} is unavailable on this device.`;
 
           rememberActiveSessionResult(text, ["FAILED " + statusLine], sessionTurnId);
-          append([
-            makeLine("warn", `CAPABILITY  ${guard.snapshot.id.toUpperCase()}`, {
-              meta: guard.snapshot.state,
-            }),
+          const failureLines = [
+            makeLine("warn", `CAPABILITY  ${guard.snapshot.id.toUpperCase()}`, { meta: guard.snapshot.state }),
             makeLine("dim", statusLine),
-          ]);
+          ];
+          append(failureLines);
+          announceVoiceLines(failureLines, voiceOrigin);
           setInput("");
           setHistIdx(-1);
           return;
@@ -450,13 +502,9 @@ export function MvmShell() {
         ]);
       } catch (error) {
         rememberActiveSessionResult(text, ["CAPABILITY FAILED"], sessionTurnId);
-        append([
-          makeLine(
-            "warn",
-            lang === "uz" ? "CAPABILITY tekshiruvi xatolik berdi." : "Capability check failed.",
-            { meta: error instanceof Error ? error.message : "unknown error" },
-          ),
-        ]);
+        const failureLines = [makeLine("warn", lang === "uz" ? "CAPABILITY tekshiruvi xatolik berdi." : "Capability check failed.", { meta: error instanceof Error ? error.message : "unknown error" })];
+        append(failureLines);
+        announceVoiceLines(failureLines, voiceOrigin);
         setInput("");
         setHistIdx(-1);
         return;
@@ -473,6 +521,7 @@ export function MvmShell() {
         includeInput ? [makeLine("in", displayText), ...result.lines] : result.lines,
         result.clearLog,
       );
+      announceVoiceLines(result.lines, voiceOrigin);
       setInput("");
       setHistIdx(-1);
       const signal = result.lines.some((line) => line.kind === "warn")
@@ -540,6 +589,14 @@ export function MvmShell() {
       setLines([]);
     }
     if (e.key === "Escape") {
+      if (voiceListening) {
+        voiceRequestRef.current += 1;
+        void cancelVoiceCapture();
+        setVoiceListening(false);
+      }
+      voicePendingRef.current = false;
+      setVoiceStatus("");
+      cancelVoiceSpeech();
       setInput("");
       setSel(0);
     }
@@ -866,7 +923,7 @@ export function MvmShell() {
             aria-keyshortcuts="Control+K Meta+K"
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { voicePendingRef.current = false; setVoiceStatus(""); setInput(e.target.value); }}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
             onKeyDown={onKey}
@@ -882,14 +939,31 @@ export function MvmShell() {
             className="mvm-caret mvm-hand-shimmer min-h-11 min-w-0 flex-1 bg-transparent font-mono text-base text-fg outline-none placeholder:text-faint"
           />
           <button
+            type="button"
+            aria-label={voiceListening ? (lang === "uz" ? "Ovozni tugatish" : "Finish voice input") : (lang === "uz" ? "Ovoz bilan buyruq kiritish" : "Enter command by voice")}
+            aria-pressed={voiceListening}
+            title={voiceListening ? (lang === "uz" ? "Nutqni yakunlash (Esc bekor qiladi)" : "Finish recognition (Esc cancels)") : (lang === "uz" ? "Push-to-talk" : "Push to talk")}
+            disabled={!isVoiceCaptureSupported()}
+            onClick={() => void handleVoiceClick()}
+            className={cn("mvm-neumorphic-control inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-line px-3 py-2.5 font-mono text-[10px] tracking-wide transition-colors", voiceListening ? "border-accent bg-accent/10 text-accent" : "bg-surface text-muted hover:border-line-strong hover:text-fg", !isVoiceCaptureSupported() && "cursor-not-allowed opacity-40")}
+          >
+            {voiceListening ? <MicOff size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" /> }
+            <span>{voiceListening ? "STOP" : "VOICE"}</span>
+          </button>
+          <button
             type="submit"
-            className="mvm-hand-magnetic mvm-neumorphic-control mvm-hand-spring-snap hidden rounded-sm bg-accent px-4 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:inline-flex"
+            className="mvm-hand-magnetic mvm-neumorphic-control mvm-hand-spring-snap inline-flex shrink-0 rounded-sm bg-accent px-3 py-2.5 font-display text-xs font-semibold tracking-wide text-accent-fg transition-transform duration-150 ease-out active:scale-[0.96] sm:px-4"
             data-mvm-action="launch-submit"
             data-mvm-physical
           >
             {t(lang, "launch")}
           </button>
         </form>
+        {(voiceStatus || !isVoiceCaptureSupported()) && (
+          <p role="status" aria-live="polite" className="mx-auto max-w-6xl px-4 pb-2 font-mono text-[10px] leading-relaxed text-muted sm:px-6">
+            {voiceStatus || (lang === "uz" ? "Ovozli kiritish bu platformada yo‘q — buyruqni yozing." : "Voice input is unavailable on this platform — type your command.")}
+          </p>
+        )}
       </div>
     </div>
   );

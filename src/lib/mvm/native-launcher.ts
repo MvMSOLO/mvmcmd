@@ -36,6 +36,18 @@ export async function nativeCopyMoveFile(sourceUri: string, destinationTreeUri: 
 export async function nativeDeleteFile(uri: string, confirmed: boolean) { return NativeFileTools.deleteFile({ uri, confirmed }); }
 export async function nativeCreateArchive(treeUri: string, name: string, uris: string[]) { return NativeFileTools.createArchive({ treeUri, name, uris }); }
 
+interface MvmVoicePlugin {
+  startListening(options: { locale: string }): Promise<{ transcript?: string; confidence?: number; cancelled?: boolean }>;
+  stopListening(options?: { cancel?: boolean }): Promise<{ stopping?: boolean; cancelled?: boolean }>;
+  speak(options: { text: string; locale: string }): Promise<{ spoken: boolean }>;
+  stopSpeaking(): Promise<{ stopped: boolean }>;
+}
+const NativeVoice = registerPlugin<MvmVoicePlugin>("MvmVoice");
+
+export async function nativeStartVoiceRecognition(locale: string) { return NativeVoice.startListening({ locale }); }
+export async function nativeStopVoiceRecognition(cancel = false) { return NativeVoice.stopListening({ cancel }); }
+export async function nativeSpeakVoice(text: string, locale: string) { return NativeVoice.speak({ text, locale }); }
+export async function nativeStopVoiceSpeech() { return NativeVoice.stopSpeaking(); }
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;

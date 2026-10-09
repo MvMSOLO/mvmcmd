@@ -7,5 +7,6 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(MvmLauncherPlugin.class);
         registerPlugin(MvmDevicePlugin.class);
         registerPlugin(MvmFileToolsPlugin.class);
+        registerPlugin(MvmVoicePlugin.class);
     }
 }

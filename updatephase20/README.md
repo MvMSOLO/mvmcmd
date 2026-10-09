@@ -20,12 +20,12 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 07 — Task Planner: **COMPLETED**
 - Phase 08 — Verification + Recovery Engine: **COMPLETED**
 - Phase 09 — App Bridge / Intent / Deep-Link / Share Engine: **COMPLETED**
-- Phase 10 — MVM Goal Engine: **PLANNED**
+- Phase 10 — MVM Goal Engine: **COMPLETED**
 - Phase 11 — Adaptive Gaming Engine: **PLANNED**
 - Phase 12 — Communication Engine: **PLANNED**
 - Phase 13 — Device Utility & File Intelligence: **COMPLETED**
 - Phase 14 — Context, Session Memory & Conversation: **COMPLETED**
-- Phase 15 — Voice + Assistant Layer: **PLANNED**
+- Phase 15 — Voice + Assistant Layer: **IN PROGRESS**
 - Phase 16 — Global Entry Points: **PLANNED**
 - Phase 17 — Speed, Motion & Premium UX: **PLANNED**
 - Phase 18 — Globalization + Android/OEM Compatibility: **PLANNED**
@@ -48,6 +48,9 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 
 ## Documentation map
 See `PHASE-01.md` through `PHASE-20.md` for the full phase specifications. See `PHASE-01-08-CONSOLIDATED.md` for the implementation history of the completed first eight phases.
+
+## Phase 15 implementation checkpoint
+Phase 15 implementation is pushed for validation: Android-native push-to-talk with SpeechRecognizer/TextToSpeech, browser Web Speech fallback, explicit microphone permission, transcript review before Launch, truthful spoken status summaries, stop/cancel controls, and voice-core tests. Do not mark Phase 15 complete until APK and EXE workflows succeed on the final documentation commit. Details are in [PHASE-15.md](PHASE-15.md).
 
 ## Phase 14 implementation checkpoint
 Phase 14 is completed on validated code commit `2763a04223415c6c786c6ad1f3252092dbb59ecd`. The safe session context, follow-up resolution, privacy boundaries, explicit result-state summary, clear/reset handling and 14 focused tests passed TypeScript and focused-test gates. Both artifacts built and uploaded successfully: [Android APK run 37896634065](https://github.com/MvMSOLO/mvmcmd/actions/runs/37896634065) and [Windows EXE run 37896634067](https://github.com/MvMSOLO/mvmcmd/actions/runs/37896634067). Full acceptance notes are in [PHASE-14.md](PHASE-14.md).

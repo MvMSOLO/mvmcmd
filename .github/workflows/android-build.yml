@@ -51,6 +51,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q '@CapacitorPlugin(name = "MvmVoice")' "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q "SpeechRecognizer" "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q "TextToSpeech" "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q "registerPlugin(MvmVoicePlugin.class)" "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
+          grep -q "RECORD_AUDIO" "android/app/src/main/AndroidManifest.xml"
+          test -s "src/lib/mvm/voice-core.ts"
+          test -s "src/lib/mvm/voice-core.test.ts"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q '@CapacitorPlugin' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'name = "MvmLauncher"' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
@@ -92,7 +100,7 @@ jobs:
           ! grep -q 'requestMissingPermissions' "android/app/src/main/java/com/mvmcmd/launcher/MvmNotificationCenterActivity.java"
 
       - name: Run project tests
-        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts
 
       - name: Build web application
         run: npm run build
