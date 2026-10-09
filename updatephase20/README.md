@@ -28,7 +28,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 15 — Voice + Assistant Layer: **COMPLETED**
 - Phase 16 — Global Entry Points: **COMPLETED**
 - Phase 17 — Speed, Motion & Premium UX: **COMPLETED**
-- Phase 18 — Globalization + Android/OEM Compatibility: **PLANNED**
+- Phase 18 — Globalization + Android/OEM Compatibility: **COMPLETED**
 - Phase 19 — Hardening, Security, Performance & Massive Testing: **PLANNED**
 - Phase 20 — Release Candidate → Demo → Instagram Launch: **PLANNED**
 
@@ -48,6 +48,13 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 
 ## Documentation map
 See `PHASE-01.md` through `PHASE-20.md` for the full phase specifications. See `PHASE-01-08-CONSOLIDATED.md` for the implementation history of the completed first eight phases.
+
+
+## Phase 18 implementation checkpoint
+
+Phase 18 implementation is completed on code commit [46049ce2403b612468606c6551a80056252bafa8](https://github.com/MvMSOLO/mvmcmd/commit/46049ce2403b612468606c6551a80056252bafa8). Android APK [run 37913498594 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37913498594) and Windows EXE [run 37913498538 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37913498538) both passed the same code revision. Both CI runs report 48 tests passed and zero failures. The Android artifact is [mvmcmd-debug-apk-657](https://api.github.com/repos/MvMSOLO/mvmcmd/actions/artifacts/11607671711) (22,284,741 bytes; SHA-256 `33289601f6f5cb7102f1a21a1a04e3b8ff6e9020ef1dbdc59ced17dc1ee740c8`); the Windows artifact is [mvmcmd-windows-exe-375](https://api.github.com/repos/MvMSOLO/mvmcmd/actions/artifacts/11608811059) (133,926,156 bytes; SHA-256 `5e86bc6de9c79160425fd86d93eefc243de8a4358c32bec449c6c8be588eb626`).
+
+The phase adds localized Android/OEM compatibility diagnostics via `compat`, real device API/release/manufacturer/model and native capability snapshots, safe guidance for denied/restricted notification access, OEM-specific battery guidance clearly labelled as a hint rather than a guarantee, Uzbek/English locale formatting, and canonicalized mixed-language command and permission names. Platform fallbacks explicitly avoid inventing device facts or bypassing Android restrictions. Phase 17’s reduced-motion and keyboard-focus accessibility contracts remain part of the shared CI gates. CI confirms typecheck, all 48 tests, web bundle validation and artifact production. Physical testing on real Samsung, Xiaomi/Redmi/POCO and Pixel devices, including OEM background-kill behavior, remains a manual device-validation item.
 
 ## Phase 17 implementation checkpoint
 
