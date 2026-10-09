@@ -166,9 +166,9 @@ test("core Android feature entry points remain registered and app-private activi
   const manifest = readFileSync(resolve(root, "android/app/src/main/AndroidManifest.xml"), "utf8");
   const launcher = readFileSync(resolve(root, "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"), "utf8");
   for (const activity of ["MvmCameraActivity", "MvmQrActivity", "MvmWallpaperActivity", "MvmEnglishActivity", "MvmEnglishStudioActivity", "MvmNotificationCenterActivity"]) {
-    assert.match(manifest, new RegExp('android:name="\\\\.' + activity + '"[^>]*android:exported="false"'));
+    assert.match(manifest, new RegExp('android:name=".' + activity + '"[^>]*android:exported="false"'));
   }
   for (const method of ["openCamera", "openQr", "openWallpaper", "openEnglish", "openNotifications", "openIncomingFile", "openUrl"]) {
-    assert.match(launcher, new RegExp("public void " + method + "\\\\("));
+    assert.ok(launcher.includes("public void " + method + "("), method);
   }
 });
