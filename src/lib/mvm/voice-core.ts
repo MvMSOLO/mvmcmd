@@ -20,8 +20,8 @@ export function classifyVoiceOutcome(messages: string[]): VoiceOutcomeStatus {
   // "completion is not verified" must never turn STARTED into VERIFIED.
   const hasExplicitState = (states: string) => messages.some((message) => {
     const line = message.trim().toUpperCase();
-    const state = new RegExp("^(?:(?:[A-Z0-9_.-]+)(?:\\\\s+|$)){0,3}(?:" + states + ")\\\\b");
-    const labeledState = new RegExp("(?:·|:)\\\\s*(?:" + states + ")\\\\b");
+    const state = new RegExp(String.raw`^(?:(?:[A-Z0-9_.-]+)(?:\\s+|$)){0,3}(?:${states})\\b`);
+    const labeledState = new RegExp(String.raw`(?:·|:)\\s*(?:${states})\\b`);
     return state.test(line) || labeledState.test(line);
   });
   if (hasExplicitState("FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI")) return "warning";
