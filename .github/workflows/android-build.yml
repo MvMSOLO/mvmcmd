@@ -174,6 +174,8 @@ jobs:
           test -s "src/lib/mvm/security-hardening.test.ts"
           test -s "src/lib/mvm/performance-budget.ts"
           test -s "src/lib/mvm/performance-budget.test.ts"
+          test -s "src/lib/mvm/commands.test.ts"
+          test -s "src/lib/mvm/gaming-engine.test.ts"
           test -s "desktop/security.cjs"
           grep -q 'android:allowBackup="false"' "android/app/src/main/AndroidManifest.xml"
           grep -q 'isAllowedExternalUri(url)' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
@@ -182,7 +184,7 @@ jobs:
           grep -q "npm audit" ".github/workflows/android-build.yml"
 
       - name: Run project tests
-        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts src/lib/mvm/gaming-engine.test.ts src/lib/mvm/commands.test.ts
 
       - name: Build web application
         run: npm run build
