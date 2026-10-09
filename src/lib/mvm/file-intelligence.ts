@@ -1,0 +1,98 @@
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
+export type FileUtilityStatus = "verified" | "started" | "unavailable" | "failed" | "needs_confirmation";
+export interface FileEntry {
+  id: string;
+  name: string;
+  uri: string;
+  mimeType: string;
+  sizeBytes?: number;
+  modifiedAt?: number;
+  isDirectory: boolean;
+}
+export interface FileUtilityResult {
+  status: FileUtilityStatus;
+  message: string;
+  items?: FileEntry[];
+  detail?: string;
+  verified: boolean;
+}
+interface NativeFileToolsPlugin {
+  getStorageOverview(): Promise<{ totalBytes: number; availableBytes: number; usedBytes: number; source: string }>;
+  chooseFolder(): Promise<{ granted: boolean; uri?: string; name?: string; cancelled?: boolean }>;
+  listFolder(options: { uri: string; query?: string; minBytes?: number; limit?: number }): Promise<{ items: FileEntry[]; scanned: number; truncated: boolean }>;
+  shareFile(options: { uri: string }): Promise<{ started: boolean; reason?: string }>;
+}
+const NativeFiles = registerPlugin<NativeFileToolsPlugin>("MvmFileTools");
+const nativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+
+export function formatStorageOverview(totalBytes: number, availableBytes: number, usedBytes: number) {
+  const valid = [totalBytes, availableBytes, usedBytes].every((n) => Number.isFinite(n) && n >= 0);
+  if (!valid || totalBytes < availableBytes || Math.abs(totalBytes - availableBytes - usedBytes) > Math.max(1024 * 1024, totalBytes * 0.02)) {
+    return { valid: false, totalBytes, availableBytes, usedBytes, percentUsed: null as number | null };
+  }
+  return { valid: true, totalBytes, availableBytes, usedBytes, percentUsed: totalBytes ? Math.min(100, Math.max(0, usedBytes / totalBytes * 100)) : 0 };
+}
+export function isSafeFileEntry(item: Pick<FileEntry, "uri" | "name" | "isDirectory">): boolean {
+  const uri = item.uri.trim();
+  const name = item.name.trim();
+  if (!uri || !name || name === "." || name === "..") return false;
+  if (/^(file:\/\/|content:\/\/com\.android\.externalstorage\.documents\/root\/primary%3AAndroid%2Fdata)/i.test(uri)) return false;
+  if (/^(\/|[A-Za-z]:\\)/.test(name) || name.includes("\0") || name.includes("/") || name.includes("\\")) return false;
+  return true;
+}
+export function classifyMedia(mimeType: string, name: string): "image" | "video" | "audio" | "document" | "archive" | "other" {
+  const mime = mimeType.toLowerCase();
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (mime.startsWith("image/") || ["jpg","jpeg","png","webp","gif","heic","heif"].includes(ext)) return "image";
+  if (mime.startsWith("video/") || ["mp4","mkv","mov","webm","3gp"].includes(ext)) return "video";
+  if (mime.startsWith("audio/") || ["mp3","m4a","wav","ogg","flac","aac"].includes(ext)) return "audio";
+  if (["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","text/plain"].includes(mime) || ["pdf","doc","docx","txt","rtf","odt"].includes(ext)) return "document";
+  if (["zip","7z","rar","tar","gz"].includes(ext) || mime.includes("zip") || mime.includes("compressed")) return "archive";
+  return "other";
+}
+export async function getStorageOverview(): Promise<FileUtilityResult & { storage?: ReturnType<typeof formatStorageOverview> }> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "Accurate storage overview requires the native Android device engine.", verified: false };
+  try {
+    const s = await NativeFiles.getStorageOverview();
+    const storage = formatStorageOverview(s.totalBytes, s.availableBytes, s.usedBytes);
+    return storage.valid
+      ? { status: "verified", message: `Storage read from Android (${s.source}).`, verified: true, storage }
+      : { status: "failed", message: "Android returned inconsistent storage numbers; no estimate substituted.", verified: false, storage };
+  } catch (e) {
+    return { status: "failed", message: "Could not read storage from Android.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+  }
+}
+export async function chooseFolder(): Promise<FileUtilityResult & { uri?: string }> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "Folder access requires Android's scoped Storage Access Framework.", verified: false };
+  try {
+    const r = await NativeFiles.chooseFolder();
+    if (r.cancelled) return { status: "started", message: "Folder selection cancelled; no files were changed.", verified: true };
+    if (!r.granted || !r.uri) return { status: "failed", message: "Folder access was not granted.", verified: false };
+    return { status: "verified", message: `Scoped access granted for ${r.name ?? "selected folder"}.`, verified: true, uri: r.uri };
+  } catch (e) {
+    return { status: "failed", message: "Could not open Android folder picker.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+  }
+}
+export async function listFolder(uri: string, options: { query?: string; minBytes?: number; limit?: number } = {}): Promise<FileUtilityResult & { scanned?: number; truncated?: boolean }> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "File discovery is available only in the native Android app.", verified: false };
+  if (!uri.trim() || !uri.startsWith("content://")) return { status: "failed", message: "Choose a folder using Android's folder picker first.", verified: false };
+  if (options.minBytes !== undefined && (!Number.isFinite(options.minBytes) || options.minBytes < 0)) return { status: "failed", message: "Minimum file size must be a non-negative number.", verified: false };
+  try {
+    const r = await NativeFiles.listFolder({ uri, query: options.query?.trim(), minBytes: options.minBytes, limit: Math.min(1000, Math.max(1, options.limit ?? 200)) });
+    const safe = r.items.filter(isSafeFileEntry);
+    return { status: "verified", message: `Scanned ${r.scanned} scoped entries; ${safe.length} matched.${r.truncated ? " Results were capped." : ""}`, verified: true, items: safe, scanned: r.scanned, truncated: r.truncated };
+  } catch (e) {
+    return { status: "failed", message: "Scoped folder scan failed; no files were changed.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+  }
+}
+export async function shareScopedFile(uri: string): Promise<FileUtilityResult> {
+  if (!nativeAndroid()) return { status: "unavailable", message: "Scoped file sharing requires Android.", verified: false };
+  if (!uri.startsWith("content://")) return { status: "failed", message: "Only a scoped content URI can be shared.", verified: false };
+  try {
+    const r = await NativeFiles.shareFile({ uri });
+    return r.started ? { status: "started", message: "Android share chooser opened; recipient delivery is not verified.", verified: false } : { status: "failed", message: r.reason ?? "Share chooser could not be opened.", verified: false };
+  } catch (e) {
+    return { status: "failed", message: "Could not share this scoped file.", verified: false, detail: e instanceof Error ? e.message : "unknown error" };
+  }
+}
