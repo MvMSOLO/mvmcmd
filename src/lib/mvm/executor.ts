@@ -36,6 +36,7 @@ import { runFileCommand } from "./file-intelligence";
 import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessionFileResults, rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference } from "./session-context";
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
+import { explainCapabilitySnapshot, formatAndroidCompatibilityReport, formatLocalDateTime, normalizeLanguageToken } from "./compatibility";
 
 let seq = 0;
 let gamingSession: GamingSession | undefined;
@@ -603,10 +604,8 @@ function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
       };
     }
     case "lang": {
-      const next = parsed.args[0]?.toLowerCase();
-      if (next !== "uz" && next !== "en") {
-        return { state: state0, lines: [line("warn", "lang uz | lang en")] };
-      }
+      const next = normalizeLanguageToken(parsed.args[0]);
+      if (!next) return { state: state0, lines: [line("warn", L(ctx2, "lang uz | lang en — yoki til o‘zbekcha | inglizcha", "lang uz | lang en — or lang Uzbekcha | English"))] };
       const state = setLang(state0, next);
       saveState(state);
       return { state, lines: [line("ok", `LANG  ${next}`)] };
@@ -648,11 +647,7 @@ function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
       const now = new Date();
       return {
         state: state0,
-        lines: [
-          line("out", now.toLocaleString(ctx2.lang === "uz" ? "uz-UZ" : "en-GB"), {
-            meta: now.toISOString(),
-          }),
-        ],
+        lines: [line("out", formatLocalDateTime(now, ctx2.lang), { meta: now.toISOString() })],
       };
     }
     case "whoami": {
@@ -837,6 +832,33 @@ export async function runGamingRequest(ctx: ExecContext, target?: string): Promi
     return [line("warn", L(ctx, "GAMING telemetry o‘qilmadi.", "Unable to read gaming telemetry."), { meta: error instanceof Error ? error.message : "unknown error" })];
   }
 }
+export async function runCompatibilityRequest(ctx: ExecContext): Promise<LogLine[]> {
+  if (!canUseNativeDeviceEngine()) {
+    return [
+      line("sys", "COMPATIBILITY"),
+      line("dim", L(ctx, "Bu buildda Android SDK/OEM ma’lumoti mavjud emas; tizim ma’lumoti taxmin qilinmadi.", "Android SDK/OEM data is unavailable in this build; no device facts were inferred.")),
+      line("dim", L(ctx, "Android APK ichida compat buyrug‘ini ishlating. Windows/veb fallbacklari Android maxsus ruxsatlarini talab qilmaydigan funksiyalar bilan cheklanadi.", "Run compat in the Android APK for device-specific checks. Windows/web fallbacks remain limited to features that do not need Android special access.")),
+    ];
+  }
+  try {
+    const device = await nativeGetDeviceSnapshot();
+    const env = { sdk: device.device.sdk, release: device.device.release, manufacturer: device.device.manufacturer, model: device.device.model };
+    const capabilities = await refreshNativeCapabilities();
+    const locale = ctx.lang === "uz" ? "uz-UZ" : "en-GB";
+    return [
+      line("sys", L(ctx, "COMPATIBILITY  Android/OEM diagnostikasi", "COMPATIBILITY  Android/OEM diagnostics")),
+      ...formatAndroidCompatibilityReport(env, ctx.lang).map((message) => line("out", message)),
+      line("sys", L(ctx, `CAPABILITY SNAPSHOTS  ${capabilities.length} · faqat o‘qish`, `CAPABILITY SNAPSHOTS  ${capabilities.length} · read-only`)),
+      ...capabilities.map((snapshot) => {
+        const explanation = explainCapabilitySnapshot(snapshot, env, ctx.lang);
+        return line(snapshot.state === "ready" ? "ok" : snapshot.state === "error" ? "warn" : "out", `CAPABILITY  ${explanation.label.toLocaleUpperCase(locale)}  ${explanation.stateLabel.toLocaleUpperCase(locale)}`, { meta: [explanation.summary, explanation.guidance].filter(Boolean).join(" · ") });
+      }),
+    ];
+  } catch (error) {
+    return [line("warn", L(ctx, "Android moslik ma’lumotlarini o‘qib bo‘lmadi; hech qanday ruxsat so‘ralmadi.", "Unable to read Android compatibility data; no permission was requested."), { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}
+
 export async function runDeviceRequest(
   ctx: ExecContext,
 ): Promise<LogLine[]> {
@@ -869,22 +891,26 @@ export async function runPermRequest(
   requestedCapability?: string,
 ): Promise<{ state: PersistedState; lines: LogLine[] }> {
   const runtime = detectRuntime();
+  const normalizedCapability = requestedCapability?.trim().toLocaleLowerCase("en-US");
+  let compatibilityEnv: { sdk?: number; release?: string; manufacturer?: string; model?: string } = {};
+  if (runtime.platform === "android" && canUseNativeDeviceEngine()) {
+    try {
+      const device = await nativeGetDeviceSnapshot();
+      compatibilityEnv = { sdk: device.device.sdk, release: device.device.release, manufacturer: device.device.manufacturer, model: device.device.model };
+    } catch {
+      // Permission diagnostics must continue even when optional device metadata is unavailable.
+    }
+  }
 
   if (runtime.platform === "android" && canUseNativeAndroidLauncher()) {
-    if (requestedCapability) {
+    if (normalizedCapability) {
       try {
-        const snapshot = await nativeRequestCapability(requestedCapability);
-        const stateLabel = snapshot.state.toUpperCase();
-        const detail = snapshot.detail ? `  ${snapshot.detail}` : "";
+        const snapshot = await nativeRequestCapability(normalizedCapability);
+        const explanation = explainCapabilitySnapshot(snapshot, compatibilityEnv, ctx.lang);
+        const locale = ctx.lang === "uz" ? "uz-UZ" : "en-GB";
         return {
           state: ctx.state,
-          lines: [
-            line(
-              snapshot.state === "ready" ? "ok" : "warn",
-              `CAPABILITY  ${snapshot.id.toUpperCase()}  ${stateLabel}`,
-              { meta: `${snapshot.decision}${detail}` },
-            ),
-          ],
+          lines: [line(snapshot.state === "ready" ? "ok" : "warn", `CAPABILITY  ${explanation.label.toLocaleUpperCase(locale)}  ${snapshot.state.toUpperCase()}`, { meta: [snapshot.decision, explanation.summary, explanation.guidance].filter(Boolean).join(" · ") })],
         };
       } catch (error) {
         return {
@@ -906,13 +932,11 @@ export async function runPermRequest(
         state: ctx.state,
         lines: [
           line("sys", `CAPABILITIES  ${snapshots.length}`),
-          ...snapshots.map((snapshot) =>
-            line(
-              snapshot.state === "ready" ? "ok" : snapshot.state === "error" ? "warn" : "out",
-              `${snapshot.id.toUpperCase().padEnd(22, " ")} ${snapshot.state.toUpperCase()}`,
-              { meta: snapshot.decision },
-            ),
-          ),
+          ...snapshots.map((snapshot) => {
+            const explanation = explainCapabilitySnapshot(snapshot, compatibilityEnv, ctx.lang);
+            const locale = ctx.lang === "uz" ? "uz-UZ" : "en-GB";
+            return line(snapshot.state === "ready" ? "ok" : snapshot.state === "error" ? "warn" : "out", `${explanation.label.toLocaleUpperCase(locale).padEnd(26, " ")} ${explanation.stateLabel.toLocaleUpperCase(locale)}`, { meta: [snapshot.decision, explanation.summary, explanation.guidance].filter(Boolean).join(" · ") });
+          }),
           line(
             "dim",
             L(

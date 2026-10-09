@@ -3,7 +3,7 @@ import { CATALOG, CATALOG_BY_ID, CATEGORIES } from "@/lib/mvm/catalog";
 import { lookupCommand, parseLine } from "@/lib/mvm/commands";
 import { understandCommand } from "@/lib/mvm/intelligence";
 import { t } from "@/lib/mvm/copy";
-import { execute, makeLine, runCommunicationRequest, runDeviceRequest, runFileRequest, runGamingRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
+import { execute, makeLine, runCommunicationRequest, runCompatibilityRequest, runDeviceRequest, runFileRequest, runGamingRequest, runInstall, runPermRequest } from "@/lib/mvm/executor";
 import { rankApps, resolveAliasTarget } from "@/lib/mvm/fuzzy";
 import { listenInstallPrompt } from "@/lib/mvm/permissions";
 import {
@@ -500,6 +500,17 @@ export function MvmShell() {
       setInput("");
       setHistIdx(-1);
       return;
+    }
+    if (parsed.cmd?.name === "compat") {
+      const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);
+      append([makeLine("in", text), makeLine("sys", lang === "uz" ? "COMPAT  Android API/OEM mosligi tekshirilmoqda…" : "COMPAT  checking Android API/OEM compatibility…")]);
+      emitMvmSignal("intent");
+      void runCompatibilityRequest({ state, lang }).then((ls) => {
+        rememberActiveSessionResult(text, ls.map((item) => item.text), sessionTurnId);
+        append(ls); announceVoiceLines(ls, voiceOrigin);
+        emitMvmSignal(ls.some((item) => item.kind === "warn") ? "warn" : "success");
+      });
+      setInput(""); setHistIdx(-1); return;
     }
     if (parsed.cmd?.name === "device") {
       const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);

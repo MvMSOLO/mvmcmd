@@ -53,11 +53,21 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path "src/lib/mvm/motion-preferences.ts")) { throw "Missing motion preferences" }
-          if (-not (Test-Path "src/lib/mvm/motion-preferences.test.ts")) { throw "Missing motion preference tests" }
+          if (-not (Test-Path "src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts")) { throw "Missing motion preference tests" }
           if (-not (Select-String -Path "src/styles.css" -Pattern "mvm-motion-reduced" -Quiet)) { throw "Missing reduced-motion styles" }
           if (-not (Select-String -Path "src/styles.css" -Pattern "prefers-reduced-motion" -Quiet)) { throw "Missing OS reduced-motion styles" }
           if (Select-String -Path "src/lib/mvm/3d-assets.ts" -Pattern "kernelCadUrl|app\.kernelcad\.com" -Quiet) { throw "Decorative 3D assets must not carry external destinations" }
           if (-not (Select-String -Path "src/components/mvm/mvm-3d.tsx" -Pattern "event.stopPropagation\(\)" -Quiet)) { throw "Decorative 3D click isolation is missing" }
+
+      - name: Verify globalization and Android compatibility contracts
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "src/lib/mvm/compatibility.ts")) { throw "Missing compatibility module" }
+          if (-not (Test-Path "src/lib/mvm/compatibility.test.ts")) { throw "Missing compatibility tests" }
+          if (-not (Select-String -Path "src/lib/mvm/commands.ts" -Pattern "normalizeCommandHead" -Quiet)) { throw "Mixed-language command normalization is missing" }
+          if (-not (Select-String -Path "src/lib/mvm/executor.ts" -Pattern "formatAndroidCompatibilityReport" -Quiet)) { throw "Android API/OEM report is missing" }
+          if (-not (Select-String -Path "src/lib/mvm/compatibility.ts" -Pattern "Allow restricted settings" -Quiet)) { throw "Restricted Settings fallback explanation is missing" }
+          if (-not (Select-String -Path "src/lib/mvm/executor.ts" -Pattern "CAPABILITY SNAPSHOTS" -Quiet)) { throw "Capability snapshot report is missing" }
 
       - name: Run project tests
         run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts

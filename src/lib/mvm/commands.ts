@@ -1,4 +1,5 @@
 import type { CommandSpec } from "./types";
+import { normalizeCommandHead } from "./compatibility";
 
 export const COMMANDS: CommandSpec[] = [
   {
@@ -249,6 +250,13 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "Tilni almashtiradi.",
   },
   {
+    name: "compat",
+    aliases: ["compatibility", "oem", "device-compatibility", "moslik", "mosliklar"],
+    usage: "compat",
+    summaryEn: "Inspect real Android API level, OEM hints, permission gates and safe fallbacks.",
+    summaryUz: "Android API darajasi, OEM ishoralari, ruxsatlar va xavfsiz fallbacklarni tekshiradi.",
+  },
+  {
     name: "help",
     aliases: ["?", "man"],
     usage: "help [cmd]",
@@ -288,14 +296,14 @@ export const COMMANDS: CommandSpec[] = [
 const INDEX: Record<string, CommandSpec> = (() => {
   const map: Record<string, CommandSpec> = {};
   for (const c of COMMANDS) {
-    map[c.name] = c;
-    for (const a of c.aliases) map[a] = c;
+    map[normalizeCommandHead(c.name)] = c;
+    for (const a of c.aliases) map[normalizeCommandHead(a)] = c;
   }
   return map;
 })();
 
 export function lookupCommand(token: string): CommandSpec | undefined {
-  return INDEX[token.toLowerCase()];
+  return INDEX[normalizeCommandHead(token)];
 }
 
 const EMPTY_OK = new Set([
@@ -309,6 +317,7 @@ const EMPTY_OK = new Set([
   "sys",
   "device",
   "about",
+  "compat",
   "help",
   "date",
   "whoami",
@@ -320,7 +329,7 @@ export function parseLine(line: string): { cmd?: CommandSpec; args: string[]; ra
   const raw = line.trim();
   if (!raw) return { args: [], raw };
   const parts = raw.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((p) => p.replace(/^"|"$/g, "")) ?? [];
-  const head = (parts[0] ?? "").toLowerCase();
+  const head = normalizeCommandHead(parts[0] ?? "");
   const spec = lookupCommand(head);
   if (!spec) return { args: parts, raw };
   const canonical = spec.name === head;
