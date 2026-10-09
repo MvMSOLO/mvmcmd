@@ -99,8 +99,22 @@ jobs:
           grep -q 'notification_listener' "src/lib/mvm/capabilities/registry.ts"
           ! grep -q 'requestMissingPermissions' "android/app/src/main/java/com/mvmcmd/launcher/MvmNotificationCenterActivity.java"
 
+      - name: Verify global entry point bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check desktop/main.cjs
+          node --check desktop/preload.cjs
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmEntryPointPlugin.java"
+          grep -q 'registerPlugin(MvmEntryPointPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
+          grep -q 'android.app.shortcuts' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'android.intent.action.SEND' "android/app/src/main/AndroidManifest.xml"
+          test -s "android/app/src/main/res/xml/shortcuts.xml"
+          test -s "src/lib/mvm/global-entry-points.test.ts"
+          test -s "src/lib/mvm/global-entry-bridge.ts"
+
       - name: Run project tests
-        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts
 
       - name: Build web application
         run: npm run build
