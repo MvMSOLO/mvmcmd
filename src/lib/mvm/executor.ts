@@ -28,6 +28,7 @@ import { refreshNativeCapabilities } from "./capabilities";
 import { runMvmAction, actionStatusLine } from "./action-engine";
 import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
 import { runAppBridge } from "./app-bridge";
+import { requestExternalFileOpen } from "./global-entry-bridge";
 import { planMvmGoal, runMvmGoal } from "./goal-engine";
 import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
 import { copyText, lookupContact, openDialer, openEmailComposer, openSmsComposer, pasteText } from "./communication";
@@ -529,6 +530,16 @@ function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
             { meta: action.reason ?? action.message },
           ),
         ],
+      };
+    }
+    case "openfile": {
+      const uri = parsed.args.join(" ").trim();
+      const handoff = requestExternalFileOpen(uri);
+      return {
+        state: state0,
+        lines: [line(handoff.started ? "sys" : "warn", `OPENFILE  ${handoff.started ? "STARTED" : "FAILED"}`, {
+          meta: handoff.reason ?? "System file handoff requested; external handling is not verified.",
+        })],
       };
     }
     case "share": {
