@@ -27,7 +27,8 @@ import { MvmGenerativeField } from "./generative-field";
 import { Mvm3D } from "./mvm-3d";
 import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
-import { Mic, MicOff } from "lucide-react";
+import { Activity, Mic, MicOff } from "lucide-react";
+import { isMotionReduced, motionModeDescription, motionModeLabel, nextMotionMode, normalizeMotionMode, MVM_MOTION_STORAGE_KEY, type MvmMotionMode } from "@/lib/mvm/motion-preferences";
 import { cancelVoiceCapture, isVoiceCaptureSupported, speakVoiceInstruction, speakVoiceOutcome, startVoiceCapture, cancelVoiceSpeech } from "@/lib/mvm/voice-assistant";
 import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
 import { emitMvmSignal } from "@/lib/mvm/signal-system";
@@ -127,6 +128,8 @@ export function MvmShell() {
   const [state, setState] = useState<PersistedState>(EMPTY);
   const rootRef = useRef<HTMLDivElement>(null);
   const performanceGovernor = useMvmPerformanceGovernor();
+  const [motionMode, setMotionMode] = useState<MvmMotionMode>("system");
+  const [systemReducedMotion, setSystemReducedMotion] = useState(false);
   const [phase, setPhase] = useState<"gate" | "boot" | "live">("gate");
   const [lines, setLines] = useState<LogLine[]>([]);
   const [input, setInput] = useState("");
@@ -146,6 +149,32 @@ export function MvmShell() {
   const [globalEntryNotice, setGlobalEntryNotice] = useState("");
   const seenGlobalEntriesRef = useRef<Set<string>>(new Set());
   useKeyboardInset();
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncSystemPreference = () => setSystemReducedMotion(media.matches);
+    syncSystemPreference();
+    try {
+      setMotionMode(normalizeMotionMode(window.localStorage.getItem(MVM_MOTION_STORAGE_KEY)));
+    } catch {
+      setMotionMode("system");
+    }
+    media.addEventListener("change", syncSystemPreference);
+    return () => media.removeEventListener("change", syncSystemPreference);
+  }, []);
+
+  const reducedMotion = isMotionReduced(motionMode, systemReducedMotion);
+  const motionLabel = motionModeLabel(motionMode, systemReducedMotion, state.lang);
+
+  function toggleMotionMode() {
+    const next = nextMotionMode(motionMode);
+    setMotionMode(next);
+    try {
+      window.localStorage.setItem(MVM_MOTION_STORAGE_KEY, next);
+    } catch {
+      // Motion control must remain usable if storage is unavailable.
+    }
+  }
 
   useEffect(() => {
     const root = rootRef.current;
@@ -260,7 +289,7 @@ export function MvmShell() {
 
   useEffect(() => {
     if (phase !== "boot") return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = reducedMotion;
     const sessionKey = "mvmcmd.booted";
     const already = sessionStorage.getItem(sessionKey) === "1";
     const rows = BOOT_LINES.map((text) => makeLine("sys", text));
@@ -281,7 +310,7 @@ export function MvmShell() {
       }
     }, 140);
     return () => window.clearInterval(id);
-  }, [phase]);
+  }, [phase, reducedMotion]);
 
   useEffect(() => {
     const node = logRef.current;
@@ -290,14 +319,14 @@ export function MvmShell() {
     const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 96;
     if (!nearBottom) return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = reducedMotion;
     requestAnimationFrame(() => {
       node.scrollTo({
         top: node.scrollHeight,
         behavior: reduced ? "auto" : "smooth",
       });
     });
-  }, [lines]);
+  }, [lines, reducedMotion]);
 
   useEffect(() => {
     if (phase === "live") inputRef.current?.focus();
@@ -676,11 +705,11 @@ export function MvmShell() {
   const navigateSpace = (zone: "rail" | "core" | "catalog") => {
     if (zone === "core") {
       inputRef.current?.focus();
-      inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      inputRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
       return;
     }
     document.getElementById(zone === "rail" ? "mvm-space-left" : "mvm-space-right")?.scrollIntoView({
-      behavior: "smooth",
+      behavior: reducedMotion ? "auto" : "smooth",
       block: "nearest",
       inline: "nearest",
     });
@@ -695,11 +724,12 @@ export function MvmShell() {
       data-mvm-scene={scene}
       data-mvm-signal={interfaceSignal}
       data-mvm-performance={performanceGovernor.tier}
-      data-mvm-performance-fps={performanceGovernor.fps}
+      data-mvm-performance-fps={performanceGovernor.measured ? performanceGovernor.fps : undefined}
+      data-mvm-motion={reducedMotion ? "reduced" : "standard"}
       data-mvm-space-state={spatialState}
       data-mvm-juice={juicePulse}
       data-mvm-design-roles="bento-40 glass-20 neumorphic-20 skeuo-20"
-      className="mvm-trend-view relative isolate flex min-h-dvh flex-col bg-bg text-fg"
+      className={cn("mvm-trend-view relative isolate flex min-h-dvh flex-col bg-bg text-fg", reducedMotion && "mvm-motion-reduced")}
       style={{
         "--mvm-perf-render-scale": performanceGovernor.renderScale,
         "--mvm-perf-motion-scale": performanceGovernor.motionScale,
@@ -744,9 +774,21 @@ export function MvmShell() {
               {platform}
               {standalone ? " · PWA" : ""}
             </p>
-            <p className="mvm-runtime-chip mvm-performance-chip tabular-nums uppercase tracking-mark" title={`Measured ${performanceGovernor.fps} FPS`}>
-              {performanceGovernor.tier} · {performanceGovernor.fps}
+            <p className="mvm-runtime-chip mvm-performance-chip tabular-nums uppercase tracking-mark" title={performanceGovernor.measured ? `Measured ${performanceGovernor.fps} FPS` : (lang === "uz" ? "FPS o‘lchanmoqda" : "Measuring frame delivery")}>
+              {performanceGovernor.measured ? `${performanceGovernor.tier} · ${performanceGovernor.fps}` : (lang === "uz" ? "o‘lchanmoqda" : "sampling")}
             </p>
+            <button
+              type="button"
+              data-mvm-action="motion-toggle"
+              aria-label={motionModeDescription(motionMode, systemReducedMotion, lang)}
+              aria-pressed={motionMode === "reduced"}
+              title={motionModeDescription(motionMode, systemReducedMotion, lang)}
+              onClick={toggleMotionMode}
+              className="mvm-motion-toggle inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-line px-2 py-1 font-mono text-[9px] uppercase tracking-wide text-muted hover:border-line-strong hover:text-fg"
+            >
+              <Activity size={13} aria-hidden="true" />
+              <span>{motionLabel}</span>
+            </button>
           </div>
         </div>
       </header>

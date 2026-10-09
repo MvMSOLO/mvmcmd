@@ -87,7 +87,7 @@ export function Mvm3D({ asset, size = "sm", interactive = true, label = false, s
   );
   // 3D assets are visual-only. Clicking/tapping them must not navigate anywhere.
   // Keep the prop for API compatibility with existing call sites.
-  return <div data-motion={interactive ? "18-3d-hover" : undefined}>{content}</div>;
+  return <div data-motion={interactive ? "18-3d-hover" : undefined} onClick={(event) => event.stopPropagation()}>{content}</div>;
 }
 
 export const MVM_3D = Object.fromEntries(MVM_3D_ASSETS.map((asset) => [asset.id, asset])) as Record<string, Mvm3DAsset>;

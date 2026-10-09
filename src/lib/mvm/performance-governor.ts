@@ -8,6 +8,7 @@ export type MvmPerformanceSnapshot = {
   deviceScore: number;
   renderScale: number;
   motionScale: number;
+  measured: boolean;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -44,26 +45,33 @@ function snapshot(fps: number, deviceScore: number): MvmPerformanceSnapshot {
     deviceScore,
     renderScale: tier === "high" ? 1 : tier === "balanced" ? 0.86 : 0.68,
     motionScale: tier === "high" ? 1 : tier === "balanced" ? 0.78 : 0.5,
+    measured: true,
   };
 }
 
 export function useMvmPerformanceGovernor(): MvmPerformanceSnapshot {
-  const [state, setState] = useState<MvmPerformanceSnapshot>(() =>
-    snapshot(60, getDeviceScore()),
-  );
+  const [state, setState] = useState<MvmPerformanceSnapshot>(() => ({
+    tier: "balanced",
+    fps: 0,
+    deviceScore: getDeviceScore(),
+    renderScale: 0.86,
+    motionScale: 0.78,
+    measured: false,
+  }));
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
     const deviceScore = getDeviceScore();
-    let raf = 0;
+    let raf: number | null = null;
     let frames = 0;
     let windowStart = performance.now();
     let lastSample = performance.now();
     let active = true;
 
     const sample = (now: number) => {
-      if (!active) return;
+      raf = null;
+      if (!active || document.hidden) return;
 
       const delta = now - lastSample;
       lastSample = now;
@@ -74,7 +82,7 @@ export function useMvmPerformanceGovernor(): MvmPerformanceSnapshot {
         const fps = (frames * 1000) / elapsed;
         setState((current) => {
           const next = snapshot(fps, deviceScore);
-          return current.tier === next.tier && current.fps === next.fps ? current : next;
+          return current.tier === next.tier && current.fps === next.fps && current.measured === next.measured ? current : next;
         });
         frames = 0;
         windowStart = now;
@@ -84,18 +92,23 @@ export function useMvmPerformanceGovernor(): MvmPerformanceSnapshot {
     };
 
     const onVisibility = () => {
-      if (document.hidden) return;
+      if (document.hidden) {
+        if (raf !== null) window.cancelAnimationFrame(raf);
+        raf = null;
+        return;
+      }
       frames = 0;
       windowStart = performance.now();
       lastSample = windowStart;
+      if (raf === null && active) raf = window.requestAnimationFrame(sample);
     };
 
     document.addEventListener("visibilitychange", onVisibility);
-    raf = window.requestAnimationFrame(sample);
+    if (!document.hidden) raf = window.requestAnimationFrame(sample);
 
     return () => {
       active = false;
-      window.cancelAnimationFrame(raf);
+      if (raf !== null) window.cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);

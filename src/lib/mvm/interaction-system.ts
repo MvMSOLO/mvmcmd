@@ -25,13 +25,15 @@ function schedulePhysical(target: PhysicalTarget, clientX: number, clientY: numb
 }
 
 export function installMvmInteractionLayer(root: HTMLElement): () => void {
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const reduced = () => media.matches || root.classList.contains("mvm-motion-reduced");
 
   const onPointerMove = (event: PointerEvent) => {
     if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
     const target = (event.target as Element | null)?.closest<PhysicalTarget>("[data-mvm-physical]");
     if (!target || !root.contains(target)) return;
-    if (!reduced) schedulePhysical(target, event.clientX, event.clientY);
+    if (reduced()) resetPhysical(target);
+    else schedulePhysical(target, event.clientX, event.clientY);
   };
 
   const onPointerOut = (event: PointerEvent) => {
@@ -58,9 +60,10 @@ export function installMvmInteractionLayer(root: HTMLElement): () => void {
     const target = (event.target as Element | null)?.closest<HTMLElement>("[data-mvm-action]");
     if (!target || !root.contains(target)) return;
     target.classList.remove("mvm-micro-flash");
+    if (reduced()) return;
     window.requestAnimationFrame(() => {
       target.classList.add("mvm-micro-flash");
-      window.setTimeout(() => target.classList.remove("mvm-micro-flash"), reduced ? 80 : 360);
+      window.setTimeout(() => target.classList.remove("mvm-micro-flash"), 360);
     });
   };
 

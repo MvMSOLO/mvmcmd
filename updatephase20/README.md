@@ -27,7 +27,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 14 — Context, Session Memory & Conversation: **COMPLETED**
 - Phase 15 — Voice + Assistant Layer: **COMPLETED**
 - Phase 16 — Global Entry Points: **COMPLETED**
-- Phase 17 — Speed, Motion & Premium UX: **PLANNED**
+- Phase 17 — Speed, Motion & Premium UX: **IN PROGRESS — CODE COMMITTED, CI PENDING**
 - Phase 18 — Globalization + Android/OEM Compatibility: **PLANNED**
 - Phase 19 — Hardening, Security, Performance & Massive Testing: **PLANNED**
 - Phase 20 — Release Candidate → Demo → Instagram Launch: **PLANNED**
@@ -48,6 +48,10 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 
 ## Documentation map
 See `PHASE-01.md` through `PHASE-20.md` for the full phase specifications. See `PHASE-01-08-CONSOLIDATED.md` for the implementation history of the completed first eight phases.
+
+## Phase 17 implementation checkpoint
+
+The Phase 17 implementation is committed on the current branch; final status remains pending Android APK and Windows EXE CI verification. This pass adds a persisted, accessible reduced-motion control that follows the OS by default, disables motion-driven physical/parallax effects when reduced motion is active, makes command log scrolling and boot choreography respect the effective preference, gives keyboard focus a visible ring, prevents decorative 3D clicks from bubbling into surrounding action cards, removes stale KernelCAD external destinations from decorative assets, and suspends the performance sampling loop while the app is hidden. The FPS display now says “sampling” until a real frame sample has completed. Focused contract tests and both platform workflow gates cover these behaviors.
 
 ## Phase 16 implementation checkpoint
 Phase 16 is completed on code commit [6f74881d8fb50d27fb31530f528feacaa612358a](https://github.com/MvMSOLO/mvmcmd/commit/6f74881d8fb50d27fb31530f528feacaa612358a). Android APK [run 37904252074](https://github.com/MvMSOLO/mvmcmd/actions/runs/37904252074) and Windows EXE [run 37904252142](https://github.com/MvMSOLO/mvmcmd/actions/runs/37904252142) both succeeded, including focused tests, platform artifact verification, final success gates and artifact uploads. Android shortcuts, deep links, share/open intent staging, QR Quick Settings routing, Windows protocol links, tray and global command hotkey now feed the existing command dock. Incoming commands are staged for user review and are not auto-executed. Full implementation, artifact and acceptance evidence is documented in [PHASE-16.md](PHASE-16.md).

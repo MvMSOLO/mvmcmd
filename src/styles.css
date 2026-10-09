@@ -3539,3 +3539,59 @@
     display: none;
   }
 }
+
+
+/* Phase 17 — user-controlled reduced motion, safe focus and lightweight UI feedback. */
+.mvm-motion-toggle {
+  max-width: 12rem;
+  white-space: nowrap;
+  border-color: color-mix(in oklab, var(--color-fg) 14%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 85%, transparent);
+}
+.mvm-motion-toggle[aria-pressed="true"] {
+  border-color: color-mix(in oklab, var(--color-ok) 38%, transparent);
+  color: var(--color-ok);
+}
+:where(button, input, textarea, select, a, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-ok) 88%, white);
+  outline-offset: 3px;
+}
+.mvm-motion-reduced *,
+.mvm-motion-reduced *::before,
+.mvm-motion-reduced *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+  scroll-behavior: auto !important;
+}
+.mvm-motion-reduced .enter-left,
+.mvm-motion-reduced .enter-right,
+.mvm-motion-reduced .enter-up,
+.mvm-motion-reduced .enter-down,
+.mvm-motion-reduced .enter-fade,
+.mvm-motion-reduced .mvm-trend-scroll,
+.mvm-motion-reduced .mvm-trend-parallax,
+.mvm-motion-reduced .mvm-trend-view,
+.mvm-motion-reduced .mvm-motion-scanline::after,
+.mvm-motion-reduced .mvm-hand-glass-sweep::before,
+.mvm-motion-reduced .mvm-hand-beam::after {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+.mvm-motion-reduced [data-mvm-physical],
+.mvm-motion-reduced .mvm3d-stage,
+.mvm-motion-reduced .mvm3d-wrap,
+.mvm-motion-reduced .mvm-trend-depth {
+  transform: none !important;
+}
+@media (max-width: 40rem) {
+  .mvm-header-status .mvm-live-clock,
+  .mvm-header-status p.mvm-runtime-chip:first-of-type {
+    display: none;
+  }
+  .mvm-motion-toggle span {
+    display: none;
+  }
+}
