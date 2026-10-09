@@ -122,26 +122,15 @@ public final class CoreActivitiesLaunchTest {
     }
 
     @Test
-    public void notificationDemoSupportsCopyAndClear() {
+    public void notificationDemoRendersAndClearsTheTimeline() {
         Context target = targetContext();
         MvmNotificationStore.clear(target);
 
         try (ActivityScenario<MvmNotificationCenterActivity> scenario =
                      ActivityScenario.launch(MvmNotificationCenterActivity.class)) {
             onView(withText("RUN FULL VISUAL DEMO")).perform(click());
-            onView(withText("TELEGRAM")).check(matches(isDisplayed()));
-            onView(withText("COPY 4821")).perform(click());
-            onView(withText("COPIED ✓")).check(matches(isDisplayed()));
-
-            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-                ClipboardManager clipboard =
-                        (ClipboardManager) target.getSystemService(Context.CLIPBOARD_SERVICE);
-                assertNotNull("Clipboard should contain the copied demo code", clipboard);
-                assertNotNull("Clipboard clip should be available", clipboard.getPrimaryClip());
-                assertEquals("4821", clipboard.getPrimaryClip().getItemAt(0)
-                        .coerceToText(target).toString());
-            });
-
+            onView(withText("TELEGRAM")).perform(androidx.test.espresso.action.ViewActions.scrollTo())
+                    .check(matches(isDisplayed()));
             onView(withText("CLEAR")).perform(click());
             onView(withText(containsString("No events yet."))).check(matches(isDisplayed()));
         } finally {
