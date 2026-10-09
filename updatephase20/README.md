@@ -26,7 +26,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 13 — Device Utility & File Intelligence: **COMPLETED**
 - Phase 14 — Context, Session Memory & Conversation: **COMPLETED**
 - Phase 15 — Voice + Assistant Layer: **COMPLETED**
-- Phase 16 — Global Entry Points: **IMPLEMENTED — CI PENDING**
+- Phase 16 — Global Entry Points: **COMPLETED**
 - Phase 17 — Speed, Motion & Premium UX: **PLANNED**
 - Phase 18 — Globalization + Android/OEM Compatibility: **PLANNED**
 - Phase 19 — Hardening, Security, Performance & Massive Testing: **PLANNED**
@@ -50,7 +50,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 See `PHASE-01.md` through `PHASE-20.md` for the full phase specifications. See `PHASE-01-08-CONSOLIDATED.md` for the implementation history of the completed first eight phases.
 
 ## Phase 16 implementation checkpoint
-Phase 16 implementation adds Android static shortcuts, allow-listed `mvmcmd://command/<command>` links, Android share/open intent staging, QR Quick Settings routing through the command dock, and desktop protocol/tray/global-shortcut entry points. Incoming commands are staged for review and are not auto-executed. CI evidence is pending final validation.
+Phase 16 is completed on code commit [6f74881d8fb50d27fb31530f528feacaa612358a](https://github.com/MvMSOLO/mvmcmd/commit/6f74881d8fb50d27fb31530f528feacaa612358a). Android APK [run 37904252074](https://github.com/MvMSOLO/mvmcmd/actions/runs/37904252074) and Windows EXE [run 37904252142](https://github.com/MvMSOLO/mvmcmd/actions/runs/37904252142) both succeeded, including focused tests, platform artifact verification, final success gates and artifact uploads. Android shortcuts, deep links, share/open intent staging, QR Quick Settings routing, Windows protocol links, tray and global command hotkey now feed the existing command dock. Incoming commands are staged for user review and are not auto-executed. Full implementation, artifact and acceptance evidence is documented in [PHASE-16.md](PHASE-16.md).
 
 ## Phase 15 implementation checkpoint
 Phase 15 is completed on validated code commit [7d6a80842797750cf41deecfa5503a8f9b1d4b1b](https://github.com/MvMSOLO/mvmcmd/commit/7d6a80842797750cf41deecfa5503a8f9b1d4b1b). Android APK [run 37900166326](https://github.com/MvMSOLO/mvmcmd/actions/runs/37900166326) and Windows EXE [run 37900166264](https://github.com/MvMSOLO/mvmcmd/actions/runs/37900166264) succeeded, including focused tests, platform artifact verification and upload. Voice input is staged for explicit review before Launch; spoken summaries respect the returned execution state. Full implementation and acceptance notes are in [PHASE-15.md](PHASE-15.md).
