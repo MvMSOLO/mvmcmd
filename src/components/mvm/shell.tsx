@@ -17,6 +17,8 @@ import {
 import { EMPTY, loadState, pushHistory, saveState } from "@/lib/mvm/persist";
 import { rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference } from "@/lib/mvm/session-context";
 import { detectRuntime } from "@/lib/mvm/platform";
+import { acknowledgeGlobalEntry, subscribeGlobalEntryPoints } from "@/lib/mvm/global-entry-bridge";
+import { describeGlobalEntry, draftFromGlobalEntry, normalizeGlobalEntry } from "@/lib/mvm/global-entry-points";
 import type { CatalogApp, LogLine, MatchHit, PersistedState, PlatformKind } from "@/lib/mvm/types";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "./gate";
@@ -141,6 +143,8 @@ export function MvmShell() {
   const [voiceStatus, setVoiceStatus] = useState("");
   const voicePendingRef = useRef(false);
   const voiceRequestRef = useRef(0);
+  const [globalEntryNotice, setGlobalEntryNotice] = useState("");
+  const seenGlobalEntriesRef = useRef<Set<string>>(new Set());
   useKeyboardInset();
 
   useEffect(() => {
@@ -193,6 +197,49 @@ export function MvmShell() {
     });
     const stop = listenInstallPrompt();
     return stop;
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: () => void = () => {};
+    const onEntry = (value: unknown) => {
+      if (!active) return;
+      const entry = normalizeGlobalEntry(value);
+      if (!entry || seenGlobalEntriesRef.current.has(entry.id)) return;
+      seenGlobalEntriesRef.current.add(entry.id);
+      const draft = draftFromGlobalEntry(entry);
+      if (!draft) {
+        setGlobalEntryNotice(lang === "uz" ? "Tashqi kirish turi qo‘llab-quvvatlanmaydi." : "This external entry type is not supported.");
+        return;
+      }
+      setInput(draft);
+      setSel(0);
+      setHistIdx(-1);
+      setGlobalEntryNotice(describeGlobalEntry(entry, lang));
+      append([makeLine("sys", `ENTRY  STAGED  ${entry.kind.toUpperCase()}`, { meta: `${entry.source} · review required · not executed` })]);
+      inputRef.current?.focus();
+      void acknowledgeGlobalEntry(entry);
+    };
+    const focusCommand = () => inputRef.current?.focus();
+    void subscribeGlobalEntryPoints(onEntry, focusCommand).then((dispose) => {
+      if (active) unsubscribe = dispose;
+      else dispose();
+    }).catch((error: unknown) => {
+      if (active) setGlobalEntryNotice(error instanceof Error ? error.message : "Global entry bridge unavailable.");
+    });
+    const onFileOpenResult = (event: Event) => {
+      const detail = (event as CustomEvent<{ opened?: boolean; reason?: string }>).detail;
+      if (!detail) return;
+      append([makeLine(detail.opened ? "sys" : "warn", detail.opened ? "OPENFILE  HANDOFF ACCEPTED" : "OPENFILE  HANDOFF FAILED", {
+        meta: detail.opened ? "System accepted the request; file handling is not verified." : detail.reason ?? "The system could not open this file.",
+      })]);
+    };
+    window.addEventListener("mvm:entry-action-result", onFileOpenResult);
+    return () => {
+      active = false;
+      unsubscribe();
+      window.removeEventListener("mvm:entry-action-result", onFileOpenResult);
+    };
   }, []);
 
   useEffect(() => {
@@ -888,6 +935,13 @@ export function MvmShell() {
           </ul>
         )}
 
+        {globalEntryNotice && (
+          <div role="status" aria-live="polite" className="mvm-global-entry mx-auto flex w-full max-w-6xl items-start gap-3 border border-line bg-surface/80 px-4 py-3 font-mono text-xs text-muted sm:px-6">
+            <span className="mt-0.5 text-accent" aria-hidden>↳</span>
+            <p className="min-w-0 flex-1 leading-relaxed">{globalEntryNotice}</p>
+            <button type="button" aria-label={lang === "uz" ? "Tashqi kirish xabarini yopish" : "Dismiss external entry notice"} className="shrink-0 rounded px-2 py-1 text-faint hover:bg-raised hover:text-fg" onClick={() => setGlobalEntryNotice("")}>×</button>
+          </div>
+        )}
         <form
           aria-label={lang === "uz" ? "MVMCMD buyruq satri" : "MVMCMD command line"}
           data-motion="09-input-ignite"
