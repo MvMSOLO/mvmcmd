@@ -18,6 +18,18 @@ export interface NativeCapabilitySnapshot {
   needsSettings?: boolean;
 }
 
+interface MvmFileToolsPlugin {
+  getStorageOverview(): Promise<{ totalBytes: number; availableBytes: number; usedBytes: number; source: string }>;
+  chooseFolder(): Promise<{ granted: boolean; uri?: string; name?: string; cancelled?: boolean }>;
+  listFolder(options: { uri: string; query?: string; minBytes?: number; limit?: number }): Promise<{ items: Array<{ id: string; name: string; uri: string; mimeType: string; sizeBytes?: number; modifiedAt?: number; isDirectory: boolean }>; scanned: number; truncated: boolean }>;
+  shareFile(options: { uri: string }): Promise<{ started: boolean; reason?: string }>;
+}
+const NativeFileTools = registerPlugin<MvmFileToolsPlugin>("MvmFileTools");
+export async function nativeGetStorageOverview() { return NativeFileTools.getStorageOverview(); }
+export async function nativeChooseFolder() { return NativeFileTools.chooseFolder(); }
+export async function nativeListFolder(options: { uri: string; query?: string; minBytes?: number; limit?: number }) { return NativeFileTools.listFolder(options); }
+export async function nativeShareFile(uri: string) { return NativeFileTools.shareFile({ uri }); }
+
 interface MvmLauncherPlugin {
   openCamera(): Promise<{ opened: boolean }>;
   openQr(): Promise<{ opened: boolean }>;
