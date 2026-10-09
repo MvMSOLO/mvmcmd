@@ -2,19 +2,37 @@ package com.mvmcmd.launcher;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ClipboardManager;
+import android.content.Context;
 
 import androidx.test.core.app.ActivityScenario;
+import androidx.test.espresso.Espresso;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.typeText;
+import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static androidx.test.espresso.matcher.ViewMatchers.withHint;
+import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 @RunWith(AndroidJUnit4.class)
 public final class CoreActivitiesLaunchTest {
     private static final String PACKAGE = "com.mvmcmd.launcher";
+
+    private Context targetContext() {
+        return InstrumentationRegistry.getInstrumentation().getTargetContext();
+    }
 
     private void grantCameraPermissionForEmulator() {
         InstrumentationRegistry.getInstrumentation()
@@ -37,15 +55,98 @@ public final class CoreActivitiesLaunchTest {
     }
 
     @Test
-    public void cameraActivityLaunchesWithCameraPermission() {
+    public void cameraActivityShowsCaptureAndAdjustmentControls() {
         grantCameraPermissionForEmulator();
-        assertActivityCanLaunch(MvmCameraActivity.class);
+        try (ActivityScenario<MvmCameraActivity> scenario = ActivityScenario.launch(MvmCameraActivity.class)) {
+            onView(withText("4:3")).check(matches(isDisplayed()));
+            onView(withText("Natural")).check(matches(isDisplayed()));
+            onView(withText("Vivid")).perform(click());
+            onView(withText("PHOTO")).check(matches(isDisplayed()));
+            onView(withText("VIDEO")).check(matches(isDisplayed()));
+            onView(withContentDescription("Adjust")).perform(click());
+            onView(withText("ADJUST")).check(matches(isDisplayed()));
+            onView(withText("Exposure")).check(matches(isDisplayed()));
+        }
     }
 
     @Test
-    public void qrActivityLaunchesWithCameraPermission() {
+    public void qrActivityShowsScannerStatusAndImageFallback() {
         grantCameraPermissionForEmulator();
-        assertActivityCanLaunch(MvmQrActivity.class);
+        try (ActivityScenario<MvmQrActivity> scenario = ActivityScenario.launch(MvmQrActivity.class)) {
+            onView(withText("QR / BARCODE")).check(matches(isDisplayed()));
+            onView(withText("ALIGN CODE INSIDE THE FRAME")).check(matches(isDisplayed()));
+            onView(withContentDescription("Scan QR or barcode from image")).check(matches(isDisplayed()));
+        }
+    }
+
+    @Test
+    public void wallpaperActivityShowsNativeWallpaperActions() {
+        try (ActivityScenario<MvmWallpaperActivity> scenario = ActivityScenario.launch(MvmWallpaperActivity.class)) {
+            onView(withText("WALLPAPER")).check(matches(isDisplayed()));
+            onView(withText("MVMCMD  /  ORIGINAL WALLPAPERS")).check(matches(isDisplayed()));
+            onView(withText("SET HOME WALLPAPER")).check(matches(isDisplayed()));
+            onView(withText("ORIGINAL 17")).check(matches(isDisplayed()));
+        }
+    }
+
+    @Test
+    public void englishPracticeAnswersAQuestionAndUpdatesXp() {
+        Context target = targetContext();
+        target.getSharedPreferences("mvm_english", Context.MODE_PRIVATE).edit().clear().commit();
+
+        try (ActivityScenario<MvmEnglishActivity> scenario = ActivityScenario.launch(MvmEnglishActivity.class)) {
+            onView(withText("START ADAPTIVE PRACTICE  →")).perform(click());
+            onView(withText("She ___ a student.")).check(matches(isDisplayed()));
+            onView(withText("is")).perform(click());
+            onView(withText("XP 10")).check(matches(isDisplayed()));
+        } finally {
+            target.getSharedPreferences("mvm_english", Context.MODE_PRIVATE).edit().clear().commit();
+        }
+    }
+
+    @Test
+    public void englishStudioGrammarCheckerReturnsAnExplicitCorrection() {
+        Context target = targetContext();
+        target.getSharedPreferences("mvm_english_studio", Context.MODE_PRIVATE).edit().clear().commit();
+
+        try (ActivityScenario<MvmEnglishStudioActivity> scenario = ActivityScenario.launch(MvmEnglishStudioActivity.class)) {
+            onView(withText("GRAMMAR CHECKER  ·  EXPLAIN MY MISTAKES")).perform(click());
+            onView(withHint("Paste or type English here…"))
+                    .perform(typeText("he go school"), closeSoftKeyboard());
+            onView(withText("CHECK EVERYTHING  →")).perform(click());
+            onView(withText("CORRECTED")).check(matches(isDisplayed()));
+            onView(withText("He goes school.")).check(matches(isDisplayed()));
+        } finally {
+            target.getSharedPreferences("mvm_english_studio", Context.MODE_PRIVATE).edit().clear().commit();
+        }
+    }
+
+    @Test
+    public void notificationDemoSupportsCopyAndClear() {
+        Context target = targetContext();
+        MvmNotificationStore.clear(target);
+
+        try (ActivityScenario<MvmNotificationCenterActivity> scenario =
+                     ActivityScenario.launch(MvmNotificationCenterActivity.class)) {
+            onView(withText("RUN FULL VISUAL DEMO")).perform(click());
+            onView(withText("TELEGRAM")).check(matches(isDisplayed()));
+            onView(withText("COPY 4821")).perform(click());
+            onView(withText("COPIED ✓")).check(matches(isDisplayed()));
+
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+                ClipboardManager clipboard =
+                        (ClipboardManager) target.getSystemService(Context.CLIPBOARD_SERVICE);
+                assertNotNull("Clipboard should contain the copied demo code", clipboard);
+                assertNotNull("Clipboard clip should be available", clipboard.getPrimaryClip());
+                assertEquals("4821", clipboard.getPrimaryClip().getItemAt(0)
+                        .coerceToText(target).toString());
+            });
+
+            onView(withText("CLEAR")).perform(click());
+            onView(withText(containsString("No events yet."))).check(matches(isDisplayed()));
+        } finally {
+            MvmNotificationStore.clear(target);
+        }
     }
 
     @Test
