@@ -60,6 +60,7 @@ interface MvmLauncherPlugin {
     data?: string;
   }): Promise<NativeLaunchResult>;
   openUrl(options: { url: string }): Promise<{ opened: boolean }>;
+  openIncomingFile(options: { uri: string; mimeType?: string }): Promise<{ opened: boolean; reason?: string }>;
   openStore(options: { packageName: string; webUrl?: string }): Promise<{ opened: boolean }>;
   checkCapabilities(options?: { capabilityId?: string }): Promise<{
     capabilities: NativeCapabilitySnapshot[];
@@ -120,6 +121,10 @@ export async function nativeOpenPackage(
 
 export async function nativeOpenUrl(url: string): Promise<{ opened: boolean }> {
   return NativeLauncher.openUrl({ url });
+}
+
+export async function nativeOpenIncomingFile(uri: string, mimeType?: string): Promise<{ opened: boolean; reason?: string }> {
+  return NativeLauncher.openIncomingFile({ uri, ...(mimeType ? { mimeType } : {}) });
 }
 
 export async function nativeOpenStore(
