@@ -39,7 +39,7 @@ public class MvmFileToolsPlugin extends Plugin {
     private static final int MAX_URI_LENGTH = 2048;
     private static final int MAX_FILENAME_LENGTH = 180;
 
-    private static boolean isSafeScopedContentUri(String raw) {
+    private boolean isSafeScopedContentUri(String raw) {
         if (raw == null || raw.trim().isEmpty() || raw.length() > MAX_URI_LENGTH) return false;
         for (int i = 0; i < raw.length(); i++) {
             char c = raw.charAt(i);
@@ -49,7 +49,7 @@ public class MvmFileToolsPlugin extends Plugin {
         Uri uri;
         try { uri = Uri.parse(raw); } catch (Exception ignored) { return false; }
         if (!"content".equalsIgnoreCase(uri.getScheme()) || uri.getAuthority() == null || uri.getUserInfo() != null) return false;
-        if (uri.getAuthority().equalsIgnoreCase(getAuthorityPlaceholder())) return false;
+        if (uri.getAuthority().equalsIgnoreCase(getContext().getPackageName() + ".fileprovider")) return false;
         String path = raw.replaceFirst("(?i)^content://[^/?#]+", "").split("[?#]", 2)[0];
         for (int depth = 0; depth < 3; depth++) {
             String decoded = Uri.decode(path);
@@ -61,11 +61,6 @@ public class MvmFileToolsPlugin extends Plugin {
             path = decoded;
         }
         return true;
-    }
-
-    private static String getAuthorityPlaceholder() {
-        // The app's own private FileProvider URI is never a user-selected external file.
-        return "com.mvmcmd.launcher.fileprovider";
     }
 
     private static boolean isSafeLeafName(String value) {

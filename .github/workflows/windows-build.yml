@@ -36,6 +36,20 @@ jobs:
       - name: Install web dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Audit dependency health (critical vulnerabilities block release)
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $reportPath = Join-Path $env:RUNNER_TEMP "mvmcmd-npm-audit.json"
+          npm audit --json > $reportPath
+          $auditExit = $LASTEXITCODE
+          $report = Get-Content -Raw $reportPath | ConvertFrom-Json
+          $v = $report.metadata.vulnerabilities
+          if ($null -eq $v) { throw "Dependency audit produced no vulnerability summary (npm exit $auditExit)." }
+          Write-Host ("npm audit: info={0}, low={1}, moderate={2}, high={3}, critical={4}" -f $v.info,$v.low,$v.moderate,$v.high,$v.critical)
+          if ($v.critical -gt 0) { throw "CRITICAL dependency advisories block the release." }
+          if ($v.high -gt 0) { Write-Warning "High-severity dependency advisories remain; review npm audit details." }
+
       - name: Typecheck web application
         run: npm run typecheck
 
@@ -44,6 +58,8 @@ jobs:
         run: |
           node --check desktop/main.cjs
           if ($LASTEXITCODE -ne 0) { throw "desktop/main.cjs syntax check failed" }
+          node --check desktop/security.cjs
+          if ($LASTEXITCODE -ne 0) { throw "desktop/security.cjs syntax check failed" }
           node --check desktop/preload.cjs
           if ($LASTEXITCODE -ne 0) { throw "desktop/preload.cjs syntax check failed" }
           if (-not (Test-Path "src/lib/mvm/global-entry-points.test.ts")) { throw "Missing global entry tests" }
@@ -70,8 +86,19 @@ jobs:
           if (-not (Select-String -Path "src/lib/mvm/compatibility.ts" -Pattern "Allow restricted settings" -Quiet)) { throw "Restricted Settings fallback explanation is missing" }
           if (-not (Select-String -Path "src/lib/mvm/executor.ts" -Pattern "CAPABILITY SNAPSHOTS" -Quiet)) { throw "Capability snapshot report is missing" }
 
+      - name: Verify Phase 19 release hardening gates
+        shell: pwsh
+        run: |
+          foreach ($file in @("src/lib/mvm/security-policy.ts","src/lib/mvm/security-hardening.test.ts","src/lib/mvm/performance-budget.ts","src/lib/mvm/performance-budget.test.ts","desktop/security.cjs")) {
+            if (-not (Test-Path $file)) { throw "Missing Phase 19 release hardening file: $file" }
+          }
+          if (-not (Select-String -Path "android/app/src/main/AndroidManifest.xml" -Pattern 'android:allowBackup="false"' -Quiet)) { throw "Sensitive Android app-data backup must be disabled" }
+          if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java" -Pattern 'isAllowedExternalUri(url)' -Quiet)) { throw "Native URL allowlist is missing" }
+          if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmFileToolsPlugin.java" -Pattern "safeZipEntryName" -Quiet)) { throw "ZIP entry sanitization is missing" }
+          if (-not (Select-String -Path "desktop/main.cjs" -Pattern "assertTrustedIpcSender" -Quiet)) { throw "Electron IPC sender validation is missing" }
+
       - name: Run project tests
-        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts
 
       - name: Build web application
         run: npm run build

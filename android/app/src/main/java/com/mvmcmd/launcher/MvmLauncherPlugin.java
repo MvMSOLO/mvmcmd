@@ -80,7 +80,7 @@ public class MvmLauncherPlugin extends Plugin {
         String path = raw.replaceFirst("(?i)^content://[^/?#]+", "").split("[?#]", 2)[0];
         for (int depth = 0; depth < 3; depth++) {
             String decoded = Uri.decode(path);
-            if (decoded == null || decoded.contains("\\\\")) return false;
+            if (decoded == null || decoded.contains("\\")) return false;
             for (String part : decoded.split("/")) if (".".equals(part) || "..".equals(part)) return false;
             if (decoded.matches("(?i).*/(?:data|proc|sys)(?:/.*|$)")) return false;
             if (decoded.matches("(?i).*/primary:Android/(?:data|obb)(?:/.*|$)")) return false;
