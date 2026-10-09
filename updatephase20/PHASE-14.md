@@ -1,7 +1,7 @@
 # Phase 14 — Context, Session Memory & Conversation
 
 ## Status
-COMPLETED — implementation and both APK/EXE CI validations succeeded.
+IN PROGRESS — result-classification false positives and continuation/privacy edge cases are being tightened; final APK/EXE CI validation pending.
 
 ## Goal
 Allow MVM CMD to understand short conversational references without turning memory into uncontrolled data collection.
@@ -47,3 +47,8 @@ Phases 4, 7, 8, 10 and 13.
 - Validated code commit: 7805e34253af86be4a9e272cbdcbc5802b746f10.
 - Android APK workflow: [run 37895857391 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37895857391).
 - Windows EXE workflow: [run 37895857371 — SUCCESS](https://github.com/MvMSOLO/mvmcmd/actions/runs/37895857371).
+
+## Additional safety checks (pending CI)
+- Result summaries require an explicit state token; explanatory prose mentioning “not verified” cannot upgrade STARTED to VERIFIED.
+- “Continue/resume” does not silently replay an old action; the user must state the next step. Only allow-listed repeatable command text is kept in volatile context.
+- Automated tests cover explicit result-state classification, active session clear, safe continuation prompts, and non-repeatable text minimization.

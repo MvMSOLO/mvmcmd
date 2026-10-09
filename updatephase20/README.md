@@ -24,7 +24,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 11 — Adaptive Gaming Engine: **PLANNED**
 - Phase 12 — Communication Engine: **PLANNED**
 - Phase 13 — Device Utility & File Intelligence: **COMPLETED**
-- Phase 14 — Context, Session Memory & Conversation: **COMPLETED**
+- Phase 14 — Context, Session Memory & Conversation: **IN PROGRESS**
 - Phase 15 — Voice + Assistant Layer: **PLANNED**
 - Phase 16 — Global Entry Points: **PLANNED**
 - Phase 17 — Speed, Motion & Premium UX: **PLANNED**
@@ -51,3 +51,6 @@ See `PHASE-01.md` through `PHASE-20.md` for the full phase specifications. See `
 
 ## Phase 14 implementation checkpoint
 Phase 14 is implemented and validated on code commit 7805e34253af86be4a9e272cbdcbc5802b746f10. Focused session tests, TypeScript checks and both release-artifact gates succeeded: [APK run 37895857391](https://github.com/MvMSOLO/mvmcmd/actions/runs/37895857391) and [Windows EXE run 37895857371](https://github.com/MvMSOLO/mvmcmd/actions/runs/37895857371). The full acceptance record is in PHASE-14.md.
+
+## Phase 14 follow-up checkpoint
+The implementation is undergoing final safety tightening: result-state classification must be driven by an explicit status token, not explanatory prose; “continue” must not replay old actions; non-repeatable free text should not be retained. Phase 14 remains IN PROGRESS until the updated focused tests and both platform CI gates succeed.

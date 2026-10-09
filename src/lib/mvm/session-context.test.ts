@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createSessionContext, formatSessionSummary, isPrivacySensitiveCommand, isRepeatableCommand, recordSessionFileResults, recordSessionResult, recordSessionTurn, resolveSessionReference } from "./session-context.ts";
+import { clearActiveSessionContext, createSessionContext, formatSessionSummary, getActiveSessionSummary, isPrivacySensitiveCommand, isRepeatableCommand, recordSessionFileResults, recordSessionResult, recordSessionTurn, rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference, resolveSessionReference } from "./session-context.ts";
 
 test("repeat resolves only when a safe previous command exists", () => {
   const ctx = recordSessionTurn(createSessionContext(), "open settings", "open settings", { id: "settings", name: "Settings" });
@@ -65,4 +65,48 @@ test("unknown references are not guessed", () => {
   const ctx = recordSessionTurn(createSessionContext(), "device", "device");
   assert.equal(resolveSessionReference("the previous file", ctx).status, "ambiguous");
   assert.equal(resolveSessionReference("hello world", ctx).command, "hello world");
+});
+
+
+test("negated mentions of VERIFIED do not upgrade a STARTED result", () => {
+  const ctx = recordSessionTurn(createSessionContext(), "open settings", "open settings");
+  const result = recordSessionResult(ctx, "open settings", [
+    "LAUNCH Settings · STARTED",
+    "The system may open the app; MVMCMD does not label this VERIFIED yet.",
+  ]);
+  assert.equal(result.lastResultStatus, "started");
+});
+
+test("explicit verified status still produces a verified session result", () => {
+  const ctx = recordSessionTurn(createSessionContext(), "files storage", "files storage");
+  const result = recordSessionResult(ctx, "files storage", ["STORAGE VERIFIED · 84% used"]);
+  assert.equal(result.lastResultStatus, "verified");
+});
+
+test("continue never guesses or silently replays a completed command", () => {
+  const ctx = recordSessionTurn(createSessionContext(), "open settings", "open settings");
+  const resolution = resolveSessionReference("continue", ctx);
+  assert.equal(resolution.status, "ambiguous");
+  assert.match(resolution.message ?? "", /Name the next step explicitly/);
+});
+
+test("active session clear removes prior command/result and blocks repeat", () => {
+  clearActiveSessionContext();
+  const turn = rememberActiveSessionTurn("open settings", "open settings", { id: "settings", name: "Settings" });
+  rememberActiveSessionResult("open settings", ["LAUNCH Settings · VERIFIED"], turn);
+  assert.match(getActiveSessionSummary().join("\n"), /open settings/);
+
+  clearActiveSessionContext();
+  const summary = getActiveSessionSummary().join("\n");
+  assert.match(summary, /LAST COMMAND  none/);
+  assert.doesNotMatch(summary, /Settings|open settings/);
+  assert.equal(resolveActiveSessionReference("again").status, "ambiguous");
+  clearActiveSessionContext();
+});
+
+test("non-repeatable free text is not retained by session context", () => {
+  const ctx = recordSessionTurn(createSessionContext(), "private note about my day", "private note about my day");
+  assert.equal(ctx.lastCommand, undefined);
+  assert.equal(ctx.lastCommandRepeatable, false);
+  assert.doesNotMatch(formatSessionSummary(ctx).join("\n"), /private note about my day/);
 });

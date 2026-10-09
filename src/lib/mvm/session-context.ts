@@ -19,6 +19,7 @@ export interface SessionContext {
 export interface SessionResolution { status: "ready" | "ambiguous"; command: string; resolved: boolean; message?: string; }
 
 const REPEAT_CUE = /^(?:again|repeat|do that again|run it again|do it again|one more time|repeat that|yana|yana bir bor|qayta|shuni takrorla|yana qaytar)[.!? ]*$/i;
+const CONTINUE_CUE = /^(?:continue|continue task|resume|resume task|keep going|davom et|davom ettir|ishga davom et)[.!? ]*$/i;
 const APP_CUE = /^(?:(?:please\s+)?(?:open|launch|start|run|och|oching)\s+)?(?:(?:that|the previous|the last|last|previous|oldingi|avvalgi|shu|o'?sha)\s+(?:app|application|ilova|ilovani)|(?:open|launch|start|run)\s+it|(?:och|oching)\s+uni)[.!? ]*$/i;
 const PRIVATE_COMMAND = /^(?:contact|contacts|dial|call|sms|text|email|mail|copy|paste|clipboard|share|send|link|url)\b/i;
 const PRIVATE_FILES = /^files?\s+(?:delete|move|copy|share|zip)\b/i;
@@ -61,6 +62,17 @@ export function resolveSessionReference(input: string, context: SessionContext):
     if (!context.lastCommandRepeatable || isPrivacySensitiveCommand(context.lastCommand)) return { status: "ambiguous", command: trimmed, resolved: false, message: "The previous operation is not safe to repeat automatically. Enter the exact command again if you intend to run it." };
     return { status: "ready", command: context.lastCommand, resolved: true };
   }
+  if (CONTINUE_CUE.test(trimmed)) {
+    const previous = context.lastCommand
+      ? "Last recorded result: " + context.lastResultStatus.toUpperCase() + ". "
+      : "No previous command is available. ";
+    return {
+      status: "ambiguous",
+      command: trimmed,
+      resolved: false,
+      message: previous + "No background task is currently resumable. Name the next step explicitly; use " + '"again"' + " only when you intend to repeat a safe command.",
+    };
+  }
   if (APP_CUE.test(trimmed)) {
     if (!context.lastApp) return { status: "ambiguous", command: trimmed, resolved: false, message: "No single app is available in the current session context. Name the app explicitly." };
     return { status: "ready", command: 'open "' + context.lastApp.name.replace(/["\\]/g, "") + '"', resolved: true };
@@ -88,13 +100,32 @@ export function recordSessionTurn(context: SessionContext, input: string, comman
   if (isPrivacySensitiveCommand(input) || isPrivacySensitiveCommand(value) || SECRET_WORD.test(input)) {
     return { ...base, lastCommand: undefined, lastCommandRepeatable: false, lastCommandWasSensitive: true, lastSummary: "A privacy-sensitive command was used and its text was not retained in session context.", lastFileUri: undefined, lastFileCount: 0, ...(app ? { lastApp: app } : {}) };
   }
-  return { ...base, lastCommand: value, lastCommandRepeatable: isRepeatableCommand(value), lastCommandWasSensitive: false, lastSummary: "Last command: " + value, ...(app ? { lastApp: app } : {}) };
+  const repeatable = isRepeatableCommand(value);
+  if (!repeatable) {
+    return {
+      ...base,
+      lastCommand: undefined,
+      lastCommandRepeatable: false,
+      lastCommandWasSensitive: false,
+      lastSummary: "A non-repeatable command was not retained in session context.",
+      ...(app ? { lastApp: app } : {}),
+    };
+  }
+  return { ...base, lastCommand: value, lastCommandRepeatable: true, lastCommandWasSensitive: false, lastSummary: "Last command: " + value, ...(app ? { lastApp: app } : {}) };
 }
 function classifyResult(messages: string[]): { status: SessionResultStatus; summary: string } {
   const joined = messages.join("\n");
   if (/NEEDS_CONFIRMATION|NEEDS_FOLDER|AMBIGUOUS|no safe previous command|no single file/i.test(joined)) return { status: "ambiguous", summary: "More explicit input is required; no action was guessed." };
   if (/\bFAILED\b|\bUNAVAILABLE\b|\bERROR\b|\bDENIED\b|\bREJECTED\b|\bNO MATCH\b|TOPILMADI/i.test(joined)) return { status: "failed", summary: "The latest command reported a failure or platform limitation." };
-  if (/\bVERIFIED\b|\bREADY\b/i.test(joined)) return { status: "verified", summary: "The command returned an explicit verified or ready state." };
+
+  // Count only an explicit result-state token. Explanations saying "not verified"
+  // must not upgrade a STARTED action to VERIFIED.
+  const explicitSuccess = messages.some((message) => {
+    const line = message.trim();
+    return /^(?:STORAGE|FILES|FILE|DELETE|COPY|MOVE|ZIP|CONTACT|CAPABILITY|SESSION|TASK|GOAL|DEVICE|PERMISSION|CAMERA|QR|WALLPAPER|NOTIFICATION|ENGLISH|DIAL|SMS|EMAIL)\s+(?:[A-Z0-9_.-]+\s+)?(?:VERIFIED|READY|ACHIEVED|COMPLETE|COMPLETED)\b/i.test(line)
+      || /(?:·|:)\s*(?:VERIFIED|READY|ACHIEVED|COMPLETE|COMPLETED)\b/i.test(line);
+  });
+  if (explicitSuccess) return { status: "verified", summary: "The command returned an explicit verified or ready state." };
   if (/\bSTARTED\b|\bOPENED\b|\bINTENT\b/i.test(joined)) return { status: "started", summary: "The action was accepted or started; external completion is not implied." };
   return { status: "started", summary: "The command returned; external completion is not assumed." };
 }
