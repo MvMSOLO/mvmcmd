@@ -937,7 +937,7 @@ export async function runFileRequest(args: string[], ctx: ExecContext): Promise<
   try {
     const messages = await runFileCommand(args);
     return messages.map((message, index) => line(
-      /FAILED|UNAVAILABLE|NEEDS_FOLDER/.test(message) ? "warn" : index === 0 ? "sys" : "out",
+      /FAILED|UNAVAILABLE|NEEDS_FOLDER|NEEDS_CONFIRMATION/.test(message) ? "warn" : index === 0 ? "sys" : "out",
       message,
     ));
   } catch (error) {
