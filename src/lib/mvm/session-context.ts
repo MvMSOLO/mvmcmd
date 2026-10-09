@@ -24,7 +24,11 @@ const PRIVATE_COMMAND = /^(?:contact|contacts|dial|call|sms|text|email|mail|copy
 const PRIVATE_FILES = /^files?\s+(?:delete|move|copy|share|zip)\b/i;
 const SECRET_WORD = /\b(?:password|passwd|passcode|otp|token|secret|api[-_ ]?key|parol|maxfiy\s+kod)\b/i;
 const EMAIL_VALUE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
-const PHONE_VALUE = /(?:^|\s)\+?\d[\d\s().-]{7,}\d(?:$|\s)/;
+const PHONE_VALUE = /(?:^|\s)\+?\d[\d\s().-]{7,}\d(?=$|\s)/g;
+const URI_VALUE = /(?:content|file):\/\//i;
+function hasPhoneLikeValue(value: string): boolean {
+  return Array.from(value.matchAll(new RegExp(PHONE_VALUE.source, "g"))).some(([candidate]) => candidate.replace(/\D/g, "").length >= 9);
+}
 
 export function createSessionContext(): SessionContext {
   return {
@@ -39,7 +43,7 @@ export function createSessionContext(): SessionContext {
 }
 export function isPrivacySensitiveCommand(command: string): boolean {
   const value = command.trim();
-  return PRIVATE_COMMAND.test(value) || PRIVATE_FILES.test(value) || SECRET_WORD.test(value) || EMAIL_VALUE.test(value) || PHONE_VALUE.test(value);
+  return PRIVATE_COMMAND.test(value) || PRIVATE_FILES.test(value) || SECRET_WORD.test(value) || EMAIL_VALUE.test(value) || URI_VALUE.test(value) || hasPhoneLikeValue(value);
 }
 export function isRepeatableCommand(command: string): boolean {
   const value = command.trim();
@@ -79,7 +83,7 @@ export function resolveSessionReference(input: string, context: SessionContext):
 export function recordSessionTurn(context: SessionContext, input: string, command?: string, app?: SessionAppReference): SessionContext {
   const turnId = context.turnId + 1;
   const value = (command ?? "").trim();
-  const base = { ...context, turnId, lastResultStatus: "none" as const, lastResultSummary: "Waiting for the current command result." };
+  const base = { ...context, turnId, lastFileUri: undefined, lastFileCount: 0, lastResultStatus: "none" as const, lastResultSummary: "Waiting for the current command result." };
   if (!value) return { ...base, lastCommand: undefined, lastCommandRepeatable: false, lastCommandWasSensitive: false, lastSummary: "The last reference was ambiguous; no action was executed." };
   if (isPrivacySensitiveCommand(input) || isPrivacySensitiveCommand(value) || SECRET_WORD.test(input)) {
     return { ...base, lastCommand: undefined, lastCommandRepeatable: false, lastCommandWasSensitive: true, lastSummary: "A privacy-sensitive command was used and its text was not retained in session context.", lastFileUri: undefined, lastFileCount: 0, ...(app ? { lastApp: app } : {}) };
@@ -89,7 +93,7 @@ export function recordSessionTurn(context: SessionContext, input: string, comman
 function classifyResult(messages: string[]): { status: SessionResultStatus; summary: string } {
   const joined = messages.join("\n");
   if (/NEEDS_CONFIRMATION|NEEDS_FOLDER|AMBIGUOUS|no safe previous command|no single file/i.test(joined)) return { status: "ambiguous", summary: "More explicit input is required; no action was guessed." };
-  if (/\bFAILED\b|\bUNAVAILABLE\b|\bERROR\b|\bDENIED\b|\bREJECTED\b/i.test(joined)) return { status: "failed", summary: "The latest command reported a failure or platform limitation." };
+  if (/\bFAILED\b|\bUNAVAILABLE\b|\bERROR\b|\bDENIED\b|\bREJECTED\b|\bNO MATCH\b|TOPILMADI/i.test(joined)) return { status: "failed", summary: "The latest command reported a failure or platform limitation." };
   if (/\bVERIFIED\b|\bREADY\b/i.test(joined)) return { status: "verified", summary: "The command returned an explicit verified or ready state." };
   if (/\bSTARTED\b|\bOPENED\b|\bINTENT\b/i.test(joined)) return { status: "started", summary: "The action was accepted or started; external completion is not implied." };
   return { status: "started", summary: "The command returned; external completion is not assumed." };
@@ -99,7 +103,7 @@ export function recordSessionResult(context: SessionContext, input: string, mess
   const classified = forcedStatus
     ? { status: forcedStatus, summary: forcedStatus === "ambiguous" ? "More explicit input is required; no action was guessed." : "The command returned without retaining its content." }
     : classifyResult(messages);
-  return { ...context, lastResultStatus: classified.status, lastResultSummary: classified.summary };
+  return { ...context, lastResultStatus: classified.status, lastResultSummary: isPrivacySensitiveCommand(input) ? "The private command outcome was checked; its content was not retained." : classified.summary };
 }
 export function recordSessionFileResults(context: SessionContext, command: string, messages: string[], expectedTurnId = context.turnId): SessionContext {
   if (expectedTurnId !== context.turnId) return context;

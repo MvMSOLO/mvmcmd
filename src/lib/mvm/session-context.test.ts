@@ -11,6 +11,8 @@ test("side-effecting and private commands are neither replayed nor retained", ()
   assert.equal(isPrivacySensitiveCommand("sms +998901234567 hello"), true);
   assert.equal(isPrivacySensitiveCommand("files delete content://private/item confirm"), true);
   assert.equal(isPrivacySensitiveCommand("open someone@example.com"), true);
+  assert.equal(isPrivacySensitiveCommand("files find content://provider/secret"), true);
+  assert.equal(isPrivacySensitiveCommand("find event 2026-10-09"), false);
   assert.equal(isRepeatableCommand("files delete content://private/item confirm"), false);
   const ctx = recordSessionTurn(createSessionContext(), "sms +998901234567 secret text", "sms +998901234567 secret text");
   assert.equal(ctx.lastCommand, undefined);
@@ -36,6 +38,8 @@ test("stale async turns cannot overwrite newer result or file context", () => {
   ctx = recordSessionTurn(ctx, "device", "device");
   assert.equal(recordSessionFileResults(ctx, "files find report", ["content://private/secret"], staleToken).lastFileUri, undefined);
   assert.equal(recordSessionResult(ctx, "files find report", ["FILES VERIFIED"], staleToken).lastResultStatus, "none");
+  assert.equal(ctx.lastFileUri, undefined);
+  assert.equal(ctx.lastFileCount, 0);
 });
 test("destructive commands never become a remembered file reference", () => {
   const ctx = recordSessionFileResults(createSessionContext(), "files delete content://provider/document/a confirm", ["DELETE VERIFIED content://provider/document/a"]);
