@@ -314,6 +314,10 @@ export function lookupCommand(token: string): CommandSpec | undefined {
 }
 
 const EMPTY_OK = new Set([
+  "gaming",
+  "wallpaper",
+  "paste",
+  "files",
   "ls",
   "hist",
   "session",
