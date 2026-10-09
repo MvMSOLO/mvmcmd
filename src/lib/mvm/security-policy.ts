@@ -58,7 +58,7 @@ export function isSafeScopedContentUri(raw: unknown): raw is string {
   try {
     const parsed = new URL(raw);
     if (parsed.protocol !== "content:" || !parsed.hostname || parsed.username || parsed.password) return false;
-    if (parsed.hostname.toLowerCase() === "mvmcmd.launcher.fileprovider") return false;
+    if (parsed.hostname.toLowerCase() === "com.mvmcmd.launcher.fileprovider") return false;
     const decoded = decodeUriPath(parsed.pathname);
     if (decoded === undefined || decoded.includes("\\") || decoded.split("/").some((part) => part === "." || part === "..")) return false;
     if (/\/(?:data|proc|sys)(?:\/|$)/i.test(decoded)) return false;

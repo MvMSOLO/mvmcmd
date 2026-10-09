@@ -463,9 +463,7 @@ export function MvmShell() {
     const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understanding.intent === "help" ? "help" : text;
     const parsed = parseLine(interpretedText);
     if (parseStartedAt !== undefined && typeof performance !== "undefined") {
-      const elapsed = Math.max(0, performance.now() - parseStartedAt);
-      recordPerformanceMeasurement("command-parse-ms", elapsed, "understanding + command parser");
-      recordPerformanceMeasurement("input-route-ms", elapsed, "synchronous input routing; async native completion excluded");
+      recordPerformanceMeasurement("command-parse-ms", Math.max(0, performance.now() - parseStartedAt), "understanding + command parser");
     }
 
     if (parsed.cmd && ["contact", "dial", "sms", "email", "copy", "paste"].includes(parsed.cmd.name)) {
@@ -626,6 +624,9 @@ export function MvmShell() {
     }
 
     const applyResult = (includeInput = true) => {
+      if (parseStartedAt !== undefined && typeof performance !== "undefined") {
+        recordPerformanceMeasurement("input-route-ms", Math.max(0, performance.now() - parseStartedAt), "intent resolved; execution dispatch reached; async native completion excluded");
+      }
       const result = execute(text, { state, lang });
       const commandName = parsed.cmd?.name ?? text.trim().split(/\s+/)[0]?.toLowerCase();
       setRainVisible(commandName === "wallpaper");

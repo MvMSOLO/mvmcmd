@@ -5,6 +5,12 @@ import { assessPerformanceMetric, clearPerformanceMeasurements, formatPerformanc
 test("performance assessments are evidence-based and missing samples stay unmeasured", () => {
   clearPerformanceMeasurements();
   assert.equal(latestPerformanceAssessment("renderer-ready-ms").verdict, "unmeasured");
+  assert.equal(latestPerformanceAssessment("input-route-ms").verdict, "unmeasured");
+  assert.equal(recordPerformanceMeasurement("command-parse-ms", 8, "understanding + command parser"), true);
+  assert.equal(latestPerformanceAssessment("input-route-ms").verdict, "unmeasured");
+  assert.equal(recordPerformanceMeasurement("input-route-ms", 34, "intent resolved; execution dispatch reached"), true);
+  assert.equal(latestPerformanceAssessment("input-route-ms").verdict, "pass");
+  clearPerformanceMeasurements();
   assert.equal(assessPerformanceMetric("command-parse-ms", 8).verdict, "pass");
   assert.equal(assessPerformanceMetric("input-route-ms", 175).verdict, "warning");
   assert.equal(assessPerformanceMetric("frame-rate-fps", 20).verdict, "fail");

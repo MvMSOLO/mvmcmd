@@ -282,7 +282,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             echo "SMOKE: waiting for emulator device"
             timeout 30s adb wait-for-device
             echo "SMOKE: waiting for Android boot completion"

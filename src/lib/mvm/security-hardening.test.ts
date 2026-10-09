@@ -35,6 +35,7 @@ test("explicit communication deep links are syntax-checked", () => {
 test("scoped content URI validation rejects private paths and malformed authorities", () => {
   assert.equal(isSafeScopedContentUri("content://com.android.externalstorage.documents/tree/primary%3ADownload"), true);
   assert.equal(isSafeScopedContentUri("content://provider/document/one"), true);
+  assert.equal(isSafeScopedContentUri("content://com.mvmcmd.launcher.fileprovider/share/private.pdf"), false);
   assert.equal(isSafeScopedContentUri("content://provider/document/../secret"), false);
   assert.equal(isSafeScopedContentUri("content://provider/data/private"), false);
   assert.equal(isSafeScopedContentUri("content://provider/primary%3AAndroid%2Fdata%2Fsecrets"), false);
