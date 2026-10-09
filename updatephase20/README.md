@@ -56,6 +56,8 @@ Validated application source revision: [6254c764a29d230d05b011434b1aae9c59e35697
 
 Artifacts: [mvmcmd-debug-apk-713](https://github.com/MvMSOLO/mvmcmd/actions/runs/37958296878/artifacts/11630851672) (22,291,889-byte archive; SHA-256 `323c13a5339c83d9c9d76ba58f9b2d10fd4d32895a15e17b06975db267f5faa4`) and [mvmcmd-windows-exe-431](https://github.com/MvMSOLO/mvmcmd/actions/runs/37958296868/artifacts/11630571462) (133,929,261-byte archive; SHA-256 `dc18fb6b0e6829a06ea86dfea9858320dd3da1f1a92b8428e91e0ef49a46497d`).
 
+**Release-gate policy update:** Android and Windows workflow checks now block both HIGH and CRITICAL dependency advisories. Moderate advisories remain visible and tracked; the checked release candidate had 7 moderate, 0 high and 0 critical advisories.
+
 **Dependency note:** the validated audit reports 0 low, 7 moderate, 0 high and 0 critical advisories. The residual moderate advisories are in the Electron Builder/build-tool chain; CVE-2026-97058 for `sprintf-js` currently lists no patched version. Downgrading Electron Builder to 26.5.0 introduced a critical `tar` advisory, so that downgrade was rejected. CI passing means no high/critical advisories were reported, not that the dependency tree is free of vulnerabilities.
 
 **Field-validation limitation:** actual Samsung/Xiaomi/Redmi/POCO/Pixel behavior, OEM restricted-permission/background-kill behavior, sustained thermal behavior, and battery drain have not been measured on physical hardware. These stay explicitly OPEN in [PHASE-19-DEVICE-VALIDATION.md](PHASE-19-DEVICE-VALIDATION.md); CI/emulator success does not close them. Phase 19 automated CI scope is complete. Overall physical-device sign-off stays open until device evidence is recorded, and Phase 20 remains PLANNED.
