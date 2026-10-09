@@ -16,17 +16,18 @@ export function normalizeVoiceCommand(transcript: string): string {
 }
 
 export function classifyVoiceOutcome(messages: string[]): VoiceOutcomeStatus {
-  // Only accept a status token in a structured status line. Explanatory text such as
-  // "completion is not verified" must never turn STARTED into VERIFIED.
-  const hasExplicitState = (states: string) => messages.some((message) => {
-    const line = message.trim().toUpperCase();
-    const state = new RegExp(String.raw`^(?:(?:[A-Z0-9_.-]+)(?:\\s+|$)){0,3}(?:${states})\\b`);
-    const labeledState = new RegExp(String.raw`(?:·|:)\\s*(?:${states})\\b`);
-    return state.test(line) || labeledState.test(line);
-  });
-  if (hasExplicitState("FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI")) return "warning";
-  if (hasExplicitState("VERIFIED|READY|ACHIEVED|COMPLETED|COMPLETE")) return "verified";
-  if (hasExplicitState("STARTED|OPENED|INTENT")) return "started";
+  // Only structured status lines count. Prose such as "completion is not verified"
+  // must never turn a STARTED result into VERIFIED.
+  const has = (pattern: RegExp) => messages.some((message) => pattern.test(message.trim().toUpperCase()));
+  const warningLine = /^(?:[A-Z0-9_.-]+\s+){0,3}(?:FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI)\b/;
+  const verifiedLine = /^(?:[A-Z0-9_.-]+\s+){0,3}(?:VERIFIED|READY|ACHIEVED|COMPLETED|COMPLETE)\b/;
+  const startedLine = /^(?:[A-Z0-9_.-]+\s+){0,3}(?:STARTED|OPENED|INTENT)\b/;
+  const labeledWarning = /(?:·|:)\s*(?:FAILED|ERROR|DENIED|UNAVAILABLE|REJECTED|AMBIGUOUS|NEEDS_CONFIRMATION|NOT FOUND|NO MATCH|TOPILMADI|RAD ETILDI)\b/;
+  const labeledVerified = /(?:·|:)\s*(?:VERIFIED|READY|ACHIEVED|COMPLETED|COMPLETE)\b/;
+  const labeledStarted = /(?:·|:)\s*(?:STARTED|OPENED|INTENT)\b/;
+  if (has(warningLine) || has(labeledWarning)) return "warning";
+  if (has(verifiedLine) || has(labeledVerified)) return "verified";
+  if (has(startedLine) || has(labeledStarted)) return "started";
   return "response";
 }
 
