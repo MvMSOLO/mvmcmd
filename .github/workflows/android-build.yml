@@ -60,6 +60,10 @@ jobs:
           const v = report.metadata && report.metadata.vulnerabilities;
           if (!v) throw new Error("Dependency audit produced no vulnerability summary.");
           console.log("npm audit: " + JSON.stringify(v));
+          for (const [name, advisory] of Object.entries(report.vulnerabilities || {})) {
+            const via = (advisory.via || []).map((item) => typeof item === "string" ? item : item.name + ": " + item.title).join("; ");
+            console.log("AUDIT ADVISORY: " + advisory.severity + " | " + name + " | range=" + advisory.range + " | fix=" + JSON.stringify(advisory.fixAvailable) + " | via=" + via);
+          }
           if ((v.critical || 0) > 0) {
             console.error("CRITICAL dependency advisories block the release.");
             process.exit(1);
@@ -282,26 +286,18 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            set -eu
             echo "SMOKE: waiting for emulator device"
             timeout 30s adb wait-for-device
-            echo "SMOKE: waiting for Android boot completion"
-            boot=""
-            for _ in $(seq 1 60); do
-              boot="$(timeout 10s adb shell getprop sys.boot_completed | tr -d '\r')"
-              if [ "$boot" = "1" ]; then break; fi
-              sleep 2
-            done
-            test "$boot" = "1"
+            echo "SMOKE: checking Android boot completion"
+            test "$(timeout 15s adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
             echo "SMOKE: emulator booted; installing APK"
             timeout 180s adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             echo "SMOKE: APK installed; launching MainActivity"
             timeout 120s adb shell am start -W -n com.mvmcmd.launcher/.MainActivity
             sleep 4
             echo "SMOKE: checking process is alive"
-            pid="$(timeout 30s adb shell pidof com.mvmcmd.launcher | tr -d '\r')"
-            test -n "$pid"
-            echo "Android emulator install/launch smoke passed; pid=$pid."
+            test -n "$(timeout 30s adb shell pidof com.mvmcmd.launcher | tr -d '\r')"
+            echo "Android emulator install/launch smoke passed."
 
       - name: Final success gate
         if: ${{ success() }}
