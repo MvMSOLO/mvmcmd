@@ -442,6 +442,44 @@ public class MvmLauncherPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openIncomingFile(PluginCall call) {
+        String rawUri = call.getString("uri");
+        String mime = call.getString("mimeType");
+        if (rawUri == null || rawUri.trim().isEmpty()) { call.reject("A scoped content URI is required"); return; }
+        Uri uri;
+        try { uri = Uri.parse(rawUri); } catch (Exception e) { call.reject("Invalid file URI", e); return; }
+        String lower = rawUri.toLowerCase(java.util.Locale.ROOT);
+        if (!"content".equalsIgnoreCase(uri.getScheme()) || uri.getAuthority() == null
+                || uri.getAuthority().equalsIgnoreCase(getContext().getPackageName() + ".fileprovider")
+                || lower.contains("/data/") || lower.contains("/proc/") || lower.contains("/sys/")) {
+            call.reject("Only external scoped content URIs can be opened"); return;
+        }
+        String safeType = mime;
+        if (safeType == null || !safeType.matches("(?i)^[a-z0-9!#    @PluginMethod
+    public void openUrl(PluginCall call) {^_.+-]+/[a-z0-9!#    @PluginMethod
+    public void openUrl(PluginCall call) {^_.+*-]+$")) {
+            safeType = getContext().getContentResolver().getType(uri);
+        }
+        if (safeType == null || safeType.trim().isEmpty()) safeType = "*/*";
+        try {
+            Intent view = new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(uri, safeType);
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(Intent.createChooser(view, "Open with"));
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            result.put("reason", "system chooser started; external file handling is not verified");
+            call.resolve(result);
+        } catch (ActivityNotFoundException e) {
+            JSObject result = new JSObject(); result.put("opened", false);
+            result.put("reason", "no application can handle this file type"); call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject(); result.put("opened", false);
+            result.put("reason", e.getClass().getSimpleName()); call.resolve(result);
+        }
+    }
+
+    @PluginMethod
     public void openUrl(PluginCall call) {
         String url = call.getString("url");
         if (url == null || url.trim().isEmpty()) { call.reject("url is required"); return; }
