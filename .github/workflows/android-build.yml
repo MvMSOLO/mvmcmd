@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Audit dependency health (critical vulnerabilities block release)
+      - name: Audit dependency health (high/critical vulnerabilities block release)
         shell: bash
         run: |
           set -euo pipefail
@@ -68,9 +68,12 @@ jobs:
             console.error("CRITICAL dependency advisories block the release.");
             process.exit(1);
           }
-          if ((v.high || 0) > 0) console.log("WARNING: High-severity dependency advisories remain; inspect npm audit details.");
+          if ((v.high || 0) > 0) {
+            console.error("HIGH dependency advisories block the release.");
+            process.exit(1);
+          }
           if ((v.moderate || 0) > 0) console.log("NOTICE: Moderate dependency advisories remain; inspect npm audit details.");
-          console.log("Dependency audit policy gate passed (no critical vulnerabilities).");
+          console.log("Dependency audit policy gate passed (no high/critical vulnerabilities).");
           NODE
 
       - name: Typecheck web application
