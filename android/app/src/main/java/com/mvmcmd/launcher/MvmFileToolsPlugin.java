@@ -36,6 +36,67 @@ import java.util.Set;
 @CapacitorPlugin(name = "MvmFileTools")
 public class MvmFileToolsPlugin extends Plugin {
     private static final int MAX_SCAN = 5000;
+    private static final int MAX_URI_LENGTH = 2048;
+    private static final int MAX_FILENAME_LENGTH = 180;
+
+    private static boolean isSafeScopedContentUri(String raw) {
+        if (raw == null || raw.trim().isEmpty() || raw.length() > MAX_URI_LENGTH) return false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c < 0x20 || c == 0x7f) return false;
+        }
+        if (!raw.matches("(?i)^content://[^/?#]+(?:/[^?#]*)?(?:\\?[^#]*)?(?:#.*)?$")) return false;
+        Uri uri;
+        try { uri = Uri.parse(raw); } catch (Exception ignored) { return false; }
+        if (!"content".equalsIgnoreCase(uri.getScheme()) || uri.getAuthority() == null || uri.getUserInfo() != null) return false;
+        if (uri.getAuthority().equalsIgnoreCase(getAuthorityPlaceholder())) return false;
+        String path = raw.replaceFirst("(?i)^content://[^/?#]+", "").split("[?#]", 2)[0];
+        for (int depth = 0; depth < 3; depth++) {
+            String decoded = Uri.decode(path);
+            if (decoded == null || decoded.contains("\\")) return false;
+            for (String part : decoded.split("/")) if (".".equals(part) || "..".equals(part)) return false;
+            if (decoded.matches("(?i).*/(?:data|proc|sys)(?:/.*|$)")) return false;
+            if (decoded.matches("(?i).*/primary:Android/(?:data|obb)(?:/.*|$)")) return false;
+            if (decoded.equals(path)) break;
+            path = decoded;
+        }
+        return true;
+    }
+
+    private static String getAuthorityPlaceholder() {
+        // The app's own private FileProvider URI is never a user-selected external file.
+        return "com.mvmcmd.launcher.fileprovider";
+    }
+
+    private static boolean isSafeLeafName(String value) {
+        if (value == null) return false;
+        String name = value.trim();
+        if (name.isEmpty() || name.length() > MAX_FILENAME_LENGTH || ".".equals(name) || "..".equals(name)) return false;
+        if (name.endsWith(".") || name.endsWith(" ")) return false;
+        if (name.matches("(?i)^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?$")) return false;
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (c < 0x20 || c == 0x7f || c == '/' || c == '\\' || c == ':' || c == '<' || c == '>' || c == '"' || c == '|' || c == '?' || c == '*') return false;
+        }
+        return true;
+    }
+
+    private static String safeZipEntryName(String raw, int index) {
+        String fallback = "file-" + Math.max(0, index);
+        if (raw == null || raw.trim().isEmpty() || ".".equals(raw.trim()) || "..".equals(raw.trim())) return fallback;
+        String[] parts = raw.replaceAll("[\\p{Cntrl}]", "").split("[/\\\\]+");
+        StringBuilder joined = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            if (joined.length() > 0) joined.append('_');
+            joined.append(".".equals(part) || "..".equals(part) ? "_" : part.replace(':', '_'));
+        }
+        String name = joined.toString().trim();
+        if (name.isEmpty() || ".".equals(name) || "..".equals(name)) name = fallback;
+        if (name.length() > MAX_FILENAME_LENGTH) name = name.substring(0, MAX_FILENAME_LENGTH);
+        while (name.endsWith(".") || name.endsWith(" ")) name = name.substring(0, name.length() - 1);
+        return name.isEmpty() ? fallback : name;
+    }
 
     @PluginMethod
     public void getStorageOverview(PluginCall call) {
@@ -92,7 +153,7 @@ public class MvmFileToolsPlugin extends Plugin {
         String query = call.getString("query", "").trim().toLowerCase(Locale.ROOT);
         long minBytes = call.getLong("minBytes", 0L);
         int limit = Math.max(1, Math.min(1000, call.getInt("limit", 200)));
-        if (raw == null || !raw.startsWith("content://") || minBytes < 0) {
+        if (!isSafeScopedContentUri(raw) || query.length() > 120 || minBytes < 0 || minBytes > (1L << 40)) {
             call.reject("A valid scoped content URI and non-negative size filter are required"); return;
         }
         try {
@@ -152,7 +213,7 @@ public class MvmFileToolsPlugin extends Plugin {
         String destinationRaw = call.getString("destinationTreeUri");
         String name = call.getString("name");
         boolean move = call.getBoolean("move", false);
-        if (sourceRaw == null || !sourceRaw.startsWith("content://") || destinationRaw == null || !destinationRaw.startsWith("content://") || name == null || name.trim().isEmpty() || name.contains("/") || name.contains("\\") || name.contains("\0")) { call.reject("Valid scoped source/destination URIs and safe name required"); return; }
+        if (!isSafeScopedContentUri(sourceRaw) || !isSafeScopedContentUri(destinationRaw) || !isSafeLeafName(name)) { call.reject("Valid scoped source/destination URIs and safe name required"); return; }
         try {
             DocumentFile source = DocumentFile.fromSingleUri(getContext(), Uri.parse(sourceRaw));
             if (source == null) source = DocumentFile.fromTreeUri(getContext(), Uri.parse(sourceRaw));
@@ -177,7 +238,7 @@ public class MvmFileToolsPlugin extends Plugin {
         String raw = call.getString("uri");
         boolean confirmed = call.getBoolean("confirmed", false);
         if (!confirmed) { call.reject("Explicit confirmation required"); return; }
-        if (raw == null || !raw.startsWith("content://")) { call.reject("Scoped content URI required"); return; }
+        if (!isSafeScopedContentUri(raw)) { call.reject("Validated scoped content URI required"); return; }
         try {
             Uri uri = Uri.parse(raw);
             DocumentFile file = DocumentFile.fromSingleUri(getContext(), uri);
@@ -202,7 +263,7 @@ public class MvmFileToolsPlugin extends Plugin {
         String treeRaw = call.getString("treeUri");
         String name = call.getString("name");
         JSArray uris = call.getArray("uris");
-        if (treeRaw == null || !treeRaw.startsWith("content://") || name == null
+        if (!isSafeScopedContentUri(treeRaw) || name == null
             || !name.matches("(?i)[a-z0-9 _.-]{1,76}\\.zip") || uris == null || uris.length() == 0 || uris.length() > 500) {
             call.reject("Scoped destination, safe ZIP name and 1–500 files required"); return;
         }
@@ -214,7 +275,7 @@ public class MvmFileToolsPlugin extends Plugin {
             ArrayList<DocumentFile> sources = new ArrayList<>();
             for (int i = 0; i < uris.length(); i++) {
                 String raw = uris.getString(i);
-                if (raw == null || !raw.startsWith("content://")) { call.reject("Every ZIP input must be a scoped content URI"); return; }
+                if (!isSafeScopedContentUri(raw)) { call.reject("Every ZIP input must be a valid scoped content URI"); return; }
                 DocumentFile source = DocumentFile.fromSingleUri(getContext(), Uri.parse(raw));
                 if (source == null || !source.exists() || source.isDirectory() || !source.canRead()) {
                     call.reject("Every ZIP input must be an existing readable file"); return;
@@ -230,10 +291,13 @@ public class MvmFileToolsPlugin extends Plugin {
                     Set<String> names = new HashSet<>();
                     int index = 0;
                     for (DocumentFile source : sources) {
-                        String base = source.getName() == null ? "file-" + index : source.getName();
+                        String base = safeZipEntryName(source.getName(), index);
                         String entry = base;
                         int suffix = 1;
-                        while (!names.add(entry)) entry = base + "-" + (suffix++);
+                        while (!names.add(entry)) {
+                            String tail = "-" + (suffix++);
+                            entry = base.substring(0, Math.min(base.length(), MAX_FILENAME_LENGTH - tail.length())) + tail;
+                        }
                         zip.putNextEntry(new ZipEntry(entry));
                         try (InputStream in = getContext().getContentResolver().openInputStream(source.getUri())) {
                             if (in == null) throw new java.io.IOException("Could not read " + entry);
@@ -260,7 +324,7 @@ public class MvmFileToolsPlugin extends Plugin {
     @PluginMethod
     public void shareFile(PluginCall call) {
         String raw = call.getString("uri");
-        if (raw == null || !raw.startsWith("content://")) { call.reject("A scoped content URI is required"); return; }
+        if (!isSafeScopedContentUri(raw)) { call.reject("A valid scoped content URI is required"); return; }
         try {
             Uri uri = Uri.parse(raw);
             Intent intent = new Intent(Intent.ACTION_SEND);

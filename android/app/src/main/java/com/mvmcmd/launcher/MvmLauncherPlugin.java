@@ -40,6 +40,56 @@ import java.util.Set;
 )
 public class MvmLauncherPlugin extends Plugin {
     private static final String PREFS = "mvmcmd_capabilities";
+    private boolean isAllowedExternalUri(String raw) {
+        if (raw == null || raw.trim().isEmpty() || raw.length() > 2048) return false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c < 0x20 || c == 0x7f || Character.isWhitespace(c)) return false;
+        }
+        Uri uri;
+        try { uri = Uri.parse(raw); } catch (Exception ignored) { return false; }
+        String scheme = uri.getScheme();
+        if (scheme == null) return false;
+        scheme = scheme.toLowerCase(java.util.Locale.ROOT);
+        if ("http".equals(scheme) || "https".equals(scheme)) {
+            return uri.getHost() != null && !uri.getHost().isEmpty() && uri.getUserInfo() == null;
+        }
+        if ("tel".equals(scheme) || "sms".equals(scheme)) {
+            String number = uri.getSchemeSpecificPart();
+            return number != null && number.matches("[+0-9().;,#*\\-]{1,64}");
+        }
+        if ("mailto".equals(scheme)) {
+            String address = uri.getSchemeSpecificPart();
+            return address != null && address.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
+        }
+        if ("geo".equals(scheme) || "market".equals(scheme)) return true;
+        return false;
+    }
+
+    private boolean isSafeScopedContentUri(String raw) {
+        if (raw == null || raw.trim().isEmpty() || raw.length() > 2048) return false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c < 0x20 || c == 0x7f) return false;
+        }
+        Uri uri;
+        try { uri = Uri.parse(raw); } catch (Exception ignored) { return false; }
+        if (!"content".equalsIgnoreCase(uri.getScheme()) || uri.getAuthority() == null
+                || uri.getUserInfo() != null
+                || uri.getAuthority().equalsIgnoreCase(getContext().getPackageName() + ".fileprovider")) return false;
+        String path = raw.replaceFirst("(?i)^content://[^/?#]+", "").split("[?#]", 2)[0];
+        for (int depth = 0; depth < 3; depth++) {
+            String decoded = Uri.decode(path);
+            if (decoded == null || decoded.contains("\\\\")) return false;
+            for (String part : decoded.split("/")) if (".".equals(part) || "..".equals(part)) return false;
+            if (decoded.matches("(?i).*/(?:data|proc|sys)(?:/.*|$)")) return false;
+            if (decoded.matches("(?i).*/primary:Android/(?:data|obb)(?:/.*|$)")) return false;
+            if (decoded.equals(path)) break;
+            path = decoded;
+        }
+        return true;
+    }
+
     private static final String[] IDS = {
         "camera",
         "microphone",
@@ -55,6 +105,7 @@ public class MvmLauncherPlugin extends Plugin {
         String requested = call.getString("capabilityId");
         JSArray result = new JSArray();
         if (requested != null && !requested.trim().isEmpty()) {
+            if (!containsId(requested.trim())) { call.reject("Unknown capability"); return; }
             result.put(snapshotFor(requested.trim()));
         } else {
             for (String id : IDS) result.put(snapshotFor(id));
@@ -73,8 +124,12 @@ public class MvmLauncherPlugin extends Plugin {
             call.reject("Unknown capability");
             return;
         }
+        if (!"allow".equals(decision) && !"skip".equals(decision)) {
+            call.reject("Decision must be allow or skip");
+            return;
+        }
 
-        persistDecision(id, "skip".equals(decision) ? "skip" : "allow");
+        persistDecision(id, decision);
 
         if ("skip".equals(decision)) {
             JSObject out = snapshotFor(id);
@@ -411,7 +466,10 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openPackage(PluginCall call) {
         String packageName = call.getString("packageName"), action = call.getString("action"), data = call.getString("data");
-        if (packageName == null || packageName.trim().isEmpty()) { call.reject("packageName is required"); return; }
+        if (packageName == null || packageName.length() > 255 || !packageName.matches("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$")) { call.reject("Valid packageName is required"); return; }
+        if (action != null && !action.trim().isEmpty() && !Intent.ACTION_MAIN.equals(action) && !Intent.ACTION_VIEW.equals(action)) { call.reject("Unsupported package action"); return; }
+        if ((Intent.ACTION_MAIN.equals(action) && data != null && !data.trim().isEmpty()) || ((action == null || action.trim().isEmpty()) && data != null && !data.trim().isEmpty())) { call.reject("Unexpected data for this package action"); return; }
+        if (Intent.ACTION_VIEW.equals(action) && !isAllowedExternalUri(data)) { call.reject("Unsafe or unsupported package URI"); return; }
         PackageManager pm = getContext().getPackageManager(); Intent launchIntent = null;
         try {
             if (action != null && !action.trim().isEmpty()) {
@@ -445,15 +503,8 @@ public class MvmLauncherPlugin extends Plugin {
     public void openIncomingFile(PluginCall call) {
         String rawUri = call.getString("uri");
         String mime = call.getString("mimeType");
-        if (rawUri == null || rawUri.trim().isEmpty()) { call.reject("A scoped content URI is required"); return; }
-        Uri uri;
-        try { uri = Uri.parse(rawUri); } catch (Exception e) { call.reject("Invalid file URI", e); return; }
-        String lower = rawUri.toLowerCase(java.util.Locale.ROOT);
-        if (!"content".equalsIgnoreCase(uri.getScheme()) || uri.getAuthority() == null
-                || uri.getAuthority().equalsIgnoreCase(getContext().getPackageName() + ".fileprovider")
-                || lower.contains("/data/") || lower.contains("/proc/") || lower.contains("/sys/")) {
-            call.reject("Only external scoped content URIs can be opened"); return;
-        }
+        if (!isSafeScopedContentUri(rawUri)) { call.reject("Only validated external scoped content URIs can be opened"); return; }
+        Uri uri = Uri.parse(rawUri);
         String safeType = mime;
         if (safeType == null || safeType.length() > 127
                 || !safeType.matches("(?i)^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+*-]*$")) {
@@ -486,7 +537,7 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openUrl(PluginCall call) {
         String url = call.getString("url");
-        if (url == null || url.trim().isEmpty()) { call.reject("url is required"); return; }
+        if (!isAllowedExternalUri(url)) { call.reject("URL scheme or target is not allowed"); return; }
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url)); intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getActivity().startActivity(intent); JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
