@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.espresso.Espresso;
@@ -72,7 +73,9 @@ public final class CoreActivitiesLaunchTest {
     @Test
     public void qrActivityShowsScannerStatusAndImageFallback() {
         grantCameraPermissionForEmulator();
-        try (ActivityScenario<MvmQrActivity> scenario = ActivityScenario.launch(MvmQrActivity.class)) {
+        Intent intent = new Intent(targetContext(), MvmQrActivity.class)
+                .putExtra(MvmQrActivity.EXTRA_DISABLE_SCANNER_FOR_TESTS, true);
+        try (ActivityScenario<MvmQrActivity> scenario = ActivityScenario.launch(intent)) {
             onView(withText("QR / BARCODE")).check(matches(isDisplayed()));
             onView(withText("ALIGN CODE INSIDE THE FRAME")).check(matches(isDisplayed()));
             onView(withContentDescription("Scan QR or barcode from image")).check(matches(isDisplayed()));
