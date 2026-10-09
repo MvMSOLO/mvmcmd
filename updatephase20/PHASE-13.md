@@ -1,7 +1,7 @@
 # Phase 13 — Device Utility & File Intelligence
 
 ## Status
-IN_PROGRESS — scoped file utilities implemented; final CI and behavior review pending.
+COMPLETED — scoped file utilities implemented; Phase 13 targeted tests passed and APK/EXE CI succeeded on commit `6e7483f`. The full repository test suite has 8 unrelated Grok PWA/SEO metadata test failures; Phase 13 CI gates its focused file-intelligence and action-engine tests.
 
 ## Goal
 Make MVM CMD useful for everyday device maintenance and file tasks while respecting Android storage boundaries.
@@ -33,6 +33,14 @@ Make MVM CMD useful for everyday device maintenance and file tasks while respect
 - Storage access is limited to a folder explicitly selected through Android Storage Access Framework. No broad storage permission is requested.
 - Duplicate output is candidate-only (filename + size), not a cryptographic content comparison.
 - Cleanup is plan-only; the app does not silently remove files.
+
+## Verification
+- Focused tests: `src/lib/mvm/file-intelligence.test.ts` and `src/lib/mvm/action-engine.test.ts` — passed in CI.
+- Android APK build, verification, final success gate, and artifact upload — passed.
+- Windows EXE build, verification, final success gate, and artifact upload — passed.
+- Destructive file deletion requires an explicit `confirm`, refuses directory deletion, and verifies absence after the delete operation.
+- ZIP inputs are validated before archive creation; duplicate detection is explicitly candidate-only.
+- The broad repository `npm test` run currently has 8 unrelated Grok PWA/SEO metadata assertions failing; these remain outside Phase 13 and are disclosed rather than represented as passing.
 
 ## Dependencies
 Phases 2, 3, 6, 8 and 9.
