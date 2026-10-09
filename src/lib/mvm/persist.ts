@@ -21,7 +21,7 @@ export function loadState(): PersistedState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...EMPTY, usage: {}, aliases: [], pins: [], recents: [], history: [] };
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
-    return {
+    const loadedState: PersistedState = {
       v: 1,
       lang: parsed.lang === "en" ? "en" : "uz",
       aliases: Array.isArray(parsed.aliases) ? parsed.aliases : [],
@@ -33,6 +33,9 @@ export function loadState(): PersistedState {
       notifyGranted: Boolean(parsed.notifyGranted),
       gateSeen: Boolean(parsed.gateSeen),
     };
+    // Immediately remove command history persisted by older versions.
+    saveState(loadedState);
+    return loadedState;
   } catch {
     return { ...EMPTY, usage: {} };
   }
