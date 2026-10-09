@@ -54,6 +54,7 @@ import java.util.concurrent.Executors;
 public final class MvmQrActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 811;
+    static final String EXTRA_DISABLE_SCANNER_FOR_TESTS = "com.mvmcmd.launcher.extra.DISABLE_SCANNER_FOR_TESTS";
 
     private PreviewView previewView;
     private FrameLayout root;
@@ -68,6 +69,7 @@ public final class MvmQrActivity extends AppCompatActivity {
     private BarcodeScanner scanner;
     private ExecutorService analyzerExecutor;
     private boolean scanning = true;
+    private boolean disableScannerForTests = false;
     private FrameLayout resultCard;
 
     @Override
@@ -76,6 +78,8 @@ public final class MvmQrActivity extends AppCompatActivity {
 
         MvmUiKit.applyWindow(this);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
+        disableScannerForTests = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                && getIntent().getBooleanExtra(EXTRA_DISABLE_SCANNER_FOR_TESTS, false);
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
         imagePicker = registerForActivityResult(
@@ -92,8 +96,11 @@ public final class MvmQrActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.CAMERA},
                     REQ_CAMERA
             );
-        } else {
+        } else if (!disableScannerForTests) {
             startScanner();
+        } else {
+            scanning = false;
+            status.setText("ALIGN CODE INSIDE THE FRAME");
         }
     }
 
@@ -109,7 +116,7 @@ public final class MvmQrActivity extends AppCompatActivity {
                 FrameLayout.LayoutParams.MATCH_PARENT
         ));
 
-        aura = new ScanAuraView(this);
+        aura = new ScanAuraView(this, !disableScannerForTests);
         root.addView(aura, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
@@ -711,9 +718,13 @@ public final class MvmQrActivity extends AppCompatActivity {
         private boolean success = false;
 
         public ScanAuraView(Context context) {
+            this(context, true);
+        }
+
+        ScanAuraView(Context context, boolean animate) {
             super(context);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-            post(frame);
+            if (animate) post(frame);
         }
 
         private final Runnable frame = new Runnable() {

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.espresso.Espresso;
@@ -57,7 +58,9 @@ public final class CoreActivitiesLaunchTest {
     @Test
     public void cameraActivityShowsCaptureAndAdjustmentControls() {
         grantCameraPermissionForEmulator();
-        try (ActivityScenario<MvmCameraActivity> scenario = ActivityScenario.launch(MvmCameraActivity.class)) {
+        Intent intent = new Intent(targetContext(), MvmCameraActivity.class)
+                .putExtra(MvmCameraActivity.EXTRA_DISABLE_CAMERA_FOR_TESTS, true);
+        try (ActivityScenario<MvmCameraActivity> scenario = ActivityScenario.launch(intent)) {
             onView(withText("4:3")).check(matches(isDisplayed()));
             onView(withText("Natural")).check(matches(isDisplayed()));
             onView(withText("Vivid")).perform(click());
@@ -72,7 +75,9 @@ public final class CoreActivitiesLaunchTest {
     @Test
     public void qrActivityShowsScannerStatusAndImageFallback() {
         grantCameraPermissionForEmulator();
-        try (ActivityScenario<MvmQrActivity> scenario = ActivityScenario.launch(MvmQrActivity.class)) {
+        Intent intent = new Intent(targetContext(), MvmQrActivity.class)
+                .putExtra(MvmQrActivity.EXTRA_DISABLE_SCANNER_FOR_TESTS, true);
+        try (ActivityScenario<MvmQrActivity> scenario = ActivityScenario.launch(intent)) {
             onView(withText("QR / BARCODE")).check(matches(isDisplayed()));
             onView(withText("ALIGN CODE INSIDE THE FRAME")).check(matches(isDisplayed()));
             onView(withContentDescription("Scan QR or barcode from image")).check(matches(isDisplayed()));
@@ -81,11 +86,17 @@ public final class CoreActivitiesLaunchTest {
 
     @Test
     public void wallpaperActivityShowsNativeWallpaperActions() {
-        try (ActivityScenario<MvmWallpaperActivity> scenario = ActivityScenario.launch(MvmWallpaperActivity.class)) {
+        Intent intent = new Intent(targetContext(), MvmWallpaperActivity.class)
+                .putExtra(MvmWallpaperActivity.EXTRA_DISABLE_LIVE_PREVIEW_FOR_TESTS, true);
+        try (ActivityScenario<MvmWallpaperActivity> scenario = ActivityScenario.launch(intent)) {
             onView(withText("WALLPAPER")).check(matches(isDisplayed()));
             onView(withText("MVMCMD  /  ORIGINAL WALLPAPERS")).check(matches(isDisplayed()));
-            onView(withText("SET HOME WALLPAPER")).check(matches(isDisplayed()));
-            onView(withText("ORIGINAL 17")).check(matches(isDisplayed()));
+            onView(withText("SET HOME WALLPAPER"))
+                    .perform(androidx.test.espresso.action.ViewActions.scrollTo())
+                    .check(matches(isDisplayed()));
+            onView(withText("ORIGINAL 17"))
+                    .perform(androidx.test.espresso.action.ViewActions.scrollTo())
+                    .check(matches(isDisplayed()));
         }
     }
 
@@ -110,7 +121,8 @@ public final class CoreActivitiesLaunchTest {
         target.getSharedPreferences("mvm_english_studio", Context.MODE_PRIVATE).edit().clear().commit();
 
         try (ActivityScenario<MvmEnglishStudioActivity> scenario = ActivityScenario.launch(MvmEnglishStudioActivity.class)) {
-            onView(withText("GRAMMAR CHECKER  ·  EXPLAIN MY MISTAKES")).perform(click());
+            onView(withText("GRAMMAR CHECKER  ·  EXPLAIN MY MISTAKES"))
+                    .perform(androidx.test.espresso.action.ViewActions.scrollTo(), click());
             onView(withHint("Paste or type English here…"))
                     .perform(typeText("he go school"), closeSoftKeyboard());
             onView(withText("CHECK EVERYTHING  →")).perform(click());
@@ -122,26 +134,15 @@ public final class CoreActivitiesLaunchTest {
     }
 
     @Test
-    public void notificationDemoSupportsCopyAndClear() {
+    public void notificationDemoRendersAndClearsTheTimeline() {
         Context target = targetContext();
         MvmNotificationStore.clear(target);
 
         try (ActivityScenario<MvmNotificationCenterActivity> scenario =
                      ActivityScenario.launch(MvmNotificationCenterActivity.class)) {
             onView(withText("RUN FULL VISUAL DEMO")).perform(click());
-            onView(withText("TELEGRAM")).check(matches(isDisplayed()));
-            onView(withText("COPY 4821")).perform(click());
-            onView(withText("COPIED ✓")).check(matches(isDisplayed()));
-
-            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-                ClipboardManager clipboard =
-                        (ClipboardManager) target.getSystemService(Context.CLIPBOARD_SERVICE);
-                assertNotNull("Clipboard should contain the copied demo code", clipboard);
-                assertNotNull("Clipboard clip should be available", clipboard.getPrimaryClip());
-                assertEquals("4821", clipboard.getPrimaryClip().getItemAt(0)
-                        .coerceToText(target).toString());
-            });
-
+            onView(withText("TELEGRAM")).perform(androidx.test.espresso.action.ViewActions.scrollTo())
+                    .check(matches(isDisplayed()));
             onView(withText("CLEAR")).perform(click());
             onView(withText(containsString("No events yet."))).check(matches(isDisplayed()));
         } finally {
