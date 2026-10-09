@@ -201,7 +201,7 @@ export const COMMANDS: CommandSpec[] = [
   {
     name: "files",
     aliases: ["file", "storage", "large-files", "file-search"],
-    usage: "files [storage|choose|list|find <text>|large <MB>|recent|media]",
+    usage: "files [storage|choose|list|find <text>|large <MB>|recent|media [type]|duplicates|downloads|documents|cleanup|share <uri>|copy <uri> <name>|move <uri> <name> confirm|delete <uri> confirm|zip <name.zip> <uri...>]",
     summaryEn: "Inspect storage and search files only inside a folder explicitly selected through Android scoped access.",
     summaryUz: "Xotira va fayllarni faqat Android ruxsat bergan tanlangan papka ichida tekshiradi.",
   },
