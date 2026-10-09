@@ -40,6 +40,34 @@ import java.util.Set;
 )
 public class MvmLauncherPlugin extends Plugin {
     private static final String PREFS = "mvmcmd_capabilities";
+    private static boolean hasUnsafeControlCharacters(String value, boolean allowNewline) {
+        if (value == null) return true;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == 0x7f || (c < 0x20 && !(allowNewline && (c == '\n' || c == '\r' || c == '\t')))) return true;
+        }
+        return false;
+    }
+
+    private static boolean isAllowedShareMime(String mime) {
+        if (mime == null) return false;
+        String value = mime.trim().toLowerCase(java.util.Locale.ROOT);
+        return "text/plain".equals(value) || "text/csv".equals(value) || "image/png".equals(value)
+            || "image/jpeg".equals(value) || "application/pdf".equals(value);
+    }
+
+    private static boolean isSafeShareText(String value) {
+        return value != null && !value.isEmpty() && value.length() <= 4000 && !hasUnsafeControlCharacters(value, true);
+    }
+
+    private static boolean isSafePhoneNumber(String value) {
+        return value != null && value.trim().matches("\\+?[0-9(). -]{3,32}");
+    }
+
+    private static boolean isValidEmailAddress(String value) {
+        return value != null && value.length() <= 254 && value.matches("^[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+$");
+    }
+
     private boolean isAllowedExternalUri(String raw) {
         if (raw == null || raw.trim().isEmpty() || raw.length() > 2048) return false;
         for (int i = 0; i < raw.length(); i++) {
@@ -547,7 +575,14 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openStore(PluginCall call) {
         String packageName = call.getString("packageName"), webUrl = call.getString("webUrl");
-        if (packageName == null || packageName.trim().isEmpty()) { call.reject("packageName is required"); return; }
+        if (packageName == null || packageName.length() > 255 || !packageName.matches("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$")) { call.reject("Valid packageName is required"); return; }
+        if (webUrl != null && !webUrl.trim().isEmpty()) {
+            Uri web = Uri.parse(webUrl);
+            String scheme = web.getScheme();
+            if (!isAllowedExternalUri(webUrl) || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                call.reject("Store fallback must be a valid HTTP(S) URL"); return;
+            }
+        }
         boolean opened=false;
         try { Intent market=new Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id="+Uri.encode(packageName)));market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);getActivity().startActivity(market);opened=true; } catch(Exception ignored){}
         if(!opened&&webUrl!=null&&!webUrl.trim().isEmpty()) {
@@ -559,25 +594,40 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void share(PluginCall call) {
         String text = call.getString("text");
-        String mime = call.getString("mime", "text/plain");
+        String requestedMime = call.getString("mime");
+        String mime = requestedMime == null || requestedMime.trim().isEmpty() ? "text/plain" : requestedMime.trim();
         boolean chooser = call.getBoolean("chooser", true);
         String fileUri = call.getString("fileUri");
-        if ((text == null || text.trim().isEmpty()) && (fileUri == null || fileUri.trim().isEmpty())) {
-            call.reject("share needs text or an explicit file grant");
+        if (fileUri != null && fileUri.trim().isEmpty()) fileUri = null;
+        if ((text == null || text.trim().isEmpty()) && fileUri == null) {
+            call.reject("share needs text or an explicit scoped file grant");
             return;
         }
-        if (fileUri != null && (fileUri.startsWith("file:") || fileUri.startsWith("/") || fileUri.contains("/data/"))) {
-            JSObject blocked = new JSObject();
-            blocked.put("started", false);
-            blocked.put("reason", "private file share requires an explicit scoped grant");
-            call.resolve(blocked);
+        if (text != null && !text.isEmpty() && !isSafeShareText(text)) {
+            call.reject("Share text is empty, oversized, or contains unsupported control characters");
+            return;
+        }
+        if (!isAllowedShareMime(mime)) {
+            call.reject("Unsupported share MIME type");
+            return;
+        }
+        if (fileUri != null && (requestedMime == null || requestedMime.trim().isEmpty())) {
+            call.reject("File sharing requires an explicit supported MIME type");
+            return;
+        }
+        if (fileUri != null && !isSafeScopedContentUri(fileUri)) {
+            call.reject("File sharing requires a valid scoped content URI");
+            return;
+        }
+        if (fileUri == null && !("text/plain".equals(mime) || "text/csv".equals(mime))) {
+            call.reject("Text sharing only supports text/plain or text/csv MIME types");
             return;
         }
         try {
             Intent send = new Intent(Intent.ACTION_SEND);
-            send.setType(mime == null || mime.trim().isEmpty() ? "text/plain" : mime);
-            if (text != null) send.putExtra(Intent.EXTRA_TEXT, text);
-            if (fileUri != null && fileUri.startsWith("content:")) {
+            send.setType(mime);
+            if (text != null && !text.isEmpty()) send.putExtra(Intent.EXTRA_TEXT, text);
+            if (fileUri != null) {
                 send.putExtra(Intent.EXTRA_STREAM, Uri.parse(fileUri));
                 send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             }
@@ -599,7 +649,7 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void lookupContact(PluginCall call) {
         String query = call.getString("query");
-        if (query == null || query.trim().isEmpty()) { call.reject("query is required"); return; }
+        if (query == null || query.trim().isEmpty() || query.length() > 120 || hasUnsafeControlCharacters(query, false)) { call.reject("query must be non-empty, safe, and at most 120 characters"); return; }
         if (androidx.core.content.ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.READ_CONTACTS)
                 != PackageManager.PERMISSION_GRANTED) {
             call.reject("READ_CONTACTS permission is required");
@@ -643,7 +693,7 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openDialer(PluginCall call) {
         String phone = call.getString("phone");
-        if (phone == null || phone.trim().isEmpty()) { call.reject("phone is required"); return; }
+        if (!isSafePhoneNumber(phone)) { call.reject("A valid phone number is required"); return; }
         try {
             Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(phone.trim())));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -662,8 +712,8 @@ public class MvmLauncherPlugin extends Plugin {
     public void openSmsComposer(PluginCall call) {
         String phone = call.getString("phone");
         String body = call.getString("body");
-        if (phone == null || phone.trim().isEmpty()) { call.reject("phone is required"); return; }
-        if (body == null || body.trim().isEmpty()) { call.reject("body is required"); return; }
+        if (!isSafePhoneNumber(phone)) { call.reject("A valid phone number is required"); return; }
+        if (body == null || body.trim().isEmpty() || body.length() > 4000 || hasUnsafeControlCharacters(body, true)) { call.reject("SMS body must be non-empty, safe, and at most 4000 characters"); return; }
         try {
             Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(phone.trim())));
             intent.putExtra("sms_body", body);
@@ -684,7 +734,8 @@ public class MvmLauncherPlugin extends Plugin {
         String email = call.getString("email");
         String subject = call.getString("subject", "");
         String body = call.getString("body", "");
-        if (email == null || email.trim().isEmpty()) { call.reject("email is required"); return; }
+        if (!isValidEmailAddress(email) || subject.length() > 200 || body.length() > 4000
+                || hasUnsafeControlCharacters(subject, false) || hasUnsafeControlCharacters(body, true)) { call.reject("Email address, subject, or body is invalid or too long"); return; }
         try {
             Uri uri = Uri.parse("mailto:" + Uri.encode(email.trim()))
                     .buildUpon()

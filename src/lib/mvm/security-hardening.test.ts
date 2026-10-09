@@ -138,6 +138,9 @@ test("release hardening review: sensitive-data backup is off and exported Androi
   assert.match(exportedActivities[0], /android:name="\.MainActivity"/);
   assert.match(launcher, /isAllowedExternalUri\(url\)/);
   assert.match(launcher, /Decision must be allow or skip/);
+  assert.match(launcher, /isAllowedShareMime\(mime\)/);
+  assert.match(launcher, /isSafePhoneNumber\(phone\)/);
+  assert.match(launcher, /Store fallback must be a valid HTTP\(S\) URL/);
   assert.match(filePlugin, /safeZipEntryName/);
   assert.match(filePlugin, /isSafeScopedContentUri/);
   assert.match(electronMain, /assertTrustedIpcSender/);
