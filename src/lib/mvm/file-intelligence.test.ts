@@ -22,3 +22,14 @@ test("media classification uses MIME and common extensions", () => {
   assert.equal(classifyMedia("video/mp4", "clip"), "video");
   assert.equal(classifyMedia("application/octet-stream", "misc"), "other");
 });
+
+
+test("storage percentages remain bounded for valid readings", () => {
+  assert.equal(formatStorageOverview(1024, 0, 1024).percentUsed, 100);
+  assert.equal(formatStorageOverview(0, 0, 0).percentUsed, 0);
+});
+
+test("media classifier is case-insensitive and supports common document formats", () => {
+  assert.equal(classifyMedia("APPLICATION/OCTET-STREAM", "REPORT.PDF"), "document");
+  assert.equal(classifyMedia("application/octet-stream", "movie.MP4"), "video");
+});
