@@ -31,7 +31,7 @@ const nativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatfor
 
 export function formatStorageOverview(totalBytes: number, availableBytes: number, usedBytes: number) {
   const valid = [totalBytes, availableBytes, usedBytes].every((n) => Number.isFinite(n) && n >= 0);
-  if (!valid || totalBytes < availableBytes || Math.abs(totalBytes - availableBytes - usedBytes) > Math.max(1024 * 1024, totalBytes * 0.02)) {
+  if (!valid || totalBytes < availableBytes || Math.abs(totalBytes - availableBytes - usedBytes) > 1) {
     return { valid: false, totalBytes, availableBytes, usedBytes, percentUsed: null as number | null };
   }
   return { valid: true, totalBytes, availableBytes, usedBytes, percentUsed: totalBytes ? Math.min(100, Math.max(0, usedBytes / totalBytes * 100)) : 0 };
