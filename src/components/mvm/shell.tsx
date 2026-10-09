@@ -34,6 +34,7 @@ import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
 import { emitMvmSignal } from "@/lib/mvm/signal-system";
 import { installMvmInteractionLayer } from "@/lib/mvm/interaction-system";
 import { MvmRainBackdrop } from "./rain-backdrop";
+import { recordPerformanceMeasurement } from "@/lib/mvm/performance-budget";
 
 const BOOT_LINES = [
   "kernel     vector ready",
@@ -149,6 +150,21 @@ export function MvmShell() {
   const [globalEntryNotice, setGlobalEntryNotice] = useState("");
   const seenGlobalEntriesRef = useRef<Set<string>>(new Set());
   useKeyboardInset();
+
+  useEffect(() => {
+    if (typeof performance !== "undefined") {
+      recordPerformanceMeasurement("renderer-ready-ms", performance.now(), "navigation-relative renderer mount");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!performanceGovernor.measured) return;
+    recordPerformanceMeasurement("frame-rate-fps", performanceGovernor.fps, "requestAnimationFrame sample");
+    const memory = (performance as Performance & { memory?: { usedJSHeapSize?: number } }).memory?.usedJSHeapSize;
+    if (typeof memory === "number" && Number.isFinite(memory) && memory >= 0) {
+      recordPerformanceMeasurement("heap-mb", memory / (1024 * 1024), "Chromium performance.memory");
+    }
+  }, [performanceGovernor.measured, performanceGovernor.fps]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -441,10 +457,16 @@ export function MvmShell() {
       return;
     }
     const text = resolution.command;
+    const parseStartedAt = typeof performance !== "undefined" ? performance.now() : undefined;
     const understanding = understandCommand(text);
     const capability = understanding.entities.find((e) => e.type === "capability")?.value;
     const interpretedText = understanding.intent === "open_app" ? `open ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "find_app" ? `find ${understanding.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understanding.intent === "device_snapshot" ? "device" : understanding.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understanding.intent === "help" ? "help" : text;
     const parsed = parseLine(interpretedText);
+    if (parseStartedAt !== undefined && typeof performance !== "undefined") {
+      const elapsed = Math.max(0, performance.now() - parseStartedAt);
+      recordPerformanceMeasurement("command-parse-ms", elapsed, "understanding + command parser");
+      recordPerformanceMeasurement("input-route-ms", elapsed, "synchronous input routing; async native completion excluded");
+    }
 
     if (parsed.cmd && ["contact", "dial", "sms", "email", "copy", "paste"].includes(parsed.cmd.name)) {
       const next = pushHistory(state, text); saveState(next); setState(next); const sessionTurnId = rememberActiveSessionTurn(text, text);

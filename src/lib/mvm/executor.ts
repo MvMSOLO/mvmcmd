@@ -37,6 +37,8 @@ import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessi
 import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
 import { explainCapabilitySnapshot, formatAndroidCompatibilityReport, formatLocalDateTime, normalizeCapabilityId, normalizeLanguageToken } from "./compatibility";
+import { formatPerformanceReport } from "./performance-budget.ts";
+import { redactExternalTarget } from "./security-policy.ts";
 
 let seq = 0;
 let gamingSession: GamingSession | undefined;
@@ -207,7 +209,7 @@ function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
       const ok = launchRawUrl(trimmed);
       return {
         state: state0,
-        lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${trimmed}` : "URL rejected")],
+        lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${redactExternalTarget(trimmed)}` : "URL rejected")],
       };
     }
     const { hits, bound } = resolveQuery(trimmed, state0);
@@ -642,6 +644,9 @@ function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
           ),
         ],
       };
+    }
+    case "perf": {
+      return { state: state0, lines: [line("sys", "PERFORMANCE  measured / unmeasured"), ...formatPerformanceReport(ctx2.lang).map((item) => line("out", item))] };
     }
     case "date": {
       const now = new Date();

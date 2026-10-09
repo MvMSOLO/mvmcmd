@@ -27,6 +27,7 @@ const SECRET_WORD = /\b(?:password|passwd|passcode|otp|token|secret|api[-_ ]?key
 const EMAIL_VALUE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const PHONE_VALUE = /(?:^|\s)\+?\d[\d\s().-]{7,}\d(?=$|\s)/g;
 const URI_VALUE = /(?:content|file):\/\//i;
+const SENSITIVE_QUERY = /[?&#](?:token|access_token|refresh_token|auth|authorization|api[_-]?key|secret|password|signature|sig|session|code)=/i;
 function hasPhoneLikeValue(value: string): boolean {
   return Array.from(value.matchAll(new RegExp(PHONE_VALUE.source, "g"))).some(([candidate]) => candidate.replace(/\D/g, "").length >= 9);
 }
@@ -44,7 +45,7 @@ export function createSessionContext(): SessionContext {
 }
 export function isPrivacySensitiveCommand(command: string): boolean {
   const value = command.trim();
-  return PRIVATE_COMMAND.test(value) || PRIVATE_FILES.test(value) || SECRET_WORD.test(value) || EMAIL_VALUE.test(value) || URI_VALUE.test(value) || hasPhoneLikeValue(value);
+  return PRIVATE_COMMAND.test(value) || PRIVATE_FILES.test(value) || SECRET_WORD.test(value) || EMAIL_VALUE.test(value) || URI_VALUE.test(value) || SENSITIVE_QUERY.test(value) || /\bBearer\s+[A-Za-z0-9._~+/=-]+/i.test(value) || hasPhoneLikeValue(value);
 }
 export function isRepeatableCommand(command: string): boolean {
   const value = command.trim();

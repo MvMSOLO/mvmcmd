@@ -264,6 +264,13 @@ export const COMMANDS: CommandSpec[] = [
     summaryUz: "Buyruqlar ro‘yxati.",
   },
   {
+    name: "perf",
+    aliases: ["performance", "benchmark"],
+    usage: "perf",
+    summaryEn: "Show measured renderer, command parsing, frame cadence and memory metrics; unknown measurements stay unmeasured.",
+    summaryUz: "Renderer, command parse, frame cadence va xotira o‘lchovlarini ko‘rsatadi; noma’lum ko‘rsatkich taxmin qilinmaydi.",
+  },
+  {
     name: "date",
     aliases: ["time"],
     usage: "date",
@@ -318,6 +325,7 @@ const EMPTY_OK = new Set([
   "device",
   "about",
   "compat",
+  "perf",
   "help",
   "date",
   "whoami",

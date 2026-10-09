@@ -1,4 +1,5 @@
 import type { Lang, PersistedState, UserAlias } from "./types";
+import { isPrivacySensitiveCommand } from "./session-context.ts";
 
 const KEY = "mvmcmd.v1";
 
@@ -59,8 +60,9 @@ export function recordUse(state: PersistedState, appId: string): PersistedState 
 
 export function pushHistory(state: PersistedState, line: string): PersistedState {
   const trimmed = line.trim();
-  if (!trimmed) return state;
-  const history = [trimmed, ...state.history.filter((h) => h !== trimmed)].slice(0, 120);
+  const cleanHistory = state.history.filter((entry) => !isPrivacySensitiveCommand(entry));
+  if (!trimmed || isPrivacySensitiveCommand(trimmed)) return cleanHistory.length === state.history.length ? state : { ...state, history: cleanHistory };
+  const history = [trimmed, ...cleanHistory.filter((h) => h !== trimmed)].slice(0, 120);
   return { ...state, history };
 }
 
