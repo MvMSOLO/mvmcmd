@@ -73,7 +73,7 @@ check("Windows portable x64 target is configured", portableX64);
 check("Android namespace and application ID are aligned", Boolean(packageName && namespace && packageName === namespace), `namespace=${namespace || "missing"}, applicationId=${packageName || "missing"}`);
 check("Android app labels match product name", appLabel === productName && activityLabel === productName, `app_name=${appLabel || "missing"}, activity=${activityLabel || "missing"}`);
 check("Android backup remains disabled", /android:allowBackup="false"/.test(manifest));
-check("Android launcher activity is explicit and launchable", Boolean(launcherActivity && /android:exported="true"/.test(launcherActivity) && /android\.intent\.action\.MAIN/.test(launcherActivity) && /android\.intent\.category\.LAUNCHER/.test(launcherActivity));
+check("Android launcher activity is explicit and launchable", Boolean(launcherActivity && /android:exported="true"/.test(launcherActivity) && /android\.intent\.action\.MAIN/.test(launcherActivity) && /android\.intent\.category\.LAUNCHER/.test(launcherActivity)));
 check("Android branded launcher icon exists", fs.existsSync(path.join(root, "android/app/src/main/res/drawable/mvmcmd_logo.xml")));
 check("desktop entry points exist", ["desktop/main.cjs", "desktop/preload.cjs", "desktop/security.cjs"].every((file) => fs.existsSync(path.join(root, file))));
 check("camera, QR, wallpaper, English and notification native entry points exist", [
