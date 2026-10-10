@@ -29,6 +29,7 @@ import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
 import { Activity, Mic, MicOff } from "lucide-react";
 import { QuickActionChip } from "./quick-action-chip";
+import { LogRow } from "./log-row";
 import { isMotionReduced, motionModeDescription, motionModeLabel, nextMotionMode, normalizeMotionMode, MVM_MOTION_STORAGE_KEY, type MvmMotionMode } from "@/lib/mvm/motion-preferences";
 import { cancelVoiceCapture, isVoiceCaptureSupported, speakVoiceInstruction, speakVoiceOutcome, startVoiceCapture, cancelVoiceSpeech } from "@/lib/mvm/voice-assistant";
 import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
@@ -1099,35 +1100,4 @@ export function MvmShell() {
       </div>
     </div>
   );
-}
-
-function LogRow({ row, index, onOpen }: { row: LogLine; index: number; onOpen: (id: string) => void }) {
-  const color =
-    row.kind === "ok"
-      ? "text-ok"
-      : row.kind === "warn"
-        ? "text-warn"
-        : row.kind === "in"
-          ? "text-fg"
-          : row.kind === "sys"
-            ? "text-accent"
-            : "text-muted";
-
-  const body = (
-    <>
-      {row.kind === "in" && <span className="mr-2 text-accent">▸</span>}
-      <span>{row.text}</span>
-      {row.meta ? <span className="ml-3 text-faint">{row.meta}</span> : null}
-    </>
-  );
-
-  if (row.appId && (row.kind === "match" || row.kind === "out")) {
-    return (
-      <button type="button" onClick={() => onOpen(row.appId!)} className={cn("mvm-motion-log-cascade block w-full text-left", color)} style={{ animationDelay: `${Math.min(index, 20) * 35}ms` }}>
-        {body}
-      </button>
-    );
-  }
-
-  return <p className={cn("mvm-motion-log-cascade", color)} style={{ animationDelay: `${Math.min(index, 20) * 35}ms` }}>{body}</p>;
 }
