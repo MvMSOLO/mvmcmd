@@ -92,6 +92,31 @@ jobs:
           node scripts/check-release-candidate.mjs
       - name: Build web application
         run: npm run build
+      - name: Restore original wallpaper assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mvm_wallpapers android/app/src/main/assets/wallpapers
+          mkdir -p /tmp/mvm_wallpapers android/app/src/main/assets/wallpapers
+          cat scripts/wallpapers-pack-b64/part-* | base64 -d > /tmp/mvmcmd-wallpapers.zip
+          test "$(sha256sum /tmp/mvmcmd-wallpapers.zip | cut -d' ' -f1)" = "df908ba85062bd4d8820e269a92fc0b05d86462337355e5e58a83cddd4dcf30a"
+          unzip -q /tmp/mvmcmd-wallpapers.zip -d /tmp/mvm_wallpapers
+          python3 -m pip install --disable-pip-version-check --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          root=Path("/tmp/mvm_wallpapers")
+          out=Path("android/app/src/main/assets/wallpapers")
+          out.mkdir(parents=True, exist_ok=True)
+          files=sorted(root.glob("*.webp"))
+          assert len(files)==17, files
+          for src in files:
+              with Image.open(src) as im:
+                  im.convert("RGB").save(out/(src.stem+".png"), "PNG", compress_level=6, optimize=True)
+          assert len(list(out.glob("*.png")))==17
+          PY
+          test "$(find android/app/src/main/assets/wallpapers -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 17
+
       - name: Sync native Android project
         run: npx cap sync android
       - name: Build signed release APK
@@ -101,6 +126,25 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Verify signed APK wallpaper payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import hashlib
+          root=Path("android/app/src/main/assets/wallpapers")
+          expected=sorted(p.name for p in root.glob("*.png"))
+          assert len(expected)==17, expected
+          with ZipFile("android/app/build/outputs/apk/release/app-release.apk") as z:
+              names=set(z.namelist())
+              for name in expected:
+                  entry="assets/wallpapers/"+name
+                  assert entry in names, entry
+                  assert hashlib.sha256(z.read(entry)).digest()==hashlib.sha256((root/name).read_bytes()).digest(), name
+          print("Verified signed release APK contains the exact 17 original wallpaper payloads.")
+          PY
       - name: Verify signed production APK
         shell: bash
         run: |
@@ -114,6 +158,8 @@ jobs:
           REPORT="$RUNNER_TEMP/mvmcmd-apksigner-report.txt"
           "$APKSIGNER" verify --verbose --print-certs "$APK" 2>&1 | tee "$REPORT"
           grep -q "Signer #1 certificate SHA-256 digest:" "$REPORT"
+          CERT_SHA256="$(sed -n 's/^Signer #1 certificate SHA-256 digest: *//p' "$REPORT" | head -n 1)"
+          test -n "$CERT_SHA256"
           if grep -qi "Android Debug" "$REPORT"; then
             echo "::error::Debug certificate detected; refusing to publish a production artifact."
             exit 1
@@ -123,6 +169,7 @@ jobs:
           echo "- Source commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           echo "- Signature verification: PASS" >> "$GITHUB_STEP_SUMMARY"
           echo "- Debug certificate: not detected" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Signing certificate SHA-256: $CERT_SHA256" >> "$GITHUB_STEP_SUMMARY"
           echo "- APK SHA-256: $(cut -d' ' -f1 "$RUNNER_TEMP/mvmcmd-release-apk.sha256")" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload signed production APK
         uses: actions/upload-artifact@v4

@@ -42,7 +42,7 @@ Copy the contents of the Base64 file directly into the `ANDROID_KEYSTORE_BASE64`
 1. Merge the reviewed release-candidate branch into `main`; the workflow intentionally refuses to sign a non-`main` ref.
 2. Confirm all four repository secrets exist and correspond to the same keystore.
 3. Open **Actions → Build Signed Android Production APK → Run workflow** on `main`.
-4. The workflow repeats typecheck, release metadata validation, build, and a production-dependency-only audit. It builds `assembleRelease`, verifies the APK signature with `apksigner`, rejects a detected Android debug certificate, and prints the signed APK SHA-256 in the Actions summary.
+4. The workflow restores and verifies the 17 original wallpaper assets, repeats typecheck/release metadata validation and a production-dependency-only audit, then builds `assembleRelease`. It verifies the exact wallpaper payload inside the APK, verifies the APK signature with `apksigner`, rejects a detected Android debug certificate, and prints both the signing-certificate SHA-256 and APK SHA-256 in the Actions summary.
 5. Download only the artifact from a successful run. Retain the source commit, artifact SHA-256, certificate digest, and review approval with the release record.
 
 ## Evidence boundary

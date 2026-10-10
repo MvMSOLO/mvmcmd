@@ -2,87 +2,71 @@
 
 ## Status
 
-**IN PROGRESS — the release candidate passes Android and Windows CI; public-release qualification remains open.**
+**IN PROGRESS — Android and Windows CI pass, and release controls are prepared. Public-release qualification remains open.**
 
-The validated app-source candidate is `8218822ac033f6f05d5548b092f990431e28cae4`. Both platform workflows pass on that commit and produced downloadable artifacts. This report update is Markdown-only; the workflows deliberately ignore Markdown-only changes, and it does not alter the validated app source or artifacts.
+Validated app-source commit: `c81e625c945f50e582ecbc7322060928333b3969`. Both platform workflows passed on this exact code commit, including the new production-only dependency audit. This document update is documentation-only and does not alter that tested app source.
 
-The first Windows packaging attempt caught a bad icon payload (Electron Builder only detected a 48×48 image). The icon was replaced with a structurally verified 256×256 ICO; the latest Windows package, executable verification, packaged-launch smoke test, and artifact upload all passed.
+CI does not substitute for OEM phone tests, real media capture, secrets provisioned by the release owner, or public-release/privacy approval. The current Android artifact is a **debug APK**, not a signed production APK.
 
-This phase must not be marked complete merely because CI is green. Android artifacts are debug APKs, not signed production releases. Real product screenshots/video and physical-device qualification are still required before public launch claims.
+## Completed in this pass
 
-## Release-candidate work
-
-- [x] Align Android `versionName` with the desktop/package version (`1.0.0`).
-- [x] Add a CI release metadata gate for semver/version consistency, Android IDs/labels/launcher/backup policy, desktop identity, Windows x64 target, required app entry points, and Windows icon configuration.
-- [x] Create a dedicated 256×256 Windows `.ico` in the MVMCMD dark/teal/light brand palette and configure Electron Builder to use it instead of the generic default icon.
-- [x] Prepare a root README, release notes, known limitations, privacy/permission explanation, a 60-second demo shot plan, a screenshot capture checklist, and draft Instagram launch copy.
-- [x] Confirm both APK and EXE workflows pass on validated app-source commit `8218822`.
-- [x] Preserve the Phase 19 boundary: software/CI acceptance is complete; OEM and physical-device qualification remains open.
-- [ ] Complete a real-device permission/first-run and core-flow session.
-- [ ] Capture authentic screenshots and a real vertical demo video from the installed build.
-- [ ] Complete signing, privacy-policy review, and release approval before public distribution.
+- [x] Verified Windows portable EXE creation, integrity checks, launch smoke and artifact upload.
+- [x] Verified Android debug APK creation/integrity, the exact 17 wallpaper payloads, emulator install/launch and isolated core native activity tests.
+- [x] Passed 99 project tests on both platform jobs (99 passed / 0 failed).
+- [x] Passed the release metadata gate on 15 checks for both platforms.
+- [x] Added `npm audit --omit=dev` to Android and Windows CI. Both candidate runs reported 0 known production dependency advisories.
+- [x] Added a manual, main-only signed Android APK workflow with keystore inputs sourced from repository Actions secrets.
+- [x] Improved the signed workflow so it restores/verifies the 17 wallpaper assets, verifies the payload after packaging, verifies the APK signature, rejects a detected debug certificate and records the signing-certificate SHA-256 and APK SHA-256.
+- [x] Reviewed the Android manifest, privacy-sensitive notification storage, network/auth integration surfaces and release disclosure; recorded open owner/legal review items.
+- [x] Documented the seven moderate development/build-tool audit nodes and their upstream advisory rather than suppressing the audit or blindly downgrading the Electron builder chain.
 
 ## Current candidate CI evidence
 
-- **Validated app-source commit:** [`8218822ac033f6f05d5548b092f990431e28cae4`](https://github.com/MvMSOLO/mvmcmd/commit/8218822ac033f6f05d5548b092f990431e28cae4).
-- **Windows portable EXE — SUCCESS:** [run 38030893145](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893145). All 22 job steps passed. The metadata gate passed 15 checks, all 99 project tests passed (0 failures), the portable EXE was built and verified, and the packaged executable remained alive throughout the launch smoke test.
-- **Windows candidate artifact:** [`mvmcmd-windows-exe-448`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893145/artifacts/11661738939), 133,931,627 bytes. SHA-256 of the uploaded artifact archive: `fff94a28c4f6c9fec66c6d8b73f533d44d76692ddada58ed14fd67228e57bb2f`. Expires 2026-10-24 06:30:34 UTC.
-- **Android debug APK — SUCCESS:** [run 38030893223](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893223). All 33 job steps passed. The metadata gate passed 15 checks, all 99 project tests passed (0 failures), APK integrity passed, the exact 17 wallpaper PNG payloads were verified, and emulator install/launch plus isolated core native-activity instrumentation passed.
-- **Android candidate artifact:** [`mvmcmd-debug-apk-730`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893223/artifacts/11662445312), 22,291,861 bytes. SHA-256 of the uploaded artifact archive: `f6280ce1e10b7e0e6610da8ce157cc2101d0f3a412142758171af66dd44d9afa`. Expires 2026-10-24 06:31:33 UTC.
-- **Dependency audit on both candidate runs:** 7 moderate advisories, 0 high, and 0 critical. CI's stated policy gate passed; the dependency tree is not vulnerability-free, and moderate advisories still need review before distribution.
-- **Evidence boundary:** these runs validate the app-source candidate `8218822`. They do not prove physical-device/OEM behavior, production signing, battery/thermal benefits, store readiness, or that demo media has been recorded.
+- **Source commit:** [`c81e625c945f50e582ecbc7322060928333b3969`](https://github.com/MvMSOLO/mvmcmd/commit/c81e625c945f50e582ecbc7322060928333b3969).
+- **Windows portable EXE — SUCCESS:** [run 38031931178](https://github.com/MvMSOLO/mvmcmd/actions/runs/38031931178). 22/22 job steps passed; release metadata gate 15/15; 99 tests passed / 0 failed; EXE packaging, executable verification, packaged-launch smoke and artifact upload passed.
+- **Windows artifact:** [`mvmcmd-windows-exe-449`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38031931178/artifacts/11662456587), 133,931,621 bytes. Archive SHA-256: `6398784acd38cdeb6aee5f8663d8ff119f756a3ce8689d591318cbc964496df7`. Expires 2026-10-24 06:48:50 UTC.
+- **Android debug APK — SUCCESS:** [run 38031931196](https://github.com/MvMSOLO/mvmcmd/actions/runs/38031931196). 33/33 job steps passed; release metadata gate 15/15; 99 tests passed / 0 failed; APK integrity, exact 17-wallpaper payloads, emulator install/launch and isolated core native activity tests passed.
+- **Android artifact:** [`mvmcmd-debug-apk-731`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38031931196/artifacts/11662766161), 22,291,867 bytes. Archive SHA-256: `a2054d478c9ec8dc320f231acc8d71fd1d0cbd641bd01ad12ce5303577cc29d4`. Expires 2026-10-24 06:51:11 UTC.
+- **Full dependency audit:** 7 moderate, 0 high, 0 critical. The seven nodes are one build-tool dependency chain rooted in [GHSA-hp3w-g68c-fv3c / CVE-2026-97058](https://github.com/advisories/ghsa-hp3w-g68c-fv3c), affecting `sprintf-js` through 1.1.3. At the 2026-10-10 review the advisory database showed no patched version; [upstream issue #237](https://github.com/alexei/sprintf.js/issues/237) remained open and [npm listed 1.1.3 as latest](https://www.npmjs.com/package/sprintf-js?activeTab=versions). The finding is documented and not suppressed.
+- **Production-only dependency audit:** `npm audit --omit=dev` was `total=0` on both platform runs. This means npm reported no known advisories for that selected production dependency tree; it does not prove the application has no security defects.
+- **Artifact limitation:** GitHub run artifacts have finite retention; archive SHA-256 values above provide integrity references but are not a permanent hosting plan.
 
-## Verified baseline CI history
+## Signing readiness
 
-The earlier baseline commit [`f8be99acee8cb87c39fdff4c81241e75b7b99d91`](https://github.com/MvMSOLO/mvmcmd/commit/f8be99acee8cb87c39fdff4c81241e75b7b99d91) also passed both platform workflows before the custom Windows icon was wired into Electron Builder:
-- **Windows baseline:** [run 38029787174](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787174), artifact [`mvmcmd-windows-exe-444`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787174/artifacts/11661388533), 133,930,255 bytes; archive SHA-256 `0fff6cb5acd3131be29b55146daad8e616b0f6947ac921b600947ef032e2b19c`.
-- **Android baseline:** [run 38029787175](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787175), artifact [`mvmcmd-debug-apk-726`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787175/artifacts/11661084409), 22,291,868 bytes; archive SHA-256 `0d8135e15e63ab4d08df35ca1565a643e3157ddf74a46d40ee13f08577e0e9db`.
-- The candidate runs above supersede the baseline as evidence for the custom-icon source candidate.
+The manual workflow is [`.github/workflows/android-production-release.yml`](../.github/workflows/android-production-release.yml); the step-by-step runbook is [`ANDROID-PRODUCTION-SIGNING.md`](../release/ANDROID-PRODUCTION-SIGNING.md).
 
-## Demo plan
+To produce a signed APK, the release owner must create/protect a keystore, configure `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` as GitHub Actions **secrets**, review and merge the candidate into `main`, then manually dispatch the workflow on `main`. Those secrets are not available to this session, so **no signed production APK has been produced or claimed**. The workflow has not yet run.
 
-The proposed 60-second sequence is in [`release/DEMO-SCRIPT-60S.md`](../release/DEMO-SCRIPT-60S.md): cold launch, command input, a verified app action, camera/QR, wallpaper preview, English tools, notification-permission guidance, a real fallback, and a truthful result state.
+## Privacy review
 
-**The demo has not been recorded.** The shot plan is not evidence that actions have been performed. Record directly from a running build, retain the unedited source, and show the result state exactly as the app reports it. Use synthetic notifications and do not expose personal content.
+The source-based review is in [`PRIVACY-AND-PERMISSIONS.md`](../release/PRIVACY-AND-PERMISSIONS.md). It records the current Android permission declarations, notification listener access and a local history bounded to 120 entries, as well as questions about FileProvider scope, active network integrations, retention, the data controller and legal basis.
 
-## Launch materials
+**Privacy/legal approval remains open.** Do not claim the application is wholly local or “collects no data” until the exact distribution configuration and destinations have been audited and the owner supplies the missing policy/contact/jurisdiction decisions.
 
-- [Release notes](../release/RELEASE-NOTES-v1.0.0.md) — internal candidate notes, not public-release approval.
-- [Known limitations](../release/KNOWN-LIMITATIONS.md) — device validation, signing, and measurement boundaries.
-- [Privacy and permissions explanation](../release/PRIVACY-AND-PERMISSIONS.md) — draft; requires release-specific privacy review.
-- [Screenshot/video capture checklist](../release/SCREENSHOT-CAPTURE-CHECKLIST.md) — not yet signed off.
-- [Instagram launch copy](../release/INSTAGRAM-LAUNCH-COPY.md) — draft; do not publish until real media and release qualification are complete.
+## Explicit remaining blockers
 
-## Explicit release blockers
-
-1. **Physical-device qualification remains OPEN.** Test actual Samsung/One UI, Xiaomi/Redmi/POCO/HyperOS or MIUI, and Pixel/AOSP hardware as available. The hosted emulator does not prove OEM restricted-setting, background-kill, camera, or notification behavior.
-2. **Battery and thermal measurements remain OPEN.** No physical measurements have been recorded. Do not claim battery savings, thermal improvement, RAM reduction, higher FPS, or “booster” results without repeatable device-level evidence.
-3. **Real media is missing.** Product screenshots and vertical video must be captured from the running app, not invented or substituted with mockups.
-4. **Production distribution is not configured.** CI produces a debug APK; production signing and store/distribution preparation require deliberate setup and review.
-5. **Privacy and dependency review remain.** Review current audit output, Android permissions, notification access, storage/network behavior, and the final privacy policy before external distribution.
+1. **Real phone/OEM tests — OPEN.** Samsung/One UI, Xiaomi/Redmi/POCO/HyperOS or MIUI, and Pixel/AOSP permission, background, camera, notification and wallpaper behavior require physical devices. Emulator evidence does not close this.
+2. **Real screenshots and vertical demo — OPEN.** The checklist and 60-second script are ready, but capture must come from the installed app. No phone/camera feed was available to this session; no fabricated screenshot or generated promo has been presented as real product evidence. Use synthetic notification content.
+3. **Signed production APK — OPEN.** Workflow is prepared; the release owner still needs to provision secrets and authorize a reviewed merge/dispatch.
+4. **Development-tool advisory — OPEN.** Track upstream fix for `sprintf-js` and validate the updated lockfile/builder after it is available. Do not downgrade `electron-builder` blindly: its advisory chain includes a separate high-severity AppImage fix requiring `app-builder-lib >=26.15.0` ([GHSA-7g7r-gx96-252g](https://github.com/electron-userland/electron-builder/security/advisories/GHSA-7g7r-gx96-252g)).
+5. **Privacy and release-owner sign-off — OPEN.** Final policy, real contact/controller details, retention, distribution-channel rules, final artifact review and marketing approval require owner decisions.
 
 ## Acceptance ledger
 
 | Requirement | State |
 |---|---|
-| Android/desktop version metadata aligned | PASS in candidate CI gate |
-| Windows app icon configured and packaged | PASS; 256×256 ICO; Windows package and launch smoke passed |
-| Android and Windows candidate CI | PASS on `8218822`; 99 tests pass / 0 fail on each platform |
-| APK and EXE artifacts uploaded | PASS; links and archive SHA-256 values recorded above |
-| Dependency audit | No high/critical advisories; 7 moderate remain for review |
-| Root README and release documentation | Prepared |
-| Real Android/OEM physical-device matrix | OPEN |
-| Repeatable battery/thermal measurement | OPEN |
-| Authentic screenshots and vertical demo | OPEN |
-| Signed production APK and final distribution review | OPEN |
+| Android debug APK / Windows EXE candidate CI | PASS on `c81e625` |
+| 99 tests on each platform | PASS, 0 failures per job |
+| Production-only dependency audit | PASS, 0 known advisories reported on each platform |
+| Seven moderate development/build-tool nodes reviewed | REVIEWED / TEMPORARY RISK OPEN |
+| Signed-release workflow and guide | PREPARED; not run |
+| Physical-device/OEM matrix | OPEN |
+| Real screenshot/video capture | OPEN |
+| Final privacy/legal and release-owner approval | OPEN |
 
 ## Non-negotiable launch rules
 
-- An animation, external-app launch, or requested Android Intent is not proof of completion.
+- A requested intent, app launch, or animation is not proof of completion.
 - Preserve the difference between `STARTED`, `VERIFIED`, `RECOVERED`, and failure states.
-- Do not imply unsupported OEM capabilities, measured FPS gains, or universal compatibility.
-- Do not claim Phase 20 is closed until the open acceptance items above have real evidence.
-
-## Dependencies
-
-All previous phases. Phase 19 software/CI acceptance is complete; Phase 19 physical-device qualification remains an explicit follow-up.
+- Do not claim improved battery, thermals, RAM or FPS without repeatable device measurements.
+- Do not mark Phase 20 closed until the remaining evidence and approval above are recorded.

@@ -1,7 +1,7 @@
 # MVMCMD — Dependency Advisory Review
 
 **Reviewed:** 2026-10-10  
-**Source commit assessed:** `8218822ac033f6f05d5548b092f990431e28cae4`  
+**Source commit assessed:** `c81e625c945f50e582ecbc7322060928333b3969`  
 **Disposition:** Temporary, documented build-tool risk; no patched upstream release available for the root finding at review time. **Not a zero-vulnerability sign-off.**
 
 ## Finding
@@ -30,15 +30,16 @@ The root advisory is [GHSA-hp3w-g68c-fv3c / CVE-2026-97058](https://github.com/a
 ## Controls applied
 
 1. Keep the all-dependency CI audit and its **zero high / zero critical** policy gate. The build logs continue to show moderate advisories.
-2. Add a separate `npm audit --omit=dev` gate to Android and Windows CI; any known advisory in the shipped production dependency tree fails that gate.
-3. The signed-release workflow repeats the production dependency audit and refuses to sign if the runtime tree has known advisories.
+2. Add a separate `npm audit --omit=dev` gate to Android and Windows CI; any known advisory in the shipped production dependency tree fails that gate. **Verified clean in both candidate runs:** [Android run 38031931196](https://github.com/MvMSOLO/mvmcmd/actions/runs/38031931196) and [Windows run 38031931178](https://github.com/MvMSOLO/mvmcmd/actions/runs/38031931178) each report `info=0, low=0, moderate=0, high=0, critical=0, total=0` for production dependencies.
+3. The signed-release workflow repeats the production dependency audit and refuses to sign if the runtime tree has known advisories. The workflow is prepared; it has not yet run because repository signing secrets and a reviewed `main` merge are not confirmed.
 4. Re-check the root advisory and affected dependency chain before every public distribution. Do not describe this temporary disposition as “no vulnerabilities.”
 
 ## Open actions
 
 - [ ] Re-run audit when upstream publishes a patched `sprintf-js` version and update the dependency chain through a lockfile-producing build.
 - [ ] Review the changed lockfile and test the Windows portable EXE build/launch if the builder chain changes.
-- [ ] Confirm production-only audit reports zero known advisories in the new CI run.
+- [x] Confirm production-only audit reports zero known advisories in both candidate CI runs (links above).
+- [ ] Re-run and review the production-only audit immediately before the first signed release.
 - [ ] Obtain explicit release-owner sign-off on the temporary moderate build-tool risk, or wait for upstream remediation.
 
 This review is a technical assessment, not an external penetration test or a legal/security certification.
