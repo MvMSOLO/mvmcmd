@@ -17,7 +17,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts src/lib/mvm/gaming-engine.test.ts src/lib/mvm/commands.test.ts src/lib/mvm/communication.test.ts src/lib/mvm/skills.test.ts src/lib/mvm/capabilities/registry.test.ts src/lib/mvm/device.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts src/lib/mvm/gaming-engine.test.ts src/lib/mvm/commands.test.ts src/lib/mvm/communication.test.ts src/lib/mvm/skills.test.ts src/lib/mvm/capabilities/registry.test.ts src/lib/mvm/device.test.ts src/lib/mvm/intelligence.test.ts",
     "test:scripts": "node --test 'scripts/**/*.test.mjs'",
     "test:all": "npm run test && npm run test:scripts",
     "lint": "eslint .",
