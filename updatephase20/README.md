@@ -22,7 +22,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 09 — App Bridge / Intent / Deep-Link / Share Engine: **COMPLETED**
 - Phase 10 — MVM Goal Engine: **COMPLETED**
 - Phase 11 — Adaptive Gaming Engine: **COMPLETED**
-- Phase 12 — Communication Engine: **PLANNED**
+- Phase 12 — Communication Engine: **COMPLETED**
 - Phase 13 — Device Utility & File Intelligence: **COMPLETED**
 - Phase 14 — Context, Session Memory & Conversation: **COMPLETED**
 - Phase 15 — Voice + Assistant Layer: **COMPLETED**
@@ -49,6 +49,19 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 ## Documentation map
 See `PHASE-01.md` through `PHASE-20.md` for the full phase specifications. See `PHASE-01-08-CONSOLIDATED.md` for the implementation history of the completed first eight phases.
 
+## Post-merge hardening (2026-10-10)
+
+After the updatephase20 merge into the default branch, the following audit fixes were applied:
+
+- **P0 task planner:** free-text SMS/email bodies are no longer split on `va` / `and` / `then`.
+- **P0 package visibility:** AndroidManifest `<queries>` for LAUNCHER and common communication intents.
+- **P1 Phase 12:** communication tests added; status set to COMPLETED.
+- **P1 notifications:** 24h history retention + 15min OTP code redaction.
+- **P1 test policy:** unified `npm test` shared by Android and Windows workflows.
+- **P1 registry/device tests:** skills, capabilities, and device formatter coverage.
+- **P1 Java safety tests:** path/ZIP leaf-name contracts under `android/app/src/test`.
+
+Physical-device qualification, signed release, and public launch assets remain owner-only Phase 20 gates.
 
 ## Phase 19 implementation checkpoint
 
