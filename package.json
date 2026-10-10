@@ -134,7 +134,8 @@
           ]
         }
       ],
-      "artifactName": "MVMCMD-${version}-Windows-${arch}.${ext}"
+      "artifactName": "MVMCMD-${version}-Windows-${arch}.${ext}",
+      "icon": "build/icon.ico"
     },
     "electronVersion": "44.3.0"
   }

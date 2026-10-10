@@ -59,6 +59,7 @@ const windowsTargets = Array.isArray(pkg.build?.win?.target)
   : pkg.build?.win?.target
     ? [pkg.build.win.target]
     : [];
+const winIcon = pkg.build?.win?.icon;
 const portableX64 = windowsTargets.some((target) => {
   const architectures = Array.isArray(target.arch) ? target.arch : [target.arch].filter(Boolean);
   return target.target === "portable" && architectures.includes("x64");
@@ -70,6 +71,7 @@ check("Android versionCode is a positive integer", Number.isInteger(androidVersi
 check("desktop product name is MVMCMD", productName === "MVMCMD", String(productName ?? "missing"));
 check("desktop app ID is stable", desktopAppId === "com.mvmcmd.desktop", String(desktopAppId ?? "missing"));
 check("Windows portable x64 target is configured", portableX64);
+check("Windows app icon is configured and present", typeof winIcon === "string" && fs.existsSync(path.join(root, winIcon)), String(winIcon ?? "missing"));
 check("Android namespace and application ID are aligned", Boolean(packageName && namespace && packageName === namespace), `namespace=${namespace || "missing"}, applicationId=${packageName || "missing"}`);
 check("Android app labels match product name", appLabel === productName && activityLabel === productName, `app_name=${appLabel || "missing"}, activity=${activityLabel || "missing"}`);
 check("Android backup remains disabled", /android:allowBackup="false"/.test(manifest));

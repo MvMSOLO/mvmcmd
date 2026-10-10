@@ -21,7 +21,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 08 — Verification + Recovery Engine: **COMPLETED**
 - Phase 09 — App Bridge / Intent / Deep-Link / Share Engine: **COMPLETED**
 - Phase 10 — MVM Goal Engine: **COMPLETED**
-- Phase 11 — Adaptive Gaming Engine: **PLANNED**
+- Phase 11 — Adaptive Gaming Engine: **COMPLETED**
 - Phase 12 — Communication Engine: **PLANNED**
 - Phase 13 — Device Utility & File Intelligence: **COMPLETED**
 - Phase 14 — Context, Session Memory & Conversation: **COMPLETED**
@@ -30,7 +30,7 @@ The product must prefer truthful execution over visual simulation. A UI animatio
 - Phase 17 — Speed, Motion & Premium UX: **COMPLETED**
 - Phase 18 — Globalization + Android/OEM Compatibility: **COMPLETED**
 - Phase 19 — Hardening, Security, Performance & Massive Testing: **COMPLETED (automated CI scope; physical-device follow-up tracked)**
-- Phase 20 — Release Candidate → Demo → Instagram Launch: **PLANNED**
+- Phase 20 — Release Candidate → Demo → Instagram Launch: **IN PROGRESS (automated release gates added; launch qualification remains open)**
 
 ## Non-negotiable rules
 1. No fake completion.
@@ -81,3 +81,8 @@ Phase 15 is completed on validated code commit [7d6a80842797750cf41deecfa5503a8f
 
 ## Phase 14 implementation checkpoint
 Phase 14 is completed on validated code commit `2763a04223415c6c786c6ad1f3252092dbb59ecd`. The safe session context, follow-up resolution, privacy boundaries, explicit result-state summary, clear/reset handling and 14 focused tests passed TypeScript and focused-test gates. Both artifacts built and uploaded successfully: [Android APK run 37896634065](https://github.com/MvMSOLO/mvmcmd/actions/runs/37896634065) and [Windows EXE run 37896634067](https://github.com/MvMSOLO/mvmcmd/actions/runs/37896634067). Full acceptance notes are in [PHASE-14.md](PHASE-14.md).
+
+
+## Phase 20 implementation checkpoint
+
+The release-candidate workflow now verifies that Android `versionName` matches the desktop package version, validates stable app IDs/labels, required app entry points, and the configured Windows icon, and fails early if release metadata drifts. Android is aligned to version `1.0.0`; the root README and release documentation are included in this branch. This is **not a public-release sign-off**: the Android artifact is a debug APK, the real screen/video captures are not yet recorded, and Phase 19 physical-device/OEM permission/background and battery/thermal qualification remains open. See [PHASE-20.md](PHASE-20.md) and the [release folder](../release/KNOWN-LIMITATIONS.md) for the checklist and explicit limitations.
