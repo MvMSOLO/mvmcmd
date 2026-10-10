@@ -35,18 +35,80 @@ export interface MvmTaskRunResult<T> {
 }
 
 /**
+ * Known command heads that can start a sequential step.
+ * Used so free-text arguments (sms/email/copy) are not split on "va" / "and" / "then".
+ */
+const COMMAND_HEADS = new Set([
+  "open", "o", "go", "run", "start", "launch",
+  "ls", "list", "apps",
+  "find", "search", "q",
+  "bind", "alias",
+  "unbind", "unalias",
+  "pin", "unpin",
+  "session", "context", "memory",
+  "hist", "history",
+  "recents", "recent",
+  "clear", "cls",
+  "perm", "perms", "permissions",
+  "install", "pwa",
+  "store", "market",
+  "pack", "package", "apk",
+  "contact", "contacts",
+  "dial", "call",
+  "sms", "text",
+  "email", "mail",
+  "copy", "paste", "clipboard",
+  "share", "send",
+  "link", "url", "deeplink",
+  "openfile", "open-file",
+  "files", "file", "storage", "large-files", "file-search",
+  "device", "hardware", "monitor", "device-info",
+  "sys", "info", "status",
+  "about",
+  "lang", "language",
+  "compat", "compatibility", "oem", "device-compatibility", "moslik", "mosliklar",
+  "help", "?", "man",
+  "perf", "performance", "benchmark",
+  "date", "time",
+  "whoami",
+  "birthday", "bday", "tavallud", "sogbol",
+  "reset",
+  "camera", "qr", "wallpaper", "wall", "wp",
+  "gaming", "game", "game-mode", "game-booster", "gaming-mode", "oyin", "o'yin",
+  "english", "en", "english-learning", "ielts",
+  "notification", "notifications", "notify",
+]);
+
+function looksLikeCommandStart(text: string): boolean {
+  const head = text.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  return COMMAND_HEADS.has(head);
+}
+
+/**
  * Phase 7 deterministic task planner.
  * It only decomposes explicit sequential language; it does not guess hidden actions.
+ * Free-text arguments (sms / email / copy bodies) are never split on "va" / "and" / "then".
  */
 export function splitTaskInput(input: string): string[] {
   const raw = input.trim();
   if (!raw || /^https?:\/\//i.test(raw)) return [];
 
-  const parts = raw.split(/\s+(?:and then|then|va keyin|keyin|va)\s+/i)
+  // Split only on explicit sequential separators.
+  const candidates = raw.split(/\s+(?:and then|then|va keyin|keyin|va|and)\s+/i)
     .map((part) => part.trim())
     .filter(Boolean);
 
-  return parts.length > 1 ? parts : [];
+  if (candidates.length < 2) return [];
+
+  // Only keep the split when every part after the first looks like a real command head.
+  // This prevents "sms ... men va sen" from being broken in the middle of the message body.
+  for (let i = 1; i < candidates.length; i++) {
+    if (!looksLikeCommandStart(candidates[i])) {
+      return []; // treat the whole input as a single non-sequential command
+    }
+  }
+
+  return candidates;
 }
 
 export function planMvmTask(input: string, maxSteps = 8): MvmTaskPlan | undefined {
