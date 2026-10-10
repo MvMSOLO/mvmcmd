@@ -1,5 +1,5 @@
-import { compact, fold } from "./normalize";
-import { skillForIntent } from "./skills";
+import { compact, fold } from "./normalize.ts";
+import { skillForIntent } from "./skills.ts";
 
 export type MvmIntent = "open_app" | "device_snapshot" | "permission_status" | "find_app" | "help" | "unknown";
 export interface IntentEntity { type: "app_query" | "capability" | "text"; value: string; }
