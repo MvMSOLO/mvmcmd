@@ -43,6 +43,8 @@ export interface LogLine {
   text: string;
   meta?: string;
   appId?: string;
+  /** Optional command name for consistent help/palette icons. */
+  command?: string;
 }
 
 export interface UserAlias {
