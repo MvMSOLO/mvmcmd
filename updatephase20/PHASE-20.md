@@ -2,33 +2,42 @@
 
 ## Status
 
-**IN PROGRESS — release preparation is implemented; public-release qualification remains open.**
+**IN PROGRESS — the release candidate passes Android and Windows CI; public-release qualification remains open.**
 
-The pre-icon code candidate at `f8be99acee8cb87c39fdff4c81241e75b7b99d91` passed both platform workflows. The next prepared commit adds a dedicated Windows icon, makes that icon part of the mandatory metadata gate, adds the root README/release documents, and avoids rebuilding the entire app for Markdown-only edits. **Those new commit changes must pass CI before being considered the validated candidate.**
+The validated app-source candidate is `8218822ac033f6f05d5548b092f990431e28cae4`. Both platform workflows pass on that commit and produced downloadable artifacts. This report update is Markdown-only; the workflows deliberately ignore Markdown-only changes, and it does not alter the validated app source or artifacts.
+
+The first Windows packaging attempt caught a bad icon payload (Electron Builder only detected a 48×48 image). The icon was replaced with a structurally verified 256×256 ICO; the latest Windows package, executable verification, packaged-launch smoke test, and artifact upload all passed.
 
 This phase must not be marked complete merely because CI is green. Android artifacts are debug APKs, not signed production releases. Real product screenshots/video and physical-device qualification are still required before public launch claims.
 
 ## Release-candidate work
 
 - [x] Align Android `versionName` with the desktop/package version (`1.0.0`).
-- [x] Add a CI release metadata gate for semver/version consistency, Android IDs/labels/launcher/backup policy, desktop identity, Windows x64 target, required app entry points, and required icon configuration.
-- [x] Derive a Windows `.ico` from the existing MVMCMD favicon artwork and configure Electron Builder to use it instead of the generic default icon.
+- [x] Add a CI release metadata gate for semver/version consistency, Android IDs/labels/launcher/backup policy, desktop identity, Windows x64 target, required app entry points, and Windows icon configuration.
+- [x] Create a dedicated 256×256 Windows `.ico` in the MVMCMD dark/teal/light brand palette and configure Electron Builder to use it instead of the generic default icon.
 - [x] Prepare a root README, release notes, known limitations, privacy/permission explanation, a 60-second demo shot plan, a screenshot capture checklist, and draft Instagram launch copy.
+- [x] Confirm both APK and EXE workflows pass on validated app-source commit `8218822`.
 - [x] Preserve the Phase 19 boundary: software/CI acceptance is complete; OEM and physical-device qualification remains open.
-- [ ] Confirm APK and EXE workflows pass on the descendant candidate commit that contains the Windows icon and release documentation.
 - [ ] Complete a real-device permission/first-run and core-flow session.
 - [ ] Capture authentic screenshots and a real vertical demo video from the installed build.
 - [ ] Complete signing, privacy-policy review, and release approval before public distribution.
 
-## Verified baseline CI evidence
+## Current candidate CI evidence
 
-- **Baseline source:** [`f8be99acee8cb87c39fdff4c81241e75b7b99d91`](https://github.com/MvMSOLO/mvmcmd/commit/f8be99acee8cb87c39fdff4c81241e75b7b99d91).
-- **Windows portable EXE — SUCCESS:** [run 38029787174](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787174). All 22 job steps passed: typecheck, release metadata gate (14 checks), 99 project tests (99 pass / 0 fail), web bundle, portable EXE, EXE verification, packaged launch smoke, final gate, and artifact upload.
-- **Windows baseline artifact:** [`mvmcmd-windows-exe-444`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787174/artifacts/11661388533), 133,930,255 bytes. SHA-256 of the artifact archive: `0fff6cb5acd3131be29b55146daad8e616b0f6947ac921b600947ef032e2b19c`. Expires 2026-10-24.
-- **Android debug APK — SUCCESS:** [run 38029787175](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787175). All 33 job steps passed: release metadata gate (14 checks), 99 project tests (99 pass / 0 fail), APK build/integrity, exact 17-wallpaper payload hashes, emulator install/launch, isolated core native-activity instrumentation, final gate, and artifact upload.
-- **Android baseline artifact:** [`mvmcmd-debug-apk-726`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787175/artifacts/11661084409), 22,291,868 bytes. SHA-256 of the artifact archive: `0d8135e15e63ab4d08df35ca1565a643e3157ddf74a46d40ee13f08577e0e9db`. Expires 2026-10-24.
-- **Important evidence boundary:** these two runs verify the `f8be99a` baseline before the custom Windows icon was wired into Electron Builder. The icon/release-doc descendant requires its own green workflows; baseline success is not substituted for that check.
-- **Dependency audit:** both baseline platform gates passed with no high or critical advisories. The last recorded audit showed 7 moderate advisories and 0 high/critical advisories. That does not mean the dependency tree is vulnerability-free; re-check audit output before distribution.
+- **Validated app-source commit:** [`8218822ac033f6f05d5548b092f990431e28cae4`](https://github.com/MvMSOLO/mvmcmd/commit/8218822ac033f6f05d5548b092f990431e28cae4).
+- **Windows portable EXE — SUCCESS:** [run 38030893145](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893145). All 22 job steps passed. The metadata gate passed 15 checks, all 99 project tests passed (0 failures), the portable EXE was built and verified, and the packaged executable remained alive throughout the launch smoke test.
+- **Windows candidate artifact:** [`mvmcmd-windows-exe-448`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893145/artifacts/11661738939), 133,931,627 bytes. SHA-256 of the uploaded artifact archive: `fff94a28c4f6c9fec66c6d8b73f533d44d76692ddada58ed14fd67228e57bb2f`. Expires 2026-10-24 06:30:34 UTC.
+- **Android debug APK — SUCCESS:** [run 38030893223](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893223). All 33 job steps passed. The metadata gate passed 15 checks, all 99 project tests passed (0 failures), APK integrity passed, the exact 17 wallpaper PNG payloads were verified, and emulator install/launch plus isolated core native-activity instrumentation passed.
+- **Android candidate artifact:** [`mvmcmd-debug-apk-730`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38030893223/artifacts/11662445312), 22,291,861 bytes. SHA-256 of the uploaded artifact archive: `f6280ce1e10b7e0e6610da8ce157cc2101d0f3a412142758171af66dd44d9afa`. Expires 2026-10-24 06:31:33 UTC.
+- **Dependency audit on both candidate runs:** 7 moderate advisories, 0 high, and 0 critical. CI's stated policy gate passed; the dependency tree is not vulnerability-free, and moderate advisories still need review before distribution.
+- **Evidence boundary:** these runs validate the app-source candidate `8218822`. They do not prove physical-device/OEM behavior, production signing, battery/thermal benefits, store readiness, or that demo media has been recorded.
+
+## Verified baseline CI history
+
+The earlier baseline commit [`f8be99acee8cb87c39fdff4c81241e75b7b99d91`](https://github.com/MvMSOLO/mvmcmd/commit/f8be99acee8cb87c39fdff4c81241e75b7b99d91) also passed both platform workflows before the custom Windows icon was wired into Electron Builder:
+- **Windows baseline:** [run 38029787174](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787174), artifact [`mvmcmd-windows-exe-444`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787174/artifacts/11661388533), 133,930,255 bytes; archive SHA-256 `0fff6cb5acd3131be29b55146daad8e616b0f6947ac921b600947ef032e2b19c`.
+- **Android baseline:** [run 38029787175](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787175), artifact [`mvmcmd-debug-apk-726`](https://github.com/MvMSOLO/mvmcmd/actions/runs/38029787175/artifacts/11661084409), 22,291,868 bytes; archive SHA-256 `0d8135e15e63ab4d08df35ca1565a643e3157ddf74a46d40ee13f08577e0e9db`.
+- The candidate runs above supersede the baseline as evidence for the custom-icon source candidate.
 
 ## Demo plan
 
@@ -56,10 +65,12 @@ The proposed 60-second sequence is in [`release/DEMO-SCRIPT-60S.md`](../release/
 
 | Requirement | State |
 |---|---|
-| Android/desktop version metadata aligned | PASS in baseline; enforced by CI gate |
-| Android and Windows baseline CI | PASS on `f8be99a`; descendant candidate rerun required |
-| Windows custom icon configured | Prepared; descendant CI result pending |
-| Root README and release documentation | Prepared in the pending descendant commit |
+| Android/desktop version metadata aligned | PASS in candidate CI gate |
+| Windows app icon configured and packaged | PASS; 256×256 ICO; Windows package and launch smoke passed |
+| Android and Windows candidate CI | PASS on `8218822`; 99 tests pass / 0 fail on each platform |
+| APK and EXE artifacts uploaded | PASS; links and archive SHA-256 values recorded above |
+| Dependency audit | No high/critical advisories; 7 moderate remain for review |
+| Root README and release documentation | Prepared |
 | Real Android/OEM physical-device matrix | OPEN |
 | Repeatable battery/thermal measurement | OPEN |
 | Authentic screenshots and vertical demo | OPEN |
