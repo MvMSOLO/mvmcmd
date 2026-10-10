@@ -2,9 +2,14 @@ name: Build Android APK
 # Capacitor 8 / Java 21 / deterministic wallpaper asset bundle
 
 on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
   push:
     branches:
       - '**'
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
@@ -18,7 +23,7 @@ jobs:
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CAPACITOR_BUILD: "true"
 
@@ -43,15 +48,88 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Audit dependency health (high/critical vulnerabilities block release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/mvmcmd-npm-audit.json"
+          if npm audit --json > "$REPORT"; then
+            echo "npm audit command returned success."
+          else
+            echo "npm audit reported advisories; evaluating severity."
+          fi
+          node - "$REPORT" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const v = report.metadata && report.metadata.vulnerabilities;
+          if (!v) throw new Error("Dependency audit produced no vulnerability summary.");
+          console.log("npm audit: " + JSON.stringify(v));
+          for (const [name, advisory] of Object.entries(report.vulnerabilities || {})) {
+            const via = (advisory.via || []).map((item) => typeof item === "string" ? item : item.name + ": " + item.title).join("; ");
+            console.log("AUDIT ADVISORY: " + advisory.severity + " | " + name + " | range=" + advisory.range + " | fix=" + JSON.stringify(advisory.fixAvailable) + " | via=" + via);
+          }
+          if ((v.critical || 0) > 0) {
+            console.error("CRITICAL dependency advisories block the release.");
+            process.exit(1);
+          }
+          if ((v.high || 0) > 0) {
+            console.error("HIGH dependency advisories block the release.");
+            process.exit(1);
+          }
+          if ((v.moderate || 0) > 0) console.log("NOTICE: Moderate dependency advisories remain; inspect npm audit details.");
+          console.log("Dependency audit policy gate passed (no high/critical vulnerabilities).");
+          NODE
+
+      - name: Audit shipped production dependencies (any advisory blocks release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/mvmcmd-npm-audit-production.json"
+          if npm audit --omit=dev --json > "$REPORT"; then
+            echo "Production dependency audit returned success."
+          else
+            echo "Production dependency audit reported advisories; checking the report."
+          fi
+          node - "$REPORT" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const v = report.metadata?.vulnerabilities;
+          if (!v) throw new Error("Production audit has no vulnerability summary.");
+          console.log("npm audit --omit=dev: " + JSON.stringify(v));
+          for (const [name, advisory] of Object.entries(report.vulnerabilities || {})) {
+            console.log("PRODUCTION ADVISORY: " + advisory.severity + " | " + name + " | range=" + advisory.range);
+          }
+          if ((v.total || 0) > 0) {
+            console.error("Known vulnerabilities in production dependencies block release.");
+            process.exit(1);
+          }
+          console.log("PRODUCTION_DEPENDENCY_AUDIT_SUCCESS: 0 known advisories.");
+          NODE
+
       - name: Typecheck web application
         run: npm run typecheck
+
+      - name: Verify release-candidate metadata
+        run: node scripts/check-release-candidate.mjs
 
       - name: Verify native launcher source
         shell: bash
         run: |
           set -euo pipefail
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q '@CapacitorPlugin(name = "MvmVoice")' "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q "SpeechRecognizer" "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q "TextToSpeech" "android/app/src/main/java/com/mvmcmd/launcher/MvmVoicePlugin.java"
+          grep -q "registerPlugin(MvmVoicePlugin.class)" "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
+          grep -q "RECORD_AUDIO" "android/app/src/main/AndroidManifest.xml"
+          test -s "src/lib/mvm/voice-core.ts"
+          test -s "src/lib/mvm/voice-core.test.ts"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
-          grep -q '@CapacitorPlugin(name = "MvmLauncher")' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q '@CapacitorPlugin' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'name = "MvmLauncher"' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'checkCapabilities' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'requestCapability' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'setCapabilityDecision' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
           grep -q 'registerPlugin(MvmLauncherPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrActivity.java"
           test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmQrTileService.java"
@@ -76,6 +154,74 @@ jobs:
           test -d "scripts/wallpapers-pack-b64"
           test "$(find scripts/wallpapers-pack-b64 -maxdepth 1 -type f -name 'part-*' | wc -l)" -eq 11
           test -s "android/app/src/main/res/drawable/mvmcmd_logo.xml"
+          test -s "src/lib/mvm/capabilities/types.ts"
+          test -s "src/lib/mvm/capabilities/registry.ts"
+          test -s "src/lib/mvm/capabilities/store.ts"
+          test -s "src/lib/mvm/capabilities/native-adapter.ts"
+          test -s "src/lib/mvm/capabilities/manager.ts"
+          grep -q 'checkCapabilities' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'requestCapability' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q 'notification_listener' "src/lib/mvm/capabilities/registry.ts"
+          ! grep -q 'requestMissingPermissions' "android/app/src/main/java/com/mvmcmd/launcher/MvmNotificationCenterActivity.java"
+
+      - name: Verify global entry point bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check desktop/main.cjs
+          node --check desktop/preload.cjs
+          node --check desktop/security.cjs
+          test -s "android/app/src/main/java/com/mvmcmd/launcher/MvmEntryPointPlugin.java"
+          grep -q 'registerPlugin(MvmEntryPointPlugin.class)' "android/app/src/main/java/com/mvmcmd/launcher/MainActivity.java"
+          grep -q 'android.app.shortcuts' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'android.intent.action.SEND' "android/app/src/main/AndroidManifest.xml"
+          test -s "android/app/src/main/res/xml/shortcuts.xml"
+          test -s "src/lib/mvm/global-entry-points.test.ts"
+          test -s "src/lib/mvm/global-entry-bridge.ts"
+
+      - name: Verify motion and decorative 3D contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "src/lib/mvm/motion-preferences.ts"
+          test -s "src/lib/mvm/motion-preferences.test.ts"
+          test -s "src/lib/mvm/compatibility.test.ts"
+          grep -q 'mvm-motion-reduced' "src/styles.css"
+          grep -q 'prefers-reduced-motion' "src/styles.css"
+          ! grep -q 'kernelCadUrl\|app\.kernelcad\.com' "src/lib/mvm/3d-assets.ts"
+          grep -q 'event.stopPropagation()' "src/components/mvm/mvm-3d.tsx"
+
+      - name: Verify globalization and Android compatibility contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "src/lib/mvm/compatibility.ts"
+          test -s "src/lib/mvm/compatibility.test.ts"
+          grep -q "normalizeCommandHead" "src/lib/mvm/commands.ts"
+          grep -q "formatAndroidCompatibilityReport" "src/lib/mvm/executor.ts"
+          grep -q "Allow restricted settings" "src/lib/mvm/compatibility.ts"
+          grep -q "CAPABILITY SNAPSHOTS" "src/lib/mvm/executor.ts"
+
+      - name: Verify Phase 19 release hardening gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "src/lib/mvm/security-policy.ts"
+          test -s "src/lib/mvm/security-hardening.test.ts"
+          test -s "src/lib/mvm/performance-budget.ts"
+          test -s "src/lib/mvm/performance-budget.test.ts"
+          test -s "src/lib/mvm/commands.test.ts"
+          test -s "src/lib/mvm/gaming-engine.test.ts"
+          test -s "android/app/src/androidTest/java/com/mvmcmd/launcher/CoreActivitiesLaunchTest.java"
+          test -s "desktop/security.cjs"
+          grep -q 'android:allowBackup="false"' "android/app/src/main/AndroidManifest.xml"
+          grep -q 'isAllowedExternalUri(url)' "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java"
+          grep -q "safeZipEntryName" "android/app/src/main/java/com/mvmcmd/launcher/MvmFileToolsPlugin.java"
+          grep -q "assertTrustedIpcSender" "desktop/main.cjs"
+          grep -q "npm audit" ".github/workflows/android-build.yml"
+
+      - name: Run project tests
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts src/lib/mvm/gaming-engine.test.ts src/lib/mvm/commands.test.ts
 
       - name: Build web application
         run: npm run build
@@ -169,6 +315,31 @@ jobs:
                   src=(root/name).read_bytes()
                   assert hashlib.sha256(data).digest()==hashlib.sha256(src).digest(), name
           print("Verified APK contains the exact 17 PNG wallpaper payloads.")
+          PY
+
+      - name: Enable KVM for Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          if [[ -e /dev/kvm ]]; then
+            ls -l /dev/kvm
+          else
+            echo "KVM device is unavailable; emulator runner will use its supported fallback."
+          fi
+
+      - name: Android emulator install and launch smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 35
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          disable-animations: true
+          script: bash .github/scripts/android-emulator-smoke.sh
 
       - name: Final success gate
         if: ${{ success() }}

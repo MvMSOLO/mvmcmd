@@ -32,33 +32,28 @@ import java.util.Locale;
 public class MvmNotificationCenterActivity extends Activity {
     private static final int BG=Color.rgb(7,9,13),PANEL=Color.rgb(15,19,27),PANEL2=Color.rgb(20,25,34),FG=Color.WHITE,MUTED=Color.rgb(145,154,171),ACCENT=Color.rgb(188,255,78),RED=Color.rgb(255,101,121);
     private static final String PREFS="mvm_notification_settings";
-    private static final int REQ_CONTACTS=71,REQ_POST=72;
+    private static final int REQ_CONTACTS=71;
     private LinearLayout list;private String filter="ALL";private Switch safeSwitch;
 
-    private int dp(int v){return(int)(v*getResources().getDisplayMetrics().density+.5f);}
-    private TextView text(String s,float z,int c){TextView t=new TextView(this);t.setText(s);t.setTextColor(c);t.setTextSize(z);t.setFontFeatureSettings("kern");return t;}
+    private int dp(int v){return MvmUiKit.dp(this,v);}
+    private TextView text(String s,float z,int c){return MvmUiKit.text(this,s,z,c,false);}
     private LinearLayout col(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
     private LinearLayout row(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);return l;}
-    private GradientDrawable bg(int c,int r){GradientDrawable g=new GradientDrawable();g.setColor(c);g.setCornerRadius(dp(r));g.setStroke(dp(1),Color.rgb(39,46,58));return g;}
-    private Button btn(String s){Button b=new Button(this);b.setText(s);b.setTextColor(FG);b.setTextSize(11);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setBackground(bg(PANEL2,11));b.setMinHeight(dp(44));return b;}
+    private GradientDrawable bg(int c,int r){return MvmUiKit.surface(this,c,r);}
+    private Button btn(String s){return MvmUiKit.button(this,s,false);}
 
-    @Override protected void onCreate(Bundle b){super.onCreate(b);build();requestMissingPermissions();}
+    @Override protected void onCreate(Bundle b){super.onCreate(b);MvmUiKit.applyWindow(this);build();}
     @Override protected void onResume(){super.onResume();if(list!=null)renderList();updateState();}
 
-    private void requestMissingPermissions(){
-        if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
-            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.POST_NOTIFICATIONS},REQ_POST);
-    }
-
     private void build(){
-        LinearLayout root=col();root.setPadding(dp(18),dp(18),dp(18),dp(12));root.setBackgroundColor(BG);
+        LinearLayout root=col();root.setPadding(dp(14),dp(14),dp(14),dp(12));root.setBackgroundColor(MvmUiKit.BG);
 
         LinearLayout top=row();
-        TextView h=text("MVMCMD / NOTIFICATION",23,FG);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        TextView h=text("MVMCMD / NOTIFICATION",24,MvmUiKit.FG);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         top.addView(h,new LinearLayout.LayoutParams(0,dp(40),1));
         Button clear=btn("CLEAR");clear.setOnClickListener(v->{MvmNotificationStore.clear(this);renderList();});top.addView(clear,new LinearLayout.LayoutParams(dp(78),dp(42)));
         root.addView(top);
-        root.addView(text("2.1  ·  inbox / original-open / codes / live calls / safe edge",12,MUTED),new LinearLayout.LayoutParams(-1,dp(32)));
+        TextView meta=text("INBOX  ·  LIVE CALLS  ·  CODES  ·  SAFE EDGE",11,MvmUiKit.MUTED);meta.setPadding(0,dp(2),0,dp(10));root.addView(meta,new LinearLayout.LayoutParams(-1,dp(34)));
 
         LinearLayout setup=row();
         Button access=btn("NOTIFICATION ACCESS");access.setOnClickListener(v->openNotificationAccess());setup.addView(access,new LinearLayout.LayoutParams(0,dp(46),1));
@@ -71,16 +66,16 @@ public class MvmNotificationCenterActivity extends Activity {
         root.addView(setup2);
 
         LinearLayout safe=row();
-        TextView st=text("GAME / VIDEO SAFE MODE",12,FG);st.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        TextView st=text("GAME / VIDEO SAFE MODE",12,MvmUiKit.FG);st.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         safe.addView(st,new LinearLayout.LayoutParams(0,dp(50),1));
         safeSwitch=new Switch(this);safeSwitch.setChecked(getSharedPreferences(PREFS,MODE_PRIVATE).getBoolean("safe_mode",true));
         safeSwitch.setOnCheckedChangeListener((v,on)->getSharedPreferences(PREFS,MODE_PRIVATE).edit().putBoolean("safe_mode",on).apply());
         safe.addView(safeSwitch);root.addView(safe,new LinearLayout.LayoutParams(-1,dp(52)));
 
-        root.addView(new EdgePreview(this),new LinearLayout.LayoutParams(-1,dp(7)));
-        root.addView(text("Safe mode suppresses the mirror notification over detected games/videos; only the edge signal remains.",11,MUTED),new LinearLayout.LayoutParams(-1,dp(38)));
+        root.addView(new EdgePreview(this),new LinearLayout.LayoutParams(-1,dp(5)));
+        TextView safeNote=text("Safe mode keeps gameplay/video clean: only the edge signal remains.",11,MvmUiKit.MUTED);safeNote.setPadding(0,dp(8),0,dp(10));root.addView(safeNote,new LinearLayout.LayoutParams(-1,dp(44)));
 
-        Button demo=btn("RUN FULL VISUAL DEMO");demo.setTextColor(BG);demo.setBackground(bg(ACCENT,12));demo.setOnClickListener(v->runDemo());root.addView(demo,new LinearLayout.LayoutParams(-1,dp(50)));
+        Button demo=MvmUiKit.button(this,"RUN FULL VISUAL DEMO",true);demo.setOnClickListener(v->runDemo());root.addView(demo,new LinearLayout.LayoutParams(-1,dp(50)));
 
         LinearLayout filters=row();
         String[] fs={"ALL","MESSAGES","CODES","CALLS"};
@@ -124,18 +119,18 @@ public class MvmNotificationCenterActivity extends Activity {
             if(!show)continue;shown++;addItem(x,df);
         }
         if(shown==0){
-            TextView e=text("No events here yet.\nUse RUN FULL VISUAL DEMO to populate the preview timeline.",14,MUTED);
+            TextView e=text("No events yet.\nRun the visual demo to preview the notification timeline.",14,MvmUiKit.MUTED);
             e.setPadding(0,dp(24),0,dp(24));list.addView(e);
         }
     }
 
     private void addItem(MvmNotificationStore.Item x,DateFormat df){
-        LinearLayout c=col();c.setPadding(dp(14),dp(13),dp(14),dp(13));c.setBackground(bg(x.call?Color.rgb(23,20,25):PANEL,14));
+        LinearLayout c=col();c.setPadding(dp(15),dp(14),dp(15),dp(14));c.setBackground(bg(x.call?Color.rgb(27,20,28):PANEL,18));
         LinearLayout head=row();
         TextView a=text(x.app.toUpperCase(Locale.ROOT),10,ACCENT);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);head.addView(a,new LinearLayout.LayoutParams(0,dp(28),1));
         head.addView(text(df.format(new Date(x.time)),10,MUTED));c.addView(head);
 
-        TextView title=text(x.title.isEmpty()?x.app:x.title,18,FG);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);c.addView(title);
+        TextView title=text(x.title.isEmpty()?x.app:x.title,18,MvmUiKit.FG);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);c.addView(title);
         if(!x.body.isEmpty())c.addView(text(x.body,13,Color.rgb(202,208,219)),new LinearLayout.LayoutParams(-1,dp(52)));
 
         LinearLayout actions=row();

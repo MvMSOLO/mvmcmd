@@ -2,7 +2,8 @@ import { CATALOG, CATALOG_BY_ID, CATEGORIES, findByIdOrName } from "./catalog";
 import { COMMANDS, parseLine } from "./commands";
 import { pickLaunch, rankApps, resolveAliasTarget } from "./fuzzy";
 import { compact } from "./normalize";
-import { launchApp, launchPackage, launchRawUrl, launchStore } from "./intents";
+import { understandCommand } from "./intelligence";
+import { launchApp, launchRawUrl, launchStore } from "./intents";
 import { canUseNativeAndroidLauncher, nativeOpenCamera, nativeOpenQr, nativeOpenWallpaper, nativeOpenEnglish, nativeOpenNotifications } from "./native-launcher";
 import {
   dropAlias,
@@ -22,9 +23,25 @@ import {
   snapshotPerms,
 } from "./permissions";
 import { detectRuntime } from "./platform";
+import { nativeRequestCapability } from "./native-launcher";
+import { refreshNativeCapabilities } from "./capabilities";
+import { runMvmAction, actionStatusLine } from "./action-engine";
+import { planMvmTask, runMvmTaskPlanSync } from "./task-planner";
+import { runAppBridge } from "./app-bridge";
+import { requestExternalFileOpen } from "./global-entry-bridge";
+import { planMvmGoal, runMvmGoal } from "./goal-engine";
+import { canUseNativeDeviceEngine, formatBytes, nativeGetDeviceSnapshot } from "./device";
+import { copyText, lookupContact, openDialer, openEmailComposer, openSmsComposer, pasteText } from "./communication";
+import { runFileCommand } from "./file-intelligence";
+import { clearActiveSessionContext, getActiveSessionSummary, rememberActiveSessionFileResults, rememberActiveSessionResult, rememberActiveSessionTurn, resolveActiveSessionReference } from "./session-context";
+import { assessGaming, formatGamingAssessment, finishGamingSession, formatGamingSessionReport, startGamingSession, type GamingSession, type GamingTelemetry, type GameProfile } from "./gaming-engine";
 import type { CatalogApp, Lang, LogLine, MatchHit, PersistedState } from "./types";
+import { explainCapabilitySnapshot, formatAndroidCompatibilityReport, formatLocalDateTime, normalizeCapabilityId, normalizeLanguageToken } from "./compatibility";
+import { formatPerformanceReport } from "./performance-budget.ts";
+import { redactExternalTarget } from "./security-policy.ts";
 
 let seq = 0;
+let gamingSession: GamingSession | undefined;
 function line(kind: LogLine["kind"], text: string, extra?: Partial<LogLine>): LogLine {
   seq += 1;
   return { id: `l${seq.toString(36)}`, kind, text, ...extra };
@@ -76,22 +93,42 @@ function resolveQuery(query: string, state: PersistedState): { hits: MatchHit[];
 
 function launchHit(ctx: ExecContext, hit: MatchHit): ExecResult {
   const runtime = detectRuntime();
-  const result = launchApp(hit.app, runtime.platform);
+  const action = runMvmAction({
+    context: {
+      skillId: "open-app",
+      platform: runtime.platform,
+      requiredCapabilities: ["app_launch"],
+      metadata: { appId: hit.app.id },
+    },
+    precondition: () => ({ ok: Boolean(hit.app.id), reason: "missing app id" }),
+    execute: () => launchApp(hit.app, runtime.platform),
+    observe: (result) => ({ ok: result.ok, reason: result.note }),
+    verify: (result) =>
+      result.method === "intent"
+        ? { ok: false, reason: "platform intent completion is not observable here" }
+        : { ok: result.ok, reason: result.note },
+  });
+
   const state = recordUse(ctx.state, hit.app.id);
   saveState(state);
   const pkg = hit.app.androidPackage ? `  ${hit.app.androidPackage}` : "";
+  const status = actionStatusLine(action);
   const lines: LogLine[] = [
-    line("ok", `LAUNCH  ${hit.app.name}`, { meta: result.note, appId: hit.app.id }),
-    line("dim", `${result.method.toUpperCase()}${pkg}`),
+    line(action.ok ? "ok" : "warn", `LAUNCH  ${hit.app.name}  ·  ${status}`, {
+      meta: action.message,
+      appId: hit.app.id,
+    }),
+    line("dim", `${action.status.toUpperCase()}  ATTEMPTS=${action.attempts}  ${action.trace.join(" → ")}`),
+    line("dim", `${action.value?.method?.toUpperCase?.() ?? "LAUNCH"}${pkg}`),
   ];
-  if (result.method === "intent") {
+  if (action.value?.method === "intent") {
     lines.push(
       line(
         "dim",
         L(
           ctx,
-          "Agar ilova shu telefonda bo‘lsa, tizim uni ochadi. Ochilmasa: store",
-          "If the app is on this phone the system opens it. If not: store",
+          "Intent yuborildi. Tizim ilovani ochishi mumkin; MVMCMD buni hozircha VERIFIED deb ko‘rsatmaydi.",
+          "Intent requested. The system may open the app; MVMCMD does not label this VERIFIED yet.",
         ),
       ),
     );
@@ -108,14 +145,63 @@ function formatHit(hit: MatchHit, index: number): LogLine {
   });
 }
 
-export function execute(rawLine: string, ctx: ExecContext): ExecResult {
+function executeRawLine(rawLine: string, ctx: ExecContext): ExecResult {
   const trimmed = rawLine.trim();
   if (!trimmed) return { state: ctx.state, lines: [] };
 
-  const state0 = pushHistory(ctx.state, trimmed);
-  saveState(state0);
+  const goalCue = /^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)/i.test(trimmed);
+  if (goalCue) {
+    const goal = planMvmGoal(trimmed.replace(/^(help me|i want to|i need to|make sure|maqsadim|maqsadim shuki|menga kerak|qilib ber)\s*/i, ""));
+    let goalCtx = ctx;
+    const run = runMvmGoal(goal, (step) => {
+      const result = executeRawLine(step.input, goalCtx);
+      goalCtx = { state: result.state, lang: ctx.lang };
+      return result;
+    }, (result) => {
+      const failed = result.lines.some(item => item.kind === "warn");
+      const verified = !failed && result.lines.some(item => /\bVERIFIED\b/.test(item.text));
+      return { ok: !failed, verified, reason: failed ? "goal step returned a warning" : verified ? undefined : "completion proof unavailable" };
+    });
+    const status = run.status.toUpperCase();
+    return { state: goalCtx.state, lines: [line(run.status === "failed" ? "warn" : run.verified ? "ok" : "sys", `GOAL  ${status}  ·  ${run.achievedSteps}/${run.totalSteps}`), ...run.results.map(r => line(r.ok ? "out" : "warn", `${r.stepId.toUpperCase()}  ${r.status.toUpperCase()}`, { meta: r.reason }))] };
+  }
+  const taskPlan = planMvmTask(trimmed);
+  if (taskPlan) {
+    const taskRun = runMvmTaskPlanSync(
+      taskPlan,
+      (step) => executeRawLine(step.input, ctx),
+      (result) => {
+        const failed = result.lines.some((item) => item.kind === "warn");
+        const verified = !failed && result.lines.some((item) => /·\\s*VERIFIED\\b/.test(item.text));
+        return {
+          ok: !failed,
+          verified,
+          reason: failed ? "step returned a warning" : verified ? undefined : "step completed without completion proof",
+        };
+      },
+    );
+    const last = taskRun.steps[taskRun.steps.length - 1]?.value;
+    const taskState = last?.state ?? ctx.state;
+    const taskStatus = taskRun.ok ? (taskRun.verified ? "VERIFIED" : "STARTED") : "FAILED";
+    const taskLines: LogLine[] = [
+      line("sys", `TASK  ${taskRun.plan.steps.length} steps  ·  ${taskStatus}`),
+      ...taskRun.steps.flatMap((step) => [
+        line(
+          step.status === "failed" || step.status === "skipped" ? "warn" : "out",
+          `${step.stepId.toUpperCase()}  ${step.status.toUpperCase()}  ·  ${step.input}`,
+          { meta: step.reason },
+        ),
+      ]),
+    ];
+    return { state: taskState, lines: taskLines };
+  }
+
+  const state0 = ctx.state;
   const ctx2: ExecContext = { ...ctx, state: state0 };
-  const parsed = parseLine(trimmed);
+  const understood = understandCommand(trimmed);
+  const capability = understood.entities.find((e) => e.type === "capability")?.value;
+  const interpreted = understood.intent === "open_app" ? `open ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "find_app" ? `find ${understood.entities.find((e) => e.type === "app_query")?.value ?? ""}`.trim() : understood.intent === "device_snapshot" ? "device" : understood.intent === "permission_status" ? `perm ${capability ?? ""}`.trim() : understood.intent === "help" ? "help" : trimmed;
+  const parsed = parseLine(interpreted);
   const name = parsed.cmd?.name;
 
   if (!parsed.cmd) {
@@ -123,7 +209,7 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       const ok = launchRawUrl(trimmed);
       return {
         state: state0,
-        lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${trimmed}` : "URL rejected")],
+        lines: [line(ok ? "ok" : "warn", ok ? `OPEN  ${redactExternalTarget(trimmed)}` : "URL rejected")],
       };
     }
     const { hits, bound } = resolveQuery(trimmed, state0);
@@ -179,8 +265,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       return {
         state: state0,
         lines: [
-          line("ok", "NOTIFICATION", { meta: "NATIVE INBOX · SAFE MODE · QUICK COPY" }),
-          line("dim", L(ctx2, "Xabarlar, kodlar va qo‘ng‘iroqlar uchun native markaz ochildi.", "Native notification center opened for messages, codes and calls.")),
+          line("sys", "NOTIFICATION  STARTED", { meta: "center open requested; inbox contents not verified" }),
+          line("dim", L(ctx2, "Markaz ochish so‘raldi. Xabarlar o‘qilgani tasdiqlanmagan.", "Center open requested. Message contents are not verified.")),
         ],
       };
     }
@@ -200,7 +286,10 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       void nativeOpenCamera().catch(() => undefined);
       return {
         state: state0,
-        lines: [line("ok", "CAMERA", { meta: "NATIVE CAMERA" })],
+        lines: [
+          line("sys", "CAMERA  STARTED", { meta: "native open requested; capture is not verified" }),
+          line("dim", L(ctx2, "Kamera ochish so‘raldi. Surat tasdiqlanmaguncha VERIFIED emas.", "Camera open requested. Not VERIFIED until a capture result exists.")),
+        ],
       };
     }
     case "qr": {
@@ -220,8 +309,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       return {
         state: state0,
         lines: [
-          line("ok", "QR", { meta: "NATIVE SCANNER · ALL FORMATS" }),
-          line("dim", L(ctx2, "QR/barcode kamerasi ochildi — kodni ramka ichiga olib keling.", "QR/barcode scanner opened — align a code inside the frame.")),
+          line("sys", "QR  STARTED", { meta: "scanner opened; decode is not verified" }),
+          line("dim", L(ctx2, "Skaner ochildi. Kod o‘qilmaguncha VERIFIED emas.", "Scanner opened. Not VERIFIED until a code is decoded.")),
         ],
       };
     }
@@ -363,6 +452,21 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       saveState(state);
       return { state, lines: [line("ok", `${name.toUpperCase()}  ${app.name}`)] };
     }
+    case "session": {
+      const operation = (parsed.args[0] ?? "show").toLowerCase();
+      if (operation === "clear" || operation === "reset") {
+        clearActiveSessionContext();
+        return {
+          state: { ...state0, history: [] },
+          lines: [line("ok", L(ctx2, "Joriy sessiya konteksti va buyruqlar tarixi tozalandi.", "Current session context and command history cleared."))],
+          clearLog: true,
+        };
+      }
+      if (!["show", "status", "history"].includes(operation)) {
+        return { state: state0, lines: [line("warn", L(ctx2, "Foydalanish: session [show|clear]", "Usage: session [show|clear]"))] };
+      }
+      return { state: state0, lines: getActiveSessionSummary().map((message, index) => line(index === 0 ? "sys" : "dim", message)) };
+    }
     case "hist": {
       const rows = state0.history.slice(0, 16);
       return {
@@ -419,14 +523,50 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         return { state: state0, lines: [line("warn", parsed.cmd.usage)] };
       }
       const runtime = detectRuntime();
-      if (runtime.platform !== "android") {
-        return {
-          state: state0,
-          lines: [line("warn", L(ctx2, "Package faqat Androidda", "Raw package is Android-only"))],
-        };
-      }
-      launchPackage(pkg);
-      return { state: state0, lines: [line("ok", `PACK  ${pkg}`)] };
+      const action = runAppBridge({ kind: "launch", target: pkg, platform: runtime.platform });
+      return {
+        state: state0,
+        lines: [
+          line(
+            action.ok ? "sys" : "warn",
+            `PACK  ${action.status.toUpperCase()}  ${pkg}`,
+            { meta: action.reason ?? action.message },
+          ),
+        ],
+      };
+    }
+    case "openfile": {
+      const uri = parsed.args.join(" ").trim();
+      const handoff = requestExternalFileOpen(uri);
+      return {
+        state: state0,
+        lines: [line(handoff.started ? "sys" : "warn", `OPENFILE  ${handoff.started ? "STARTED" : "FAILED"}`, {
+          meta: handoff.reason ?? "System file handoff requested; external handling is not verified.",
+        })],
+      };
+    }
+    case "share": {
+      const text = parsed.args.join(" ").trim();
+      const runtime = detectRuntime();
+      const action = runAppBridge({ kind: "share", target: "chooser", text, platform: runtime.platform, chooser: true });
+      return {
+        state: state0,
+        lines: [
+          line(action.ok ? "sys" : "warn", `SHARE  ${action.status.toUpperCase()}  ${action.value?.method ?? "share"}`, { meta: action.reason ?? action.message }),
+        ],
+      };
+    }
+    case "link": {
+      const target = parsed.args.join(" ").trim();
+      const runtime = detectRuntime();
+      const kind = /^https?:/i.test(target) ? "url" : "deeplink";
+      const action = runAppBridge({ kind, target, platform: runtime.platform });
+      return {
+        state: state0,
+        lines: [
+          line(action.ok ? "sys" : "warn", `LINK  ${action.status.toUpperCase()}  ${action.value?.method ?? "url"}`, { meta: action.reason ?? action.value?.target }),
+        ],
+      };
     }
     case "sys": {
       const runtime = detectRuntime();
@@ -466,10 +606,8 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
       };
     }
     case "lang": {
-      const next = parsed.args[0]?.toLowerCase();
-      if (next !== "uz" && next !== "en") {
-        return { state: state0, lines: [line("warn", "lang uz | lang en")] };
-      }
+      const next = normalizeLanguageToken(parsed.args[0]);
+      if (!next) return { state: state0, lines: [line("warn", L(ctx2, "lang uz | lang en — yoki til o‘zbekcha | inglizcha", "lang uz | lang en — or lang Uzbekcha | English"))] };
       const state = setLang(state0, next);
       saveState(state);
       return { state, lines: [line("ok", `LANG  ${next}`)] };
@@ -507,15 +645,14 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
         ],
       };
     }
+    case "perf": {
+      return { state: state0, lines: [line("sys", "PERFORMANCE  measured / unmeasured"), ...formatPerformanceReport(ctx2.lang).map((item) => line("out", item))] };
+    }
     case "date": {
       const now = new Date();
       return {
         state: state0,
-        lines: [
-          line("out", now.toLocaleString(ctx2.lang === "uz" ? "uz-UZ" : "en-GB"), {
-            meta: now.toISOString(),
-          }),
-        ],
+        lines: [line("out", formatLocalDateTime(now, ctx2.lang), { meta: now.toISOString() })],
       };
     }
     case "whoami": {
@@ -542,9 +679,293 @@ export function execute(rawLine: string, ctx: ExecContext): ExecResult {
   }
 }
 
+export function execute(rawLine: string, ctx: ExecContext): ExecResult {
+  const input = rawLine.trim();
+  if (!input) return { state: ctx.state, lines: [] };
+
+  const resolution = resolveActiveSessionReference(input);
+  if (resolution.status === "ambiguous") {
+    const state = pushHistory(ctx.state, input);
+    saveState(state);
+    const turnId = rememberActiveSessionTurn(input, undefined);
+    rememberActiveSessionResult(input, [resolution.message ?? "ambiguous"], turnId, "ambiguous");
+    return {
+      state,
+      lines: [
+        line("warn", resolution.message ?? "This reference is ambiguous; no action was executed."),
+        line("dim", "Name the app or file explicitly, or run session to inspect current context."),
+      ],
+    };
+  }
+
+  const command = resolution.command;
+  const result = executeRawLine(command, ctx);
+  const parsed = parseLine(command);
+  const operation = (parsed.args[0] ?? "").toLowerCase();
+  const isSessionClear = parsed.cmd?.name === "session" && ["clear", "reset"].includes(operation);
+  const isSessionDisplay = parsed.cmd?.name === "session" && !isSessionClear;
+  const isFullReset = parsed.cmd?.name === "reset";
+  let state = result.state;
+  if (isSessionClear) {
+    state = { ...state, history: [] };
+  } else if (isFullReset) {
+    clearActiveSessionContext();
+    state = { ...state, history: [] };
+  } else {
+    state = pushHistory(state, input);
+  }
+  saveState(state);
+
+  if (!isSessionClear && !isFullReset && !isSessionDisplay) {
+    const turnId = rememberActiveSessionTurn(input, command, result.launch ? { id: result.launch.id, name: result.launch.name } : undefined);
+    rememberActiveSessionResult(input, result.lines.map((item) => item.text), turnId);
+  }
+  return { ...result, state };
+}
+export async function runCommunicationRequest(
+  ctx: ExecContext,
+  command: string,
+  args: string[],
+): Promise<LogLine[]> {
+  const name = command.toLowerCase();
+  if (name === "contact") {
+    const result = await lookupContact(args.join(" "));
+    return [
+      line(result.status === "failed" || result.status === "unavailable" ? "warn" : "ok", `CONTACT  ${result.status.toUpperCase()}`, { meta: result.message }),
+      ...(result.name || result.phone ? [line("out", [result.name, result.phone].filter(Boolean).join(" · "))] : []),
+      ...(result.detail ? [line("dim", result.detail)] : []),
+    ];
+  }
+  if (name === "dial") {
+    const result = await openDialer(args.join(" "));
+    return [line(result.status === "started" ? "sys" : "warn", `DIAL  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  if (name === "sms") {
+    const phone = args[0] ?? "";
+    const body = args.slice(1).join(" ");
+    const result = await openSmsComposer(phone, body);
+    return [line(result.status === "started" ? "sys" : "warn", `SMS  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  if (name === "email") {
+    const email = args[0] ?? "";
+    const subject = args[1] ?? "";
+    const body = args.slice(2).join(" ");
+    const result = await openEmailComposer(email, subject, body);
+    return [line(result.status === "started" ? "sys" : "warn", `EMAIL  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  if (name === "copy") {
+    const result = await copyText(args.join(" "));
+    return [line(result.status === "started" ? "ok" : "warn", `COPY  ${result.status.toUpperCase()}`, { meta: result.message })];
+  }
+  const result = await pasteText();
+  return [
+    line(result.status === "started" ? "ok" : "warn", `PASTE  ${result.status.toUpperCase()}`, { meta: result.message }),
+    ...(result.text ? [line("out", result.text)] : []),
+  ];
+}
+
+export async function runGamingRequest(ctx: ExecContext, target?: string): Promise<LogLine[]> {
+  if (!canUseNativeDeviceEngine()) {
+    return [line("warn", L(ctx, "GAMING telemetry faqat native Android APKda mavjud.", "GAMING telemetry is available only in the native Android APK."))];
+  }
+  try {
+    const s = await nativeGetDeviceSnapshot();
+    const thermal = s.thermal.statusName?.toLowerCase();
+    const telemetry: GamingTelemetry = {
+      timestamp: s.timestamp,
+      cpuLoadPercent: s.cpu.loadPercent,
+      ramUsedBytes: s.memory.usedBytes,
+      ramTotalBytes: s.memory.totalBytes,
+      batteryPercent: s.battery.percent,
+      charging: s.battery.charging,
+      batteryTemperatureC: s.battery.temperatureC,
+      thermal: ["none","light","moderate","severe","critical","emergency","shutdown"].includes(thermal) ? thermal as GamingTelemetry["thermal"] : "unknown",
+      refreshRateHz: s.display.refreshRateHz,
+      networkConnected: s.network.connected,
+      meteredNetwork: s.network.metered,
+    };
+
+    const rawTarget = target?.trim() ?? "";
+    const match = /^(before|after|launch)\s+/i.exec(rawTarget);
+    const operation = match?.[1]?.toLowerCase() as "before" | "after" | "launch" | undefined;
+    const gameQuery = operation ? rawTarget.slice(match?.[0]?.length ?? 0).trim() : rawTarget;
+    const hit = gameQuery
+      ? rankApps(gameQuery, CATALOG.filter((app) => app.category === "game"), ctx.state.usage, 1)[0]?.app
+      : undefined;
+    const game: GameProfile | undefined = hit
+      ? { name: hit.name, packageName: hit.androidPackage, platform: "android", confidence: "catalog" }
+      : gameQuery
+        ? { name: gameQuery, platform: "android", confidence: "explicit" }
+        : undefined;
+
+    if (operation === "launch") {
+      if (!hit) return [line("warn", L(ctx, "O‘yin katalogdan topilmadi.", "Game was not found in the catalog."))];
+      const result = launchApp(hit, "android");
+      return [
+        line(result.ok ? "sys" : "warn", `GAMING  LAUNCH  ${hit.name}`, { meta: result.note }),
+        line("dim", result.ok ? "Launch requested; external game completion remains STARTED." : "Game launch failed."),
+      ];
+    }
+
+    if (operation === "before") {
+      gamingSession = startGamingSession(telemetry, game);
+      const assessment = assessGaming(telemetry, game);
+      return [
+        line("sys", `GAMING  BEFORE  ${game?.name ?? "unspecified"}`),
+        ...formatGamingAssessment(assessment).map((item, index) =>
+          line(index === 0 ? "sys" : item.startsWith("WARNING") ? "warn" : "out", item),
+        ),
+        line("dim", "BASELINE  captured from native device telemetry; FPS remains unverified."),
+      ];
+    }
+
+    if (operation === "after") {
+      if (!gamingSession) {
+        return [line("warn", L(ctx, "Avval GAMING BEFORE ishlating.", "Run GAMING BEFORE first; no baseline exists."))];
+      }
+      const report = finishGamingSession(gamingSession, telemetry);
+      gamingSession = undefined;
+      return formatGamingSessionReport(report).map((item, index) =>
+        line(item.startsWith("FPS") ? "dim" : index === 0 ? "sys" : "out", item),
+      );
+    }
+
+    return formatGamingAssessment(assessGaming(telemetry, game)).map((item, index) =>
+      line(index === 0 ? "sys" : item.startsWith("WARNING") ? "warn" : "out", item),
+    );
+  } catch (error) {
+    return [line("warn", L(ctx, "GAMING telemetry o‘qilmadi.", "Unable to read gaming telemetry."), { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}
+export async function runCompatibilityRequest(ctx: ExecContext): Promise<LogLine[]> {
+  if (!canUseNativeDeviceEngine()) {
+    return [
+      line("sys", "COMPATIBILITY"),
+      line("dim", L(ctx, "Bu buildda Android SDK/OEM ma’lumoti mavjud emas; tizim ma’lumoti taxmin qilinmadi.", "Android SDK/OEM data is unavailable in this build; no device facts were inferred.")),
+      line("dim", L(ctx, "Android APK ichida compat buyrug‘ini ishlating. Windows/veb fallbacklari Android maxsus ruxsatlarini talab qilmaydigan funksiyalar bilan cheklanadi.", "Run compat in the Android APK for device-specific checks. Windows/web fallbacks remain limited to features that do not need Android special access.")),
+    ];
+  }
+  try {
+    const device = await nativeGetDeviceSnapshot();
+    const env = { sdk: device.device.sdk, release: device.device.release, manufacturer: device.device.manufacturer, model: device.device.model };
+    const capabilities = await refreshNativeCapabilities();
+    const locale = ctx.lang === "uz" ? "uz-UZ" : "en-GB";
+    return [
+      line("sys", L(ctx, "COMPATIBILITY  Android/OEM diagnostikasi", "COMPATIBILITY  Android/OEM diagnostics")),
+      ...formatAndroidCompatibilityReport(env, ctx.lang).map((message) => line("out", message)),
+      line("sys", L(ctx, `CAPABILITY SNAPSHOTS  ${capabilities.length} · faqat o‘qish`, `CAPABILITY SNAPSHOTS  ${capabilities.length} · read-only`)),
+      ...capabilities.map((snapshot) => {
+        const explanation = explainCapabilitySnapshot(snapshot, env, ctx.lang);
+        return line(snapshot.state === "ready" ? "ok" : snapshot.state === "error" ? "warn" : "out", `CAPABILITY  ${explanation.label.toLocaleUpperCase(locale)}  ${explanation.stateLabel.toLocaleUpperCase(locale)}`, { meta: [explanation.summary, explanation.guidance].filter(Boolean).join(" · ") });
+      }),
+    ];
+  } catch (error) {
+    return [line("warn", L(ctx, "Android moslik ma’lumotlarini o‘qib bo‘lmadi; hech qanday ruxsat so‘ralmadi.", "Unable to read Android compatibility data; no permission was requested."), { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}
+
+export async function runDeviceRequest(
+  ctx: ExecContext,
+): Promise<LogLine[]> {
+  if (!canUseNativeDeviceEngine()) {
+    return [line("warn", L(ctx, "DEVICE engine hozir native Android APKda ishlaydi.", "DEVICE engine currently runs in the native Android APK."))];
+  }
+  try {
+    const s = await nativeGetDeviceSnapshot();
+    return [
+      line("sys", `DEVICE  ${s.device.manufacturer} ${s.device.model}`),
+      line("out", `CPU      ${s.cpu.cores} cores · ${s.cpu.architecture}${s.cpu.loadPercent === undefined ? " · load unavailable" : ` · load ${s.cpu.loadPercent.toFixed(1)}% (best-effort)`}`),
+      line("out", `RAM      ${formatBytes(s.memory.usedBytes)} / ${formatBytes(s.memory.totalBytes)} · free ${formatBytes(s.memory.availableBytes)}`),
+      line("out", `STORAGE  ${formatBytes(s.storage.usedBytes)} / ${formatBytes(s.storage.totalBytes)} · free ${formatBytes(s.storage.availableBytes)}`),
+      line("out", `BATTERY  ${s.battery.percent === undefined ? "unknown" : s.battery.percent + "%"} · ${s.battery.charging ? "charging" : "not charging"}${s.battery.temperatureC === undefined ? "" : ` · ${s.battery.temperatureC.toFixed(1)}°C`}`),
+      line("out", `THERMAL  ${s.thermal.statusName.toUpperCase()}`),
+      line("out", `DISPLAY  ${s.display.widthPx ?? "?"}×${s.display.heightPx ?? "?"} · ${s.display.refreshRateHz === undefined ? "?" : s.display.refreshRateHz.toFixed(1) + "Hz"}`),
+      line("out", `NETWORK  ${s.network.connected ? "connected" : "offline"}`),
+      line("out", `BLUETOOTH  ${s.bluetooth.state}`),
+      line("out", `AUDIO    volume ${s.audio.musicVolume ?? "?"}/${s.audio.musicMaxVolume ?? "?"}`),
+      line("out", `SENSORS  ${s.sensors.length}`),
+      line("dim", `SCHEMA   ${s.schemaVersion} · ${new Date(s.timestamp).toISOString()}`),
+    ];
+  } catch (error) {
+    return [line("warn", L(ctx, "DEVICE ma’lumotlarini o‘qib bo‘lmadi.", "Unable to read device data."), { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}
+
 export async function runPermRequest(
   ctx: ExecContext,
+  requestedCapability?: string,
 ): Promise<{ state: PersistedState; lines: LogLine[] }> {
+  const runtime = detectRuntime();
+  const normalizedCapability = normalizeCapabilityId(requestedCapability);
+  let compatibilityEnv: { sdk?: number; release?: string; manufacturer?: string; model?: string } = {};
+  if (runtime.platform === "android" && canUseNativeDeviceEngine()) {
+    try {
+      const device = await nativeGetDeviceSnapshot();
+      compatibilityEnv = { sdk: device.device.sdk, release: device.device.release, manufacturer: device.device.manufacturer, model: device.device.model };
+    } catch {
+      // Permission diagnostics must continue even when optional device metadata is unavailable.
+    }
+  }
+
+  if (runtime.platform === "android" && canUseNativeAndroidLauncher()) {
+    if (normalizedCapability) {
+      try {
+        const snapshot = await nativeRequestCapability(normalizedCapability);
+        const explanation = explainCapabilitySnapshot(snapshot, compatibilityEnv, ctx.lang);
+        const locale = ctx.lang === "uz" ? "uz-UZ" : "en-GB";
+        return {
+          state: ctx.state,
+          lines: [line(snapshot.state === "ready" ? "ok" : "warn", `CAPABILITY  ${explanation.label.toLocaleUpperCase(locale)}  ${snapshot.state.toUpperCase()}`, { meta: [snapshot.decision, explanation.summary, explanation.guidance].filter(Boolean).join(" · ") })],
+        };
+      } catch (error) {
+        return {
+          state: ctx.state,
+          lines: [
+            line(
+              "warn",
+              `CAPABILITY  ${normalizedCapability.toUpperCase()}  ERROR`,
+              { meta: error instanceof Error ? error.message : "request failed" },
+            ),
+          ],
+        };
+      }
+    }
+
+    try {
+      const snapshots = await refreshNativeCapabilities();
+      return {
+        state: ctx.state,
+        lines: [
+          line("sys", `CAPABILITIES  ${snapshots.length}`),
+          ...snapshots.map((snapshot) => {
+            const explanation = explainCapabilitySnapshot(snapshot, compatibilityEnv, ctx.lang);
+            const locale = ctx.lang === "uz" ? "uz-UZ" : "en-GB";
+            return line(snapshot.state === "ready" ? "ok" : snapshot.state === "error" ? "warn" : "out", `${explanation.label.toLocaleUpperCase(locale).padEnd(26, " ")} ${explanation.stateLabel.toLocaleUpperCase(locale)}`, { meta: [snapshot.decision, explanation.summary, explanation.guidance].filter(Boolean).join(" · ") });
+          }),
+          line(
+            "dim",
+            L(
+              ctx,
+              "Aniq request uchun: perm camera  ·  perm notification_listener",
+              "Request one capability explicitly: perm camera · perm notification_listener",
+            ),
+          ),
+        ],
+      };
+    } catch (error) {
+      return {
+        state: ctx.state,
+        lines: [
+          line(
+            "warn",
+            L(ctx, "Android capability tekshiruvi ishlamadi.", "Android capability check failed."),
+            { meta: error instanceof Error ? error.message : "unknown error" },
+          ),
+        ],
+      };
+    }
+  }
+
   const persist = await requestPersistentStorage();
   const notify = await requestNotify();
   const snap = await snapshotPerms();
@@ -609,3 +1030,18 @@ export async function runInstall(ctx: ExecContext): Promise<LogLine[]> {
 }
 
 export { line as makeLine };
+
+export async function runFileRequest(args: string[], ctx: ExecContext, sessionTurnId?: number): Promise<LogLine[]> {
+  try {
+    const messages = await runFileCommand(args);
+    rememberActiveSessionFileResults("files " + args.join(" "), messages, sessionTurnId);
+    return messages.map((message, index) => line(
+      /FAILED|UNAVAILABLE|NEEDS_FOLDER|NEEDS_CONFIRMATION/.test(message) ? "warn" : index === 0 ? "sys" : "out",
+      message,
+    ));
+  } catch (error) {
+    const message = L(ctx, "Fayl amali bajarilmadi; fayllar o‘zgartirilmadi.", "File operation failed; no files were changed.");
+    rememberActiveSessionFileResults("files " + args.join(" "), [message + " FAILED"], sessionTurnId);
+    return [line("warn", message, { meta: error instanceof Error ? error.message : "unknown error" })];
+  }
+}

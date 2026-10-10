@@ -1,9 +1,14 @@
 name: Build Windows EXE
 
 on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
   push:
     branches:
       - '**'
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
@@ -35,8 +40,68 @@ jobs:
       - name: Install web dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Audit dependency health (high/critical vulnerabilities block release)
+        shell: pwsh
+        run: |
+          node -e 'const { spawnSync } = require("node:child_process"); const r = spawnSync("npm", ["audit", "--json"], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024, shell: process.platform === "win32" }); let report; try { report = JSON.parse(r.stdout || ""); } catch { console.error("Dependency audit produced no valid JSON.", (r.stderr || r.error?.message || "").slice(0, 2000)); process.exit(1); } const v = report.metadata?.vulnerabilities; if (!v) { console.error("Dependency audit produced no vulnerability summary."); process.exit(1); } console.log("npm audit: " + JSON.stringify(v)); for (const [name, advisory] of Object.entries(report.vulnerabilities || {})) { const via = (advisory.via || []).map((item) => typeof item === "string" ? item : item.name + ": " + item.title).join("; "); console.log("AUDIT ADVISORY: " + advisory.severity + " | " + name + " | range=" + advisory.range + " | fix=" + JSON.stringify(advisory.fixAvailable) + " | via=" + via); } if ((v.critical || 0) > 0) { console.error("CRITICAL dependency advisories block the release."); process.exit(1); } if ((v.high || 0) > 0) { console.error("HIGH dependency advisories block the release."); process.exit(1); } if ((v.moderate || 0) > 0) console.log("NOTICE: Moderate dependency advisories remain; inspect npm audit details."); console.log("Dependency audit policy gate passed (no high/critical vulnerabilities).");'
+
+      - name: Audit shipped production dependencies (any advisory blocks release)
+        shell: pwsh
+        run: |
+          node -e 'const { spawnSync } = require("node:child_process"); const r = spawnSync("npm", ["audit", "--omit=dev", "--json"], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024, shell: process.platform === "win32" }); let report; try { report = JSON.parse(r.stdout || ""); } catch { console.error("Production dependency audit produced no valid JSON.", (r.stderr || r.error?.message || "").slice(0, 2000)); process.exit(1); } const v = report.metadata?.vulnerabilities; if (!v) { console.error("Production audit produced no vulnerability summary."); process.exit(1); } console.log("npm audit --omit=dev: " + JSON.stringify(v)); for (const [name, advisory] of Object.entries(report.vulnerabilities || {})) console.log("PRODUCTION ADVISORY: " + advisory.severity + " | " + name + " | range=" + advisory.range); if ((v.total || 0) > 0) { console.error("Known vulnerabilities in production dependencies block release."); process.exit(1); } console.log("PRODUCTION_DEPENDENCY_AUDIT_SUCCESS: 0 known advisories.");'
+
       - name: Typecheck web application
         run: npm run typecheck
+
+      - name: Verify release-candidate metadata
+        run: node scripts/check-release-candidate.mjs
+
+      - name: Verify global entry point bridge
+        shell: pwsh
+        run: |
+          node --check desktop/main.cjs
+          if ($LASTEXITCODE -ne 0) { throw "desktop/main.cjs syntax check failed" }
+          node --check desktop/security.cjs
+          if ($LASTEXITCODE -ne 0) { throw "desktop/security.cjs syntax check failed" }
+          node --check desktop/preload.cjs
+          if ($LASTEXITCODE -ne 0) { throw "desktop/preload.cjs syntax check failed" }
+          if (-not (Test-Path "src/lib/mvm/global-entry-points.test.ts")) { throw "Missing global entry tests" }
+          if (-not (Test-Path "src/lib/mvm/global-entry-bridge.ts")) { throw "Missing global bridge" }
+
+      - name: Verify motion and decorative 3D contracts
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "src/lib/mvm/motion-preferences.ts")) { throw "Missing motion preferences" }
+          if (-not (Test-Path "src/lib/mvm/motion-preferences.test.ts")) { throw "Missing motion preference tests" }
+          if (-not (Test-Path "src/lib/mvm/compatibility.test.ts")) { throw "Missing compatibility tests" }
+          if (-not (Select-String -Path "src/styles.css" -Pattern "mvm-motion-reduced" -Quiet)) { throw "Missing reduced-motion styles" }
+          if (-not (Select-String -Path "src/styles.css" -Pattern "prefers-reduced-motion" -Quiet)) { throw "Missing OS reduced-motion styles" }
+          if (Select-String -Path "src/lib/mvm/3d-assets.ts" -Pattern "kernelCadUrl|app\.kernelcad\.com" -Quiet) { throw "Decorative 3D assets must not carry external destinations" }
+          if (-not (Select-String -Path "src/components/mvm/mvm-3d.tsx" -Pattern "event.stopPropagation\(\)" -Quiet)) { throw "Decorative 3D click isolation is missing" }
+
+      - name: Verify globalization and Android compatibility contracts
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "src/lib/mvm/compatibility.ts")) { throw "Missing compatibility module" }
+          if (-not (Test-Path "src/lib/mvm/compatibility.test.ts")) { throw "Missing compatibility tests" }
+          if (-not (Select-String -Path "src/lib/mvm/commands.ts" -Pattern "normalizeCommandHead" -Quiet)) { throw "Mixed-language command normalization is missing" }
+          if (-not (Select-String -Path "src/lib/mvm/executor.ts" -Pattern "formatAndroidCompatibilityReport" -Quiet)) { throw "Android API/OEM report is missing" }
+          if (-not (Select-String -Path "src/lib/mvm/compatibility.ts" -Pattern "Allow restricted settings" -Quiet)) { throw "Restricted Settings fallback explanation is missing" }
+          if (-not (Select-String -Path "src/lib/mvm/executor.ts" -Pattern "CAPABILITY SNAPSHOTS" -Quiet)) { throw "Capability snapshot report is missing" }
+
+      - name: Verify Phase 19 release hardening gates
+        shell: pwsh
+        run: |
+          foreach ($file in @("src/lib/mvm/security-policy.ts","src/lib/mvm/security-hardening.test.ts","src/lib/mvm/performance-budget.ts","src/lib/mvm/performance-budget.test.ts","src/lib/mvm/commands.test.ts","src/lib/mvm/gaming-engine.test.ts","desktop/security.cjs")) {
+            if (-not (Test-Path $file)) { throw "Missing Phase 19 release hardening file: $file" }
+          }
+          if (-not (Select-String -Path "android/app/src/main/AndroidManifest.xml" -Pattern 'android:allowBackup="false"' -Quiet)) { throw "Sensitive Android app-data backup must be disabled" }
+          if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmLauncherPlugin.java" -Pattern "isAllowedExternalUri" -Quiet)) { throw "Native URL allowlist is missing" }
+          if (-not (Select-String -Path "android/app/src/main/java/com/mvmcmd/launcher/MvmFileToolsPlugin.java" -Pattern "safeZipEntryName" -Quiet)) { throw "ZIP entry sanitization is missing" }
+          if (-not (Select-String -Path "desktop/main.cjs" -Pattern "assertTrustedIpcSender" -Quiet)) { throw "Electron IPC sender validation is missing" }
+
+      - name: Run project tests
+        run: node --experimental-strip-types --test src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts src/lib/mvm/voice-core.test.ts src/lib/mvm/global-entry-points.test.ts src/lib/mvm/motion-preferences.test.ts src/lib/mvm/compatibility.test.ts src/lib/mvm/security-hardening.test.ts src/lib/mvm/performance-budget.test.ts src/lib/mvm/app-bridge.test.ts src/lib/mvm/task-planner.test.ts src/lib/mvm/goal-engine.test.ts src/lib/mvm/gaming-engine.test.ts src/lib/mvm/commands.test.ts
 
       - name: Build web application
         run: npm run build
@@ -62,6 +127,24 @@ jobs:
             throw "No Windows EXE was produced."
           }
           $exe | ForEach-Object { Write-Host "$($_.FullName) - $($_.Length) bytes" }
+
+      - name: Windows packaged EXE launch smoke
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $exe = Get-ChildItem -Path "release" -Filter "*.exe" -File | Select-Object -First 1
+          if ($null -eq $exe) { throw "No portable EXE was produced for launch smoke." }
+          $process = Start-Process -FilePath $exe.FullName -WorkingDirectory $PWD.Path -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            $process.Refresh()
+            if ($process.HasExited) { throw "Portable EXE exited during launch smoke (exit code $($process.ExitCode))." }
+            Write-Host "Portable EXE started and remained alive for the smoke window."
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+          }
 
       - name: Final success gate
         if: ${{ success() }}

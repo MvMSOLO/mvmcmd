@@ -31,12 +31,14 @@ import java.util.concurrent.Executors;
 
 public final class MvmWallpaperActivity extends AppCompatActivity {
     static final int HOME=0, LOCK=1;
+    static final String EXTRA_DISABLE_LIVE_PREVIEW_FOR_TESTS = "com.mvmcmd.launcher.extra.DISABLE_LIVE_PREVIEW_FOR_TESTS";
 
     final ExecutorService exec=Executors.newSingleThreadExecutor();
     final List<View> cards=new ArrayList<>();
     MvmWallpaperRenderer renderer;
     MvmWallpaperCatalog.Spec selected;
     int mode=HOME;
+    private boolean disableLivePreviewForTests = false;
 
     MvmWallpaperPreview preview;
     LinearLayout gallery;
@@ -44,8 +46,9 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
 
     @Override protected void onCreate(@Nullable Bundle b){
         super.onCreate(b);
-        getWindow().setStatusBarColor(0xff06070a);
-        getWindow().setNavigationBarColor(0xff06070a);
+        MvmUiKit.applyWindow(this);
+        disableLivePreviewForTests = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                && getIntent().getBooleanExtra(EXTRA_DISABLE_LIVE_PREVIEW_FOR_TESTS, false);
         renderer=new MvmWallpaperRenderer(this);
         selected=MvmWallpaperCatalog.all().get(0);
         build();
@@ -54,10 +57,10 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
     void build(){
         ScrollView scroll=new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(0xff06070a);
+        scroll.setBackgroundColor(MvmUiKit.BG);
 
         LinearLayout page=col();
-        page.setPadding(dp(16),dp(10),dp(16),dp(24));
+        page.setPadding(dp(14),dp(10),dp(14),dp(24));
         scroll.addView(page);
 
         LinearLayout head=row();
@@ -83,15 +86,15 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         page.addView(intro);
 
         FrameLayout previewFrame=new FrameLayout(this);
-        preview=new MvmWallpaperPreview(this);
+        preview=new MvmWallpaperPreview(this, !disableLivePreviewForTests);
         preview.setSpec(selected);
-        preview.setLive(true);
+        preview.setLive(!disableLivePreviewForTests);
         previewFrame.addView(preview,new FrameLayout.LayoutParams(-1,previewHeight()));
 
         modeBadge=label("HOME  /  LIVE 3D",10,Typeface.BOLD);
         modeBadge.setGravity(Gravity.CENTER);
         modeBadge.setTextColor(0xffe8ebef);
-        GradientDrawable badgeBg=round(0xaa0a0c10,16,0x553f454e);
+        GradientDrawable badgeBg=MvmUiKit.stroke(this,0xC50A0E14,16,0x66505C6D);
         modeBadge.setBackground(badgeBg);
         FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(138),dp(34),Gravity.TOP|Gravity.END);
         bp.setMargins(0,dp(12),dp(12),0);
@@ -186,7 +189,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
     void refreshCards(){
         for(View v:cards){
             boolean hit=selected!=null&&selected.id.equals(v.getTag());
-            v.setBackground(round(hit?0x263f4650:0x10161a20,17,hit?0xffcbd2da:0x222b313a));
+            v.setBackground(MvmUiKit.stroke(this,hit?0x34485A36:0x12182028,17,hit?MvmUiKit.ACCENT:0x333B4554));
         }
     }
 
@@ -194,7 +197,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         mode=m;
         boolean home=m==HOME;
         preview.showClock=home;
-        preview.setLive(home);
+        preview.setLive(home && !disableLivePreviewForTests);
         modeBadge.setText(home?"HOME  /  LIVE 3D":"LOCK  /  SYSTEM CLOCK");
         homeTab.setTextColor(home?0xff080a0d:0xffaeb5bf);
         lockTab.setTextColor(home?0xffaeb5bf:0xff080a0d);
@@ -259,7 +262,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
     }
 
     TextView tab(String s){
-        TextView v=label(s,10,Typeface.BOLD);
+        TextView v=MvmUiKit.text(this,s,10,MvmUiKit.FG,true);
         v.setGravity(Gravity.CENTER);
         v.setOnClickListener(x->selectMode(x==homeTab?HOME:LOCK));
         return v;
@@ -270,7 +273,8 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         v.setGravity(Gravity.CENTER);
         v.setTextColor(0xffbfc6cf);
         v.setPadding(dp(11),0,dp(11),0);
-        v.setBackground(round(0x15151d24,13,0x24313b));
+        v.setBackground(MvmUiKit.stroke(this,0x171C24,15,0x33414C5D));
+        MvmUiKit.installPress(v);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(30));
         p.setMargins(0,0,dp(7),0);
         v.setLayoutParams(p);
@@ -278,10 +282,10 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
     }
 
     TextView button(String s){
-        TextView v=label(s,12,Typeface.BOLD);
+        TextView v=MvmUiKit.text(this,s,12,MvmUiKit.BG,true);
         v.setGravity(Gravity.CENTER);
-        v.setTextColor(0xff090b0e);
-        v.setBackground(round(0xffeef1f4,17,0));
+        v.setBackground(MvmUiKit.surface(this,MvmUiKit.ACCENT,17));
+        MvmUiKit.installPress(v);
         return v;
     }
 
@@ -290,7 +294,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         v.setText(s);
         v.setTextColor(0xfff3f4f6);
         v.setTextSize(size);
-        v.setTypeface(Typeface.create("sans-serif-condensed",style));
+        v.setTypeface(Typeface.create("sans-serif",style));
         return v;
     }
 
@@ -319,11 +323,13 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         final Sensor acc=sm==null?null:sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         float tx,ty,sx,sy;
         boolean showClock=true,live=true;
+        final boolean animateTicks;
         MvmWallpaperCatalog.Spec spec;
         final Runnable tick=new Runnable(){ public void run(){ invalidate(); postDelayed(this,45); } };
 
-        MvmWallpaperPreview(Context c){
+        MvmWallpaperPreview(Context c, boolean animateTicks){
             super(c);
+            this.animateTicks=animateTicks;
             setBackgroundColor(0xff0c0e12);
             setClipToOutline(true);
             setOutlineProvider(new ViewOutlineProviderCompat(dp(20)));
@@ -338,7 +344,7 @@ public final class MvmWallpaperActivity extends AppCompatActivity {
         @Override protected void onAttachedToWindow(){
             super.onAttachedToWindow();
             if(live) startSensors();
-            post(tick);
+            if(animateTicks) post(tick);
         }
 
         @Override protected void onDetachedFromWindow(){

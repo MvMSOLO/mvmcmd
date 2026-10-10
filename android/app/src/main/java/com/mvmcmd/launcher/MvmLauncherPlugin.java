@@ -1,18 +1,435 @@
 package com.mvmcmd.launcher;
 
+import android.app.AppOpsManager;
+import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+import android.provider.ContactsContract;
+import android.service.notification.NotificationListenerService;
 
+import androidx.core.app.NotificationManagerCompat;
+
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
-@CapacitorPlugin(name = "MvmLauncher")
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+@CapacitorPlugin(
+    name = "MvmLauncher",
+    permissions = {
+        @Permission(alias = "camera", strings = { "android.permission.CAMERA" }),
+        @Permission(alias = "microphone", strings = { "android.permission.RECORD_AUDIO" }),
+        @Permission(alias = "contacts", strings = { "android.permission.READ_CONTACTS" }),
+        @Permission(alias = "notifications", strings = { "android.permission.POST_NOTIFICATIONS" })
+    }
+)
 public class MvmLauncherPlugin extends Plugin {
+    private static final String PREFS = "mvmcmd_capabilities";
+    private static boolean hasUnsafeControlCharacters(String value, boolean allowNewline) {
+        if (value == null) return true;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == 0x7f || (c < 0x20 && !(allowNewline && (c == '\n' || c == '\r' || c == '\t')))) return true;
+        }
+        return false;
+    }
+
+    private static boolean isAllowedShareMime(String mime) {
+        if (mime == null) return false;
+        String value = mime.trim().toLowerCase(java.util.Locale.ROOT);
+        return "text/plain".equals(value) || "text/csv".equals(value) || "image/png".equals(value)
+            || "image/jpeg".equals(value) || "application/pdf".equals(value);
+    }
+
+    private static boolean isSafeShareText(String value) {
+        return value != null && !value.isEmpty() && value.length() <= 4000 && !hasUnsafeControlCharacters(value, true);
+    }
+
+    private static boolean isSafePhoneNumber(String value) {
+        return value != null && value.trim().matches("\\+?[0-9(). -]{3,32}");
+    }
+
+    private static boolean isValidEmailAddress(String value) {
+        return value != null && value.length() <= 254 && value.matches("^[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+$");
+    }
+
+    private boolean isAllowedExternalUri(String raw) {
+        if (raw == null || raw.trim().isEmpty() || raw.length() > 2048) return false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c < 0x20 || c == 0x7f || Character.isWhitespace(c)) return false;
+        }
+        Uri uri;
+        try { uri = Uri.parse(raw); } catch (Exception ignored) { return false; }
+        String scheme = uri.getScheme();
+        if (scheme == null) return false;
+        scheme = scheme.toLowerCase(java.util.Locale.ROOT);
+        if ("http".equals(scheme) || "https".equals(scheme)) {
+            return uri.getHost() != null && !uri.getHost().isEmpty() && uri.getUserInfo() == null;
+        }
+        if ("tel".equals(scheme) || "sms".equals(scheme)) {
+            String number = uri.getSchemeSpecificPart();
+            return number != null && number.matches("[+0-9().;,#*\\-]{1,64}");
+        }
+        if ("mailto".equals(scheme)) {
+            String address = uri.getSchemeSpecificPart();
+            return address != null && address.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
+        }
+        if ("geo".equals(scheme) || "market".equals(scheme)) return true;
+        return false;
+    }
+
+    private boolean isSafeScopedContentUri(String raw) {
+        if (raw == null || raw.trim().isEmpty() || raw.length() > 2048) return false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c < 0x20 || c == 0x7f) return false;
+        }
+        Uri uri;
+        try { uri = Uri.parse(raw); } catch (Exception ignored) { return false; }
+        if (!"content".equalsIgnoreCase(uri.getScheme()) || uri.getAuthority() == null
+                || uri.getUserInfo() != null
+                || uri.getAuthority().equalsIgnoreCase(getContext().getPackageName() + ".fileprovider")) return false;
+        String path = raw.replaceFirst("(?i)^content://[^/?#]+", "").split("[?#]", 2)[0];
+        for (int depth = 0; depth < 3; depth++) {
+            String decoded = Uri.decode(path);
+            if (decoded == null || decoded.contains("\\")) return false;
+            for (String part : decoded.split("/")) if (".".equals(part) || "..".equals(part)) return false;
+            if (decoded.matches("(?i).*/(?:data|proc|sys)(?:/.*|$)")) return false;
+            if (decoded.matches("(?i).*/primary:Android/(?:data|obb)(?:/.*|$)")) return false;
+            if (decoded.equals(path)) break;
+            path = decoded;
+        }
+        return true;
+    }
+
+    private static final String[] IDS = {
+        "camera",
+        "microphone",
+        "notifications",
+        "notification_listener",
+        "contacts",
+        "overlay",
+        "usage_access"
+    };
+
+    @PluginMethod
+    public void checkCapabilities(PluginCall call) {
+        String requested = call.getString("capabilityId");
+        JSArray result = new JSArray();
+        if (requested != null && !requested.trim().isEmpty()) {
+            if (!containsId(requested.trim())) { call.reject("Unknown capability"); return; }
+            result.put(snapshotFor(requested.trim()));
+        } else {
+            for (String id : IDS) result.put(snapshotFor(id));
+        }
+        JSObject out = new JSObject();
+        out.put("capabilities", result);
+        out.put("checkedAt", System.currentTimeMillis());
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void requestCapability(PluginCall call) {
+        String id = call.getString("capabilityId");
+        String decision = call.getString("decision", "allow");
+        if (id == null || !containsId(id)) {
+            call.reject("Unknown capability");
+            return;
+        }
+        if (!"allow".equals(decision) && !"skip".equals(decision)) {
+            call.reject("Decision must be allow or skip");
+            return;
+        }
+
+        persistDecision(id, decision);
+
+        if ("skip".equals(decision)) {
+            JSObject out = snapshotFor(id);
+            out.put("needsSettings", false);
+            call.resolve(out);
+            return;
+        }
+
+        if (isRuntimeAlias(id)) {
+            String alias = aliasFor(id);
+            if ("granted".equalsIgnoreCase(String.valueOf(getPermissionState(alias)))) {
+                call.resolve(snapshotFor(id));
+                return;
+            }
+            requestPermissionForAlias(alias, call, "capabilityPermissionCallback");
+            return;
+        }
+
+        if (isSpecial(id)) {
+            boolean opened = openSettingsFor(id);
+            JSObject out = snapshotFor(id);
+            out.put("needsSettings", opened && !"ready".equals(out.optString("state")));
+            if (!opened) {
+                out.put("state", "unavailable");
+                out.put("detail", "System settings screen is unavailable.");
+            }
+            call.resolve(out);
+            return;
+        }
+
+        call.resolve(snapshotFor(id));
+    }
+
+    @PermissionCallback
+    private void capabilityPermissionCallback(PluginCall call) {
+        String id = call.getString("capabilityId");
+        if (id == null || !containsId(id)) {
+            call.reject("Capability request lost its id");
+            return;
+        }
+        call.resolve(snapshotFor(id));
+    }
+
+    @PluginMethod
+    public void setCapabilityDecision(PluginCall call) {
+        String id = call.getString("capabilityId");
+        String decision = call.getString("decision");
+        if (id == null || !containsId(id)) {
+            call.reject("Unknown capability");
+            return;
+        }
+        if (!"allow".equals(decision) && !"skip".equals(decision)) {
+            call.reject("Decision must be allow or skip");
+            return;
+        }
+        persistDecision(id, decision);
+        call.resolve(snapshotFor(id));
+    }
+
+    private boolean containsId(String id) {
+        return Arrays.asList(IDS).contains(id);
+    }
+
+    private boolean isRuntimeAlias(String id) {
+        return "camera".equals(id)
+            || "microphone".equals(id)
+            || "contacts".equals(id)
+            || "notifications".equals(id);
+    }
+
+    private String aliasFor(String id) {
+        if ("notifications".equals(id)) return "notifications";
+        return id;
+    }
+
+    private boolean isSpecial(String id) {
+        return "notification_listener".equals(id)
+            || "overlay".equals(id)
+            || "usage_access".equals(id);
+    }
+
+    private JSObject snapshotFor(String id) {
+        String state = "error";
+        String detail = null;
+
+        try {
+            switch (id) {
+                case "camera":
+                    if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+                        state = "unavailable";
+                        detail = "No camera hardware was reported by Android.";
+                    } else if (!hasRuntimePermission("camera")) {
+                        state = "denied";
+                        detail = "Camera permission is not granted.";
+                    } else {
+                        state = "ready";
+                    }
+                    break;
+
+                case "microphone":
+                    if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
+                        state = "unavailable";
+                        detail = "No microphone hardware was reported by Android.";
+                    } else if (!hasRuntimePermission("microphone")) {
+                        state = "denied";
+                        detail = "Microphone permission is not granted.";
+                    } else {
+                        state = "ready";
+                    }
+                    break;
+
+                case "contacts":
+                    state = hasRuntimePermission("contacts") ? "ready" : "denied";
+                    if ("denied".equals(state)) detail = "Contacts permission is not granted.";
+                    break;
+
+                case "notifications":
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasRuntimePermission("notifications")) {
+                        state = "denied";
+                        detail = "Notification permission is not granted.";
+                    } else if (!NotificationManagerCompat.from(getContext()).areNotificationsEnabled()) {
+                        state = "denied";
+                        detail = "App notifications are disabled in Android settings.";
+                    } else {
+                        state = "ready";
+                    }
+                    break;
+
+                case "notification_listener":
+                    if (isNotificationListenerEnabled()) {
+                        state = "ready";
+                    } else {
+                        state = "restricted";
+                        detail = "Notification listener access must be enabled in Android Settings.";
+                    }
+                    break;
+
+                case "overlay":
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                        state = "unavailable";
+                        detail = "Overlay access is not supported on this Android version.";
+                    } else if (Settings.canDrawOverlays(getContext())) {
+                        state = "ready";
+                    } else {
+                        state = "restricted";
+                        detail = "Display-over-other-apps access is not enabled.";
+                    }
+                    break;
+
+                case "usage_access":
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                        state = "unavailable";
+                        detail = "Usage access is not supported on this Android version.";
+                    } else if (hasUsageAccess()) {
+                        state = "ready";
+                    } else {
+                        state = "restricted";
+                        detail = "Usage access must be enabled in Android Settings.";
+                    }
+                    break;
+
+                default:
+                    state = "unavailable";
+                    detail = "Capability is not implemented on this platform.";
+            }
+        } catch (SecurityException e) {
+            state = "restricted";
+            detail = "Android restricted access to this capability.";
+        } catch (Exception e) {
+            state = "error";
+            detail = e.getClass().getSimpleName();
+        }
+
+        SharedPreferences prefs = getPrefs();
+        String decision = prefs.getString(decisionKey(id), "unset");
+        long checkedAt = System.currentTimeMillis();
+        prefs.edit()
+            .putString(stateKey(id), state)
+            .putLong(checkedKey(id), checkedAt)
+            .apply();
+
+        JSObject out = new JSObject();
+        out.put("id", id);
+        out.put("state", state);
+        out.put("decision", decision);
+        out.put("checkedAt", checkedAt);
+        if (detail != null) out.put("detail", detail);
+        return out;
+    }
+
+    private boolean hasRuntimePermission(String alias) {
+        String state = String.valueOf(getPermissionState(alias));
+        return "granted".equalsIgnoreCase(state);
+    }
+
+    private boolean isNotificationListenerEnabled() {
+        String enabled = Settings.Secure.getString(
+            getContext().getContentResolver(),
+            "enabled_notification_listeners"
+        );
+        if (enabled == null || enabled.isEmpty()) return false;
+
+        ComponentName service = new ComponentName(getContext(), MvmNotificationListenerService.class);
+        String expected = service.flattenToString();
+        for (String value : enabled.split(":")) {
+            if (expected.equals(value)) return true;
+        }
+        return false;
+    }
+
+    private boolean hasUsageAccess() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return false;
+        AppOpsManager appOps = (AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
+        if (appOps == null) return false;
+        int mode = appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            android.os.Process.myUid(),
+            getContext().getPackageName()
+        );
+        return mode == AppOpsManager.MODE_ALLOWED;
+    }
+
+    private boolean openSettingsFor(String id) {
+        Intent intent;
+        try {
+            switch (id) {
+                case "overlay":
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
+                    intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                        intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+                    }
+                    break;
+
+                case "usage_access":
+                    intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                    break;
+
+                case "notification_listener":
+                    intent = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+                    break;
+
+                default:
+                    return false;
+            }
+
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void persistDecision(String id, String decision) {
+        getPrefs().edit().putString(decisionKey(id), decision).apply();
+    }
+
+    private SharedPreferences getPrefs() {
+        return getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    private String decisionKey(String id) { return id + ".decision"; }
+    private String stateKey(String id) { return id + ".state"; }
+    private String checkedKey(String id) { return id + ".checkedAt"; }
+
+    private PackageManager getPackageManager() {
+        return getContext().getPackageManager();
+    }
+
     @PluginMethod
     public void openCamera(PluginCall call) {
         try {
@@ -77,7 +494,10 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openPackage(PluginCall call) {
         String packageName = call.getString("packageName"), action = call.getString("action"), data = call.getString("data");
-        if (packageName == null || packageName.trim().isEmpty()) { call.reject("packageName is required"); return; }
+        if (packageName == null || packageName.length() > 255 || !packageName.matches("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$")) { call.reject("Valid packageName is required"); return; }
+        if (action != null && !action.trim().isEmpty() && !Intent.ACTION_MAIN.equals(action) && !Intent.ACTION_VIEW.equals(action)) { call.reject("Unsupported package action"); return; }
+        if ((Intent.ACTION_MAIN.equals(action) && data != null && !data.trim().isEmpty()) || ((action == null || action.trim().isEmpty()) && data != null && !data.trim().isEmpty())) { call.reject("Unexpected data for this package action"); return; }
+        if (Intent.ACTION_VIEW.equals(action) && !isAllowedExternalUri(data)) { call.reject("Unsafe or unsupported package URI"); return; }
         PackageManager pm = getContext().getPackageManager(); Intent launchIntent = null;
         try {
             if (action != null && !action.trim().isEmpty()) {
@@ -108,9 +528,44 @@ public class MvmLauncherPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openIncomingFile(PluginCall call) {
+        String rawUri = call.getString("uri");
+        String mime = call.getString("mimeType");
+        if (!isSafeScopedContentUri(rawUri)) { call.reject("Only validated external scoped content URIs can be opened"); return; }
+        Uri uri = Uri.parse(rawUri);
+        String safeType = mime;
+        if (safeType == null || safeType.length() > 127
+                || !safeType.matches("(?i)^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+*-]*$")) {
+            safeType = getContext().getContentResolver().getType(uri);
+        }
+        if (safeType == null || safeType.trim().isEmpty()) safeType = "*/*";
+        try {
+            Intent view = new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(uri, safeType);
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent chooser = Intent.createChooser(view, "Open with");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS,
+                    new ComponentName[] { new ComponentName(getContext(), MainActivity.class) });
+            }
+            getActivity().startActivity(chooser);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            result.put("reason", "system chooser started; external file handling is not verified");
+            call.resolve(result);
+        } catch (ActivityNotFoundException e) {
+            JSObject result = new JSObject(); result.put("opened", false);
+            result.put("reason", "no application can handle this file type"); call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject(); result.put("opened", false);
+            result.put("reason", e.getClass().getSimpleName()); call.resolve(result);
+        }
+    }
+
+    @PluginMethod
     public void openUrl(PluginCall call) {
         String url = call.getString("url");
-        if (url == null || url.trim().isEmpty()) { call.reject("url is required"); return; }
+        if (!isAllowedExternalUri(url)) { call.reject("URL scheme or target is not allowed"); return; }
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url)); intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getActivity().startActivity(intent); JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
@@ -120,12 +575,183 @@ public class MvmLauncherPlugin extends Plugin {
     @PluginMethod
     public void openStore(PluginCall call) {
         String packageName = call.getString("packageName"), webUrl = call.getString("webUrl");
-        if (packageName == null || packageName.trim().isEmpty()) { call.reject("packageName is required"); return; }
+        if (packageName == null || packageName.length() > 255 || !packageName.matches("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$")) { call.reject("Valid packageName is required"); return; }
+        if (webUrl != null && !webUrl.trim().isEmpty()) {
+            Uri web = Uri.parse(webUrl);
+            String scheme = web.getScheme();
+            if (!isAllowedExternalUri(webUrl) || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                call.reject("Store fallback must be a valid HTTP(S) URL"); return;
+            }
+        }
         boolean opened=false;
         try { Intent market=new Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id="+Uri.encode(packageName)));market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);getActivity().startActivity(market);opened=true; } catch(Exception ignored){}
         if(!opened&&webUrl!=null&&!webUrl.trim().isEmpty()) {
             try { Intent web=new Intent(Intent.ACTION_VIEW,Uri.parse(webUrl));web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);getActivity().startActivity(web);opened=true; } catch(Exception ignored){}
         }
         JSObject result=new JSObject();result.put("opened",opened);call.resolve(result);
+    }
+
+    @PluginMethod
+    public void share(PluginCall call) {
+        String text = call.getString("text");
+        String requestedMime = call.getString("mime");
+        String mime = requestedMime == null || requestedMime.trim().isEmpty() ? "text/plain" : requestedMime.trim();
+        boolean chooser = call.getBoolean("chooser", true);
+        String fileUri = call.getString("fileUri");
+        if (fileUri != null && fileUri.trim().isEmpty()) fileUri = null;
+        if ((text == null || text.trim().isEmpty()) && fileUri == null) {
+            call.reject("share needs text or an explicit scoped file grant");
+            return;
+        }
+        if (text != null && !text.isEmpty() && !isSafeShareText(text)) {
+            call.reject("Share text is empty, oversized, or contains unsupported control characters");
+            return;
+        }
+        if (!isAllowedShareMime(mime)) {
+            call.reject("Unsupported share MIME type");
+            return;
+        }
+        if (fileUri != null && (requestedMime == null || requestedMime.trim().isEmpty())) {
+            call.reject("File sharing requires an explicit supported MIME type");
+            return;
+        }
+        if (fileUri != null && !isSafeScopedContentUri(fileUri)) {
+            call.reject("File sharing requires a valid scoped content URI");
+            return;
+        }
+        if (fileUri == null && !("text/plain".equals(mime) || "text/csv".equals(mime))) {
+            call.reject("Text sharing only supports text/plain or text/csv MIME types");
+            return;
+        }
+        try {
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType(mime);
+            if (text != null && !text.isEmpty()) send.putExtra(Intent.EXTRA_TEXT, text);
+            if (fileUri != null) {
+                send.putExtra(Intent.EXTRA_STREAM, Uri.parse(fileUri));
+                send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+            Intent outbound = chooser ? Intent.createChooser(send, "MVMCMD") : send;
+            outbound.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(outbound);
+            JSObject result = new JSObject();
+            result.put("started", true);
+            result.put("method", chooser ? "chooser" : "share");
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("started", false);
+            result.put("reason", e.getClass().getSimpleName());
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void lookupContact(PluginCall call) {
+        String query = call.getString("query");
+        if (query == null || query.trim().isEmpty() || query.length() > 120 || hasUnsafeControlCharacters(query, false)) { call.reject("query must be non-empty, safe, and at most 120 characters"); return; }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED) {
+            call.reject("READ_CONTACTS permission is required");
+            return;
+        }
+        String q = query.trim();
+        android.database.Cursor cursor = null;
+        try {
+            Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+            String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ? OR "
+                    + ContactsContract.CommonDataKinds.Phone.NUMBER + " LIKE ?";
+            String pattern = "%" + q + "%";
+            cursor = getContext().getContentResolver().query(
+                    uri,
+                    new String[] {
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER
+                    },
+                    selection,
+                    new String[] { pattern, pattern },
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " COLLATE NOCASE ASC"
+            );
+            JSObject result = new JSObject();
+            if (cursor != null && cursor.moveToFirst()) {
+                result.put("found", true);
+                result.put("name", cursor.getString(0));
+                result.put("phone", cursor.getString(1));
+            } else {
+                result.put("found", false);
+            }
+            call.resolve(result);
+        } catch (SecurityException e) {
+            call.reject("Contacts access is restricted", e);
+        } catch (Exception e) {
+            call.reject("Contact lookup failed", e);
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    @PluginMethod
+    public void openDialer(PluginCall call) {
+        String phone = call.getString("phone");
+        if (!isSafePhoneNumber(phone)) { call.reject("A valid phone number is required"); return; }
+        try {
+            Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(phone.trim())));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void openSmsComposer(PluginCall call) {
+        String phone = call.getString("phone");
+        String body = call.getString("body");
+        if (!isSafePhoneNumber(phone)) { call.reject("A valid phone number is required"); return; }
+        if (body == null || body.trim().isEmpty() || body.length() > 4000 || hasUnsafeControlCharacters(body, true)) { call.reject("SMS body must be non-empty, safe, and at most 4000 characters"); return; }
+        try {
+            Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(phone.trim())));
+            intent.putExtra("sms_body", body);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void openEmailComposer(PluginCall call) {
+        String email = call.getString("email");
+        String subject = call.getString("subject", "");
+        String body = call.getString("body", "");
+        if (!isValidEmailAddress(email) || subject.length() > 200 || body.length() > 4000
+                || hasUnsafeControlCharacters(subject, false) || hasUnsafeControlCharacters(body, true)) { call.reject("Email address, subject, or body is invalid or too long"); return; }
+        try {
+            Uri uri = Uri.parse("mailto:" + Uri.encode(email.trim()))
+                    .buildUpon()
+                    .appendQueryParameter("subject", subject)
+                    .appendQueryParameter("body", body)
+                    .build();
+            Intent intent = new Intent(Intent.ACTION_SENDTO, uri);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("opened", false);
+            call.resolve(result);
+        }
     }
 }

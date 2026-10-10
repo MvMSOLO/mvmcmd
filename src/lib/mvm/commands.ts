@@ -1,6 +1,14 @@
 import type { CommandSpec } from "./types";
+import { normalizeCommandHead } from "./compatibility.ts";
 
-export const COMMANDS: CommandSpec[] = [  {
+export const COMMANDS: CommandSpec[] = [
+  {
+    name: "gaming",
+    aliases: ["game", "game-mode", "game-booster", "gaming-mode", "oyin", "o'yin"],
+    usage: "gaming [game|before <game>|after <game>|launch <game>]",
+    summaryEn: "Assess real telemetry, launch a game, or compare before/after gaming state.",
+    summaryUz: "Gaming telemetrysini baholaydi, o‘yinni ochadi yoki oldin/keyin holatni solishtiradi.",
+  },  {
     name: "english",
     aliases: ["en", "english-learning", "ielts"],
     hidden: true,
@@ -87,6 +95,13 @@ export const COMMANDS: CommandSpec[] = [  {
     summaryUz: "Qadalgan ilovani yechadi.",
   },
   {
+    name: "session",
+    aliases: ["context", "memory"],
+    usage: "session [show|clear]",
+    summaryEn: "Inspect or clear volatile session context and command history.",
+    summaryUz: "Joriy vaqtinchalik sessiya konteksti va buyruqlar tarixini ko‘rsatadi yoki tozalaydi.",
+  },
+  {
     name: "hist",
     aliases: ["history"],
     usage: "hist",
@@ -132,8 +147,86 @@ export const COMMANDS: CommandSpec[] = [  {
     name: "pack",
     aliases: ["package", "apk"],
     usage: "pack <package.name>",
-    summaryEn: "Launch a raw Android package.",
-    summaryUz: "Android package nomini to‘g‘ridan-to‘g‘ri ochadi.",
+    summaryEn: "Launch a raw Android package through the Phase 9 app bridge.",
+    summaryUz: "Phase 9 app bridge orqali Android package nomini ochadi.",
+  },
+  {
+    name: "contact",
+    aliases: ["contacts"],
+    usage: "contact <name|number>",
+    summaryEn: "Look up an explicitly requested contact.",
+    summaryUz: "Aniq so‘ralgan kontaktni qidiradi.",
+  },
+  {
+    name: "dial",
+    aliases: ["call"],
+    usage: "dial <phone>",
+    summaryEn: "Open the phone dialer without placing a call.",
+    summaryUz: "Qo‘ng‘iroq qilmasdan telefon terish oynasini ochadi.",
+  },
+  {
+    name: "sms",
+    aliases: ["text"],
+    usage: "sms <phone> <message>",
+    summaryEn: "Open the SMS composer; delivery is never inferred.",
+    summaryUz: "SMS yozish oynasini ochadi; yuborilgani tasdiqlanmaydi.",
+  },
+  {
+    name: "email",
+    aliases: ["mail"],
+    usage: "email <address> [subject] [body]",
+    summaryEn: "Open an email composer; delivery is never inferred.",
+    summaryUz: "Email yozish oynasini ochadi; yuborilgani tasdiqlanmaydi.",
+  },
+  {
+    name: "copy",
+    aliases: [],
+    usage: "copy <text>",
+    summaryEn: "Copy explicit text to the clipboard.",
+    summaryUz: "Aniq matnni clipboardga nusxalaydi.",
+  },
+  {
+    name: "paste",
+    aliases: ["clipboard"],
+    usage: "paste",
+    summaryEn: "Read the clipboard only after an explicit command.",
+    summaryUz: "Faqat aniq buyruq berilganda clipboardni o‘qiydi.",
+  },
+  {
+    name: "share",
+    aliases: ["send"],
+    usage: "share <text>",
+    summaryEn: "Share explicit text. Private files are not granted silently.",
+    summaryUz: "Aniq matnni ulashadi. Yashirin fayl jim berilmaydi.",
+  },
+  {
+    name: "link",
+    aliases: ["url", "deeplink"],
+    usage: "link <url>",
+    summaryEn: "Open a validated URL or deep link. Completion stays STARTED.",
+    summaryUz: "Tekshirilgan URL yoki deep linkni ochadi. Natija STARTED.",
+  },
+  {
+    name: "openfile",
+    aliases: ["open-file"],
+    hidden: true,
+    usage: "openfile <incoming-file-uri>",
+    summaryEn: "Hand a reviewed incoming file to the system handler.",
+    summaryUz: "Tekshirilgan kiruvchi faylni tizimdagi mos dasturga uzatadi.",
+  },
+  {
+    name: "files",
+    aliases: ["file", "storage", "large-files", "file-search"],
+    usage: "files [storage|choose|list|find <text>|large <MB>|recent|media [type]|duplicates|downloads|documents|cleanup|share <uri>|copy <uri> <name>|move <uri> <name> confirm|delete <uri> confirm|zip <name.zip> <uri...>]",
+    summaryEn: "Inspect storage and search files only inside a folder explicitly selected through Android scoped access.",
+    summaryUz: "Xotira va fayllarni faqat Android ruxsat bergan tanlangan papka ichida tekshiradi.",
+  },
+  {
+    name: "device",
+    aliases: ["hardware", "monitor", "device-info"],
+    usage: "device",
+    summaryEn: "Read real Android device, battery, memory, thermal, display, network and sensor data.",
+    summaryUz: "Android qurilma, batareya, RAM, temperatura, ekran, tarmoq va sensorlarni real o‘qiydi.",
   },
   {
     name: "sys",
@@ -157,11 +250,25 @@ export const COMMANDS: CommandSpec[] = [  {
     summaryUz: "Tilni almashtiradi.",
   },
   {
+    name: "compat",
+    aliases: ["compatibility", "oem", "device-compatibility", "moslik", "mosliklar"],
+    usage: "compat",
+    summaryEn: "Inspect real Android API level, OEM hints, permission gates and safe fallbacks.",
+    summaryUz: "Android API darajasi, OEM ishoralari, ruxsatlar va xavfsiz fallbacklarni tekshiradi.",
+  },
+  {
     name: "help",
     aliases: ["?", "man"],
     usage: "help [cmd]",
     summaryEn: "Command list or one command.",
     summaryUz: "Buyruqlar ro‘yxati.",
+  },
+  {
+    name: "perf",
+    aliases: ["performance", "benchmark"],
+    usage: "perf",
+    summaryEn: "Show measured renderer, command parsing, frame cadence and memory metrics; unknown measurements stay unmeasured.",
+    summaryUz: "Renderer, command parse, frame cadence va xotira o‘lchovlarini ko‘rsatadi; noma’lum ko‘rsatkich taxmin qilinmaydi.",
   },
   {
     name: "date",
@@ -196,25 +303,33 @@ export const COMMANDS: CommandSpec[] = [  {
 const INDEX: Record<string, CommandSpec> = (() => {
   const map: Record<string, CommandSpec> = {};
   for (const c of COMMANDS) {
-    map[c.name] = c;
-    for (const a of c.aliases) map[a] = c;
+    map[normalizeCommandHead(c.name)] = c;
+    for (const a of c.aliases) map[normalizeCommandHead(a)] = c;
   }
   return map;
 })();
 
 export function lookupCommand(token: string): CommandSpec | undefined {
-  return INDEX[token.toLowerCase()];
+  return INDEX[normalizeCommandHead(token)];
 }
 
 const EMPTY_OK = new Set([
+  "gaming",
+  "wallpaper",
+  "paste",
+  "files",
   "ls",
   "hist",
+  "session",
   "recents",
   "clear",
   "perm",
   "install",
   "sys",
+  "device",
   "about",
+  "compat",
+  "perf",
   "help",
   "date",
   "whoami",
@@ -226,7 +341,7 @@ export function parseLine(line: string): { cmd?: CommandSpec; args: string[]; ra
   const raw = line.trim();
   if (!raw) return { args: [], raw };
   const parts = raw.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((p) => p.replace(/^"|"$/g, "")) ?? [];
-  const head = (parts[0] ?? "").toLowerCase();
+  const head = normalizeCommandHead(parts[0] ?? "");
   const spec = lookupCommand(head);
   if (!spec) return { args: parts, raw };
   const canonical = spec.name === head;

@@ -1,4 +1,5 @@
 import type { Lang, PersistedState, UserAlias } from "./types";
+import { isPrivacySensitiveCommand } from "./session-context.ts";
 
 const KEY = "mvmcmd.v1";
 
@@ -21,18 +22,21 @@ export function loadState(): PersistedState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...EMPTY, usage: {}, aliases: [], pins: [], recents: [], history: [] };
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
-    return {
+    const loadedState: PersistedState = {
       v: 1,
       lang: parsed.lang === "en" ? "en" : "uz",
       aliases: Array.isArray(parsed.aliases) ? parsed.aliases : [],
       pins: Array.isArray(parsed.pins) ? parsed.pins : [],
       recents: Array.isArray(parsed.recents) ? parsed.recents : [],
       usage: parsed.usage && typeof parsed.usage === "object" ? parsed.usage : {},
-      history: Array.isArray(parsed.history) ? parsed.history.slice(0, 120) : [],
+      history: [], // Command history is session-only; old persisted entries are intentionally ignored.
       storageGranted: Boolean(parsed.storageGranted),
       notifyGranted: Boolean(parsed.notifyGranted),
       gateSeen: Boolean(parsed.gateSeen),
     };
+    // Immediately remove command history persisted by older versions.
+    saveState(loadedState);
+    return loadedState;
   } catch {
     return { ...EMPTY, usage: {} };
   }
@@ -41,7 +45,8 @@ export function loadState(): PersistedState {
 export function saveState(state: PersistedState): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    // Keep aliases and preferences durable, but never write command text to persistent storage.
+    localStorage.setItem(KEY, JSON.stringify({ ...state, history: [] }));
   } catch {
     /* quota */
   }
@@ -55,8 +60,9 @@ export function recordUse(state: PersistedState, appId: string): PersistedState 
 
 export function pushHistory(state: PersistedState, line: string): PersistedState {
   const trimmed = line.trim();
-  if (!trimmed) return state;
-  const history = [trimmed, ...state.history.filter((h) => h !== trimmed)].slice(0, 120);
+  const cleanHistory = state.history.filter((entry) => !isPrivacySensitiveCommand(entry));
+  if (!trimmed || isPrivacySensitiveCommand(trimmed)) return cleanHistory.length === state.history.length ? state : { ...state, history: cleanHistory };
+  const history = [trimmed, ...cleanHistory.filter((h) => h !== trimmed)].slice(0, 120);
   return { ...state, history };
 }
 

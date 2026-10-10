@@ -5,4 +5,15 @@
     <string name="package_name">com.mvmcmd.launcher</string>
     <string name="custom_url_scheme">com.mvmcmd.launcher</string>
     <string name="wallpaper_description">MVMCMD original 3D home wallpaper engine</string>
+    <string name="share_with_mvcmcmd">Review in MVMCMD</string>
+    <string name="open_with_mvcmcmd">Open through MVMCMD</string>
+    <string name="shortcut_qr_short">QR Scan</string>
+    <string name="shortcut_qr_long">Scan a QR code with MVMCMD</string>
+    <string name="shortcut_camera_short">Camera</string>
+    <string name="shortcut_camera_long">Open MVMCMD Camera</string>
+    <string name="shortcut_english_short">English</string>
+    <string name="shortcut_english_long">Open MVMCMD English Lab</string>
+    <string name="shortcut_notify_short">Notify</string>
+    <string name="shortcut_notify_long">Open MVMCMD Notification Center</string>
+    <string name="shortcut_disabled">Open MVMCMD and choose a command.</string>
 </resources>

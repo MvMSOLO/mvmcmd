@@ -46,3 +46,19 @@ All 30 motion recipes are wired into real MVMCMD UI surfaces. The implementation
 - DevMotion research was used as the reference library for patterns such as spring pop, press ripple, tilt card, dynamic grid/scroll, particle/beam transitions and variable typography.
 - Trending patterns were selected from current DevMotion catalog entries and translated into the MVMCMD visual language rather than embedding an unrelated demo scene.
 - Build verification is running on the final commit via the repository's Android and Windows Actions.
+
+## Juicy Motion Pass
+
+The original 30 motion recipes remain the same; this pass increases their tactile quality instead of adding decorative motion for its own sake.
+
+- Command commit: keyed radial burst with semantic intent/success/warn signal.
+- Search results: staggered spring-in with selected-result overshoot.
+- Quick actions: lift → hover settle → press squash.
+- 3D core/assets: stronger hover response, bounded press compression, subtle idle breathe.
+- Physical UI: anticipation → squash → overshoot → settle.
+- Command submit: focus inhale, hover lift and fast press snap.
+- Signal feedback: success/warn aftershock synced with the existing signal layer.
+- Performance Governor: balanced/low tiers shorten or disable the expensive juice layers.
+- Reduced-motion: all added juice animations collapse to static/transient states.
+
+Host surfaces stay in the existing MVMCMD shell; no new animation runtime or heavy WebGL dependency was introduced.

@@ -4,7 +4,8 @@
   "sideEffects": false,
   "type": "module",
   "overrides": {
-    "nf3": "0.3.17"
+    "nf3": "0.3.17",
+    "uuid": "11.1.1"
   },
   "scripts": {
     "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080",
@@ -16,7 +17,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/mvm/action-engine.test.ts src/lib/mvm/file-intelligence.test.ts src/lib/mvm/session-context.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -103,6 +104,14 @@
   "build": {
     "appId": "com.mvmcmd.desktop",
     "productName": "MVMCMD",
+    "protocols": [
+      {
+        "name": "MVMCMD Command",
+        "schemes": [
+          "mvmcmd"
+        ]
+      }
+    ],
     "asar": true,
     "directories": {
       "output": "release"
@@ -125,7 +134,8 @@
           ]
         }
       ],
-      "artifactName": "MVMCMD-${version}-Windows-${arch}.${ext}"
+      "artifactName": "MVMCMD-${version}-Windows-${arch}.${ext}",
+      "icon": "build/icon.ico"
     },
     "electronVersion": "44.3.0"
   }

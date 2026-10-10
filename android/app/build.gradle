@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+// Production release signing is opt-in and uses secrets injected by the CI runner.
+// Never commit a keystore or passwords to the repository.
+def releaseSigningEnv = [
+    storeFile: System.getenv("ANDROID_KEYSTORE_PATH"),
+    storePassword: System.getenv("ANDROID_KEYSTORE_PASSWORD"),
+    keyAlias: System.getenv("ANDROID_KEY_ALIAS"),
+    keyPassword: System.getenv("ANDROID_KEY_PASSWORD")
+]
+def releaseSigningConfigured = releaseSigningEnv.values().every { value ->
+    value != null && !value.trim().isEmpty()
+}
+
 android {
     namespace = "com.mvmcmd.launcher"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,7 +20,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +28,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseSigningEnv.storeFile)
+                storePassword releaseSigningEnv.storePassword
+                keyAlias releaseSigningEnv.keyAlias
+                keyPassword releaseSigningEnv.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -45,6 +70,7 @@ dependencies {
     implementation "androidx.camera.media3:media3-effect:1.0.0-alpha04"
     implementation "androidx.media3:media3-transformer:1.9.4"
     implementation "androidx.exifinterface:exifinterface:1.4.2"
+    implementation "androidx.documentfile:documentfile:1.0.1"
     implementation "com.google.mlkit:barcode-scanning:17.3.0"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
