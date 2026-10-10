@@ -1,7 +1,10 @@
 # Phase 12 — Communication Engine
 
 ## Status
-PLANNED.
+**COMPLETED** (code + tests).
+
+Previously marked PLANNED; implementation already existed in `src/lib/mvm/communication.ts`
+and native bridges (`MvmContactResolver`, dialer/SMS/email composers). Tests were missing.
 
 ## Goal
 Unify communication-related commands under safe, explicit app and platform bridges.
@@ -24,6 +27,14 @@ Contact and communication data must be requested only when required. MVM CMD mus
 - External delivery is never falsely marked VERIFIED.
 - Failure states explain platform restrictions.
 - APK and EXE CI succeed.
+
+## Evidence (tests)
+`src/lib/mvm/communication.test.ts` covers:
+- `validatePhone` / `validateEmail` boundary values
+- empty SMS body rejected
+- empty copy text rejected
+- dialer / SMS / email results **never** return `verified: true`
+- native-unavailable path returns `status: "unavailable"` outside Android
 
 ## Dependencies
 Phases 2, 5, 8 and 9.
