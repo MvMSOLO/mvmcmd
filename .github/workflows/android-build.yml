@@ -79,6 +79,9 @@ jobs:
       - name: Typecheck web application
         run: npm run typecheck
 
+      - name: Verify release-candidate metadata
+        run: node scripts/check-release-candidate.mjs
+
       - name: Verify native launcher source
         shell: bash
         run: |
