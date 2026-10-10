@@ -80,6 +80,32 @@ jobs:
           console.log("Dependency audit policy gate passed (no high/critical vulnerabilities).");
           NODE
 
+      - name: Audit shipped production dependencies (any advisory blocks release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/mvmcmd-npm-audit-production.json"
+          if npm audit --omit=dev --json > "$REPORT"; then
+            echo "Production dependency audit returned success."
+          else
+            echo "Production dependency audit reported advisories; checking the report."
+          fi
+          node - "$REPORT" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const v = report.metadata?.vulnerabilities;
+          if (!v) throw new Error("Production audit has no vulnerability summary.");
+          console.log("npm audit --omit=dev: " + JSON.stringify(v));
+          for (const [name, advisory] of Object.entries(report.vulnerabilities || {})) {
+            console.log("PRODUCTION ADVISORY: " + advisory.severity + " | " + name + " | range=" + advisory.range);
+          }
+          if ((v.total || 0) > 0) {
+            console.error("Known vulnerabilities in production dependencies block release.");
+            process.exit(1);
+          }
+          console.log("PRODUCTION_DEPENDENCY_AUDIT_SUCCESS: 0 known advisories.");
+          NODE
+
       - name: Typecheck web application
         run: npm run typecheck
 

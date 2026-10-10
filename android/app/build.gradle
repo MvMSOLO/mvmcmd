@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+// Production release signing is opt-in and uses secrets injected by the CI runner.
+// Never commit a keystore or passwords to the repository.
+def releaseSigningEnv = [
+    storeFile: System.getenv("ANDROID_KEYSTORE_PATH"),
+    storePassword: System.getenv("ANDROID_KEYSTORE_PASSWORD"),
+    keyAlias: System.getenv("ANDROID_KEY_ALIAS"),
+    keyPassword: System.getenv("ANDROID_KEY_PASSWORD")
+]
+def releaseSigningConfigured = releaseSigningEnv.values().every { value ->
+    value != null && !value.trim().isEmpty()
+}
+
 android {
     namespace = "com.mvmcmd.launcher"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +28,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseSigningEnv.storeFile)
+                storePassword releaseSigningEnv.storePassword
+                keyAlias releaseSigningEnv.keyAlias
+                keyPassword releaseSigningEnv.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

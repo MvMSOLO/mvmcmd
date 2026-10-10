@@ -1,6 +1,6 @@
 # MVMCMD — Authentic Screenshot and Vertical Video Capture Checklist
 
-**Status: NOT CAPTURED.** No placeholder image should be described as a screenshot from the running application.
+**Status: NOT CAPTURED — physical-device footage still requires a real phone and a human operator.** No placeholder image, generated image, or hosted-emulator capture should be described as a physical-device screenshot.
 
 ## Required images
 
@@ -14,6 +14,10 @@
 - [ ] Final brand screen showing the correct version.
 
 ## Capture quality
+
+- Prefer a real Android phone for launch media. If an emulator is used for an internal engineering preview, label it explicitly as emulator footage and do not use it to close the physical-device acceptance matrix.
+- Record the physical phone locally; this coding session has no attached physical device or camera feed, so it cannot honestly produce a real-phone recording remotely.
+
 
 - Capture directly from the installed candidate build; preserve an unedited original.
 - Record device model, Android version, app commit, APK artifact link, and date with the source files.
