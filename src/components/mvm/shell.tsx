@@ -28,6 +28,7 @@ import { Mvm3D } from "./mvm-3d";
 import { MVM_3D } from "@/lib/mvm/3d-assets";
 import { MOTION_COUNTS } from "@/lib/mvm/motion-system";
 import { Activity, Mic, MicOff } from "lucide-react";
+import { QuickActionChip } from "./quick-action-chip";
 import { isMotionReduced, motionModeDescription, motionModeLabel, nextMotionMode, normalizeMotionMode, MVM_MOTION_STORAGE_KEY, type MvmMotionMode } from "@/lib/mvm/motion-preferences";
 import { cancelVoiceCapture, isVoiceCaptureSupported, speakVoiceInstruction, speakVoiceOutcome, startVoiceCapture, cancelVoiceSpeech } from "@/lib/mvm/voice-assistant";
 import { useMvmPerformanceGovernor } from "@/lib/mvm/performance-governor";
@@ -957,16 +958,12 @@ export function MvmShell() {
         {!input.trim() && (
           <div className="mvm-quick-actions mx-auto flex max-w-6xl items-center gap-2 overflow-x-auto px-4 pt-3 sm:px-6">
             {QUICK_ACTIONS[platform].map((action) => (
-              <button
+              <QuickActionChip
                 key={action.command}
-                type="button"
-                data-mvm-action="quick-action"
-                data-mvm-physical
+                command={action.command}
+                label={lang === "uz" ? action.uz : action.en}
                 onClick={() => commit(action.command)}
-                className="mvm-quick-action mvm-neumorphic-control shrink-0 rounded-full border border-line bg-surface/70 px-3 py-1.5 font-mono text-micro text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
-              >
-                {lang === "uz" ? action.uz : action.en}
-              </button>
+              />
             ))}
             <span className="mvm-shortcut-hint ml-auto hidden shrink-0 font-mono text-micro text-faint lg:inline">
               Ctrl/⌘ K
