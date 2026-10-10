@@ -4,12 +4,15 @@ import {
   AppWindow,
   Bell,
   BookOpen,
+  Calendar,
   Camera,
   CircleHelp,
   Clipboard,
   Clock3,
   Cpu,
+  Download,
   FolderOpen,
+  Gamepad2,
   History,
   Image,
   Info,
@@ -17,28 +20,27 @@ import {
   Link2,
   Mail,
   MessageSquare,
-  Mic,
   Package,
   Phone,
+  Pin,
   QrCode,
+  RotateCcw,
   Search,
   Settings,
   Share2,
   Shield,
+  ShoppingBag,
   Smartphone,
+  Store,
   Terminal,
+  User,
 } from "lucide-react";
 
 /**
  * Visual identity for MVMCMD commands.
- *
- * Icon choices are aligned with Material Symbols semantics from Google Design
- * (camera, qr_code_scanner, wallpaper, translate, notifications, help, devices, …)
- * and implemented with lucide-react so the existing React tree stays consistent
- * with Mic / Activity usage in the shell.
+ * Material Symbol semantics (Google Design) mapped to lucide-react.
  */
 const COMMAND_ICONS: Record<string, LucideIcon> = {
-  // Primary Android quick actions
   camera: Camera,
   qr: QrCode,
   wallpaper: Image,
@@ -46,14 +48,12 @@ const COMMAND_ICONS: Record<string, LucideIcon> = {
   notification: Bell,
   notifications: Bell,
 
-  // Common shell / desktop quick actions
   help: CircleHelp,
   recents: History,
   sys: Cpu,
   device: Smartphone,
   about: Info,
 
-  // Communication
   sms: MessageSquare,
   text: MessageSquare,
   email: Mail,
@@ -63,7 +63,6 @@ const COMMAND_ICONS: Record<string, LucideIcon> = {
   contact: Phone,
   contacts: Phone,
 
-  // App / catalog
   open: AppWindow,
   find: Search,
   search: Search,
@@ -72,7 +71,6 @@ const COMMAND_ICONS: Record<string, LucideIcon> = {
   pack: Package,
   package: Package,
 
-  // Files / clipboard / share
   files: FolderOpen,
   file: FolderOpen,
   storage: FolderOpen,
@@ -83,7 +81,6 @@ const COMMAND_ICONS: Record<string, LucideIcon> = {
   send: Share2,
   link: Link2,
 
-  // System / voice / security
   perm: Shield,
   perms: Shield,
   permissions: Shield,
@@ -97,7 +94,22 @@ const COMMAND_ICONS: Record<string, LucideIcon> = {
   lang: Languages,
   language: Languages,
 
-  // Fallback terminal mark
+  gaming: Gamepad2,
+  game: Gamepad2,
+  pin: Pin,
+  unpin: Pin,
+  bind: Link2,
+  unbind: Link2,
+  install: Download,
+  pwa: Download,
+  store: Store,
+  market: ShoppingBag,
+  date: Calendar,
+  time: Calendar,
+  whoami: User,
+  reset: RotateCcw,
+  birthday: Calendar,
+
   clear: Terminal,
   cls: Terminal,
 };
@@ -121,6 +133,11 @@ export function resolveCommandIconKey(command: string): string {
   return raw;
 }
 
+export function isKnownCommandIcon(command: string): boolean {
+  const key = resolveCommandIconKey(command);
+  return Boolean(key && COMMAND_ICONS[key]);
+}
+
 export function getCommandIcon(command: string): LucideIcon {
   const key = resolveCommandIconKey(command);
   return COMMAND_ICONS[key] ?? Terminal;
@@ -139,7 +156,6 @@ export function CommandIcon({
   return <Icon size={size} className={className} aria-hidden="true" strokeWidth={1.75} />;
 }
 
-/** Material Symbol names used as design reference (documentation only). */
 export const MATERIAL_SYMBOL_REFERENCE = {
   camera: "photo_camera",
   qr: "qr_code_scanner",
@@ -151,4 +167,6 @@ export const MATERIAL_SYMBOL_REFERENCE = {
   sms: "sms",
   email: "mail",
   files: "folder_open",
+  gaming: "sports_esports",
+  open: "open_in_new",
 } as const;
