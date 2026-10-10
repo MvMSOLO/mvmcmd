@@ -1,6 +1,6 @@
 # MVMCMD — Privacy and Permission Review (Draft; approval still required)
 
-**Reviewed from source:** 2026-10-10, candidate app source `8218822ac033f6f05d5548b092f990431e28cae4`.  
+**Reviewed from source:** 2026-10-10, candidate app source after P0/P1 hardening.  
 **Status: SOURCE-BASED REVIEW PREPARED; not an approved public privacy policy.** The actual deployed endpoints, data controller/contact, regional/legal basis, retention requirements, and final installed-build network behavior require owner confirmation.
 
 ## Permission surface found in the Android manifest
@@ -24,7 +24,14 @@ The manifest also sets `android:allowBackup="false"`. The FileProvider is non-ex
 
 ### Notifications
 
-The native notification listener reads other apps' notification title/body, looks for short numeric codes, and classifies call notifications. `MvmNotificationStore` persists up to **120** entries in app-private `SharedPreferences`, with app label, title, body, detected code, timestamp, call flag, and source key. This can include one-time passcodes or other private message contents. The store has a clear method; verify the user-facing clear-history flow on a physical device before release. Do not enable notification access for a user without a clear explanation and explicit OS-settings consent.
+The native notification listener reads other apps' notification title/body, looks for short numeric codes, and classifies call notifications. `MvmNotificationStore` persists up to **120** entries in app-private `SharedPreferences` (MODE_PRIVATE, allowBackup=false), with app label, title, body, detected code, timestamp, call flag, and source key.
+
+**Retention & redaction (updated):**
+- History entries older than **24 hours** are automatically dropped on every read/write.
+- Detected OTP / numeric code fields are **redacted (cleared)** after **15 minutes** so long-lived plaintext secrets are not kept on disk.
+- A user-facing clear method exists; verify the clear-history flow on a physical device before release.
+
+Do not enable notification access for a user without a clear explanation and explicit OS-settings consent.
 
 ### Authentication and network integrations
 
@@ -35,7 +42,7 @@ The client auth code uses `sessionStorage` for a live-preview bearer token path;
 ## Storage and retention checklist
 
 - [x] Android manifest reviewed for declared permissions, backup flag, and FileProvider scope.
-- [x] Native notification store inspected; bounded to 120 entries per its source constant.
+- [x] Native notification store inspected; bounded to 120 entries; 24h retention + 15min OTP redaction implemented.
 - [ ] Confirm whether notification items are cleared on uninstall, app reset, sign-out, and user-requested clear; record verified behavior.
 - [ ] Review every file/photo export path and temporary cache path, including URIs granted to other apps.
 - [ ] Inspect the exact public APK/EXE for outbound destinations, analytics/diagnostics, authentication mode, and any optional connector features.
